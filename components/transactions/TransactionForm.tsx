@@ -1,0 +1,258 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { IconPlus, IconX, IconCurrencyReal, IconRepeat, IconRepeatOff } from "@tabler/icons-react";
+import { createTransaction } from "@/app/actions/transactions";
+import { CREDIT_CATEGORIES, DEBIT_CATEGORIES } from "@/lib/categories";
+import { TransactionType, TransactionCategory, Recurrence, Tag } from "@/lib/types";
+import { TagPicker } from "@/components/tags/TagPicker";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  allTags: Tag[];
+  onSuccess?: () => void;
+}
+
+const today = () => new Date().toISOString().split("T")[0];
+
+export function TransactionForm({ allTags, onSuccess }: Props) {
+  const [isPending, startTransition] = useTransition();
+  const [type, setType] = useState<TransactionType>("debit");
+  const [form, setForm] = useState({
+    date: today(),
+    description: "",
+    amount: "",
+    category: "" as TransactionCategory | "",
+    subcategory: "",
+    notes: "",
+    recurrence: "once" as Recurrence,
+    recurrenceEndsAt: "",
+  });
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [error, setError] = useState("");
+
+  const categories = type === "credit" ? CREDIT_CATEGORIES : DEBIT_CATEGORIES;
+
+  function handleTypeChange(t: TransactionType) {
+    setType(t);
+    setForm((f) => ({ ...f, category: "" }));
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    if (!form.description.trim()) return setError("Descrição obrigatória.");
+    if (!form.amount || Number(form.amount) <= 0) return setError("Valor inválido.");
+    if (!form.category) return setError("Selecione uma categoria.");
+
+    startTransition(async () => {
+      await createTransaction({
+        date: form.date,
+        description: form.description.trim(),
+        amount: Number(form.amount),
+        type,
+        category: form.category as TransactionCategory,
+        subcategory: form.subcategory.trim() || undefined,
+        notes: form.notes.trim() || undefined,
+        recurrence: form.recurrence,
+        recurrenceEndsAt: form.recurrenceEndsAt || undefined,
+        tagIds: selectedTagIds,
+      });
+      setForm({ date: today(), description: "", amount: "", category: "", subcategory: "", notes: "", recurrence: "once", recurrenceEndsAt: "" });
+      setSelectedTagIds([]);
+      onSuccess?.();
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {/* Tipo */}
+      <div>
+        <label className="text-[11px] font-medium text-[var(--color-f2)] mb-1.5 block">Tipo</label>
+        <div className="flex gap-2 bg-[var(--color-bg3)] p-[3px] rounded-[10px]">
+          {(["credit", "debit"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => handleTypeChange(t)}
+              className={cn(
+                "flex-1 py-2 px-3 rounded-[6px] text-[12px] text-center cursor-pointer transition-all duration-150",
+                type === t
+                  ? "bg-[var(--color-bg2)] text-[var(--color-f1)] font-medium border border-[var(--color-border2)]"
+                  : "text-[var(--color-f4)] hover:text-[var(--color-f2)]"
+              )}
+            >
+              {t === "credit" ? "Crédito" : "Débito"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Data + Valor */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-medium text-[var(--color-f2)]">Data</label>
+          <input
+            type="date"
+            value={form.date}
+            onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+            className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-medium text-[var(--color-f2)]">Valor (R$)</label>
+          <div className="relative">
+            <IconCurrencyReal size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)] pointer-events-none" />
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0,00"
+              value={form.amount}
+              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+              className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] pl-9 pr-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Descrição */}
+      <div className="flex flex-col gap-1">
+        <label className="text-[11px] font-medium text-[var(--color-f2)]">Descrição</label>
+        <input
+          type="text"
+          placeholder="Ex: Salário, Aluguel, iFood..."
+          value={form.description}
+          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
+        />
+      </div>
+
+      {/* Categoria */}
+      <div className="flex flex-col gap-1">
+        <label className="text-[11px] font-medium text-[var(--color-f2)]">Categoria</label>
+        <div className="flex flex-col gap-1.5">
+          {categories.map((cat) => (
+            <button
+              key={cat.value}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, category: cat.value }))}
+              className={cn(
+                "flex items-start gap-3 px-3 py-2.5 rounded-[8px] text-left border transition-all duration-150 cursor-pointer",
+                form.category === cat.value
+                  ? "bg-[var(--color-cyan-faint)] border-[var(--color-cyan-border)]"
+                  : "bg-[var(--color-bg3)] border-[var(--color-border)] hover:border-[var(--color-border2)]"
+              )}
+            >
+              <div className="flex-1 min-w-0">
+                <div className={cn("text-[12px] font-medium", form.category === cat.value ? "text-[var(--color-cyan)]" : "text-[var(--color-f2)]")}>
+                  {cat.label}
+                </div>
+                <div className="text-[10px] text-[var(--color-f4)] mt-0.5">{cat.examples}</div>
+              </div>
+              {form.category === cat.value && (
+                <div className="w-2 h-2 rounded-full bg-[var(--color-cyan)] mt-1 flex-shrink-0" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tags */}
+      <div className="flex flex-col gap-1">
+        <label className="text-[11px] font-medium text-[var(--color-f2)]">
+          Tags <span className="text-[var(--color-f4)]">(opcional)</span>
+        </label>
+        <TagPicker
+          initialTags={allTags}
+          selectedTagIds={selectedTagIds}
+          onChange={setSelectedTagIds}
+        />
+      </div>
+
+      {/* Notas */}
+      <div className="flex flex-col gap-1">
+        <label className="text-[11px] font-medium text-[var(--color-f2)]">
+          Notas <span className="text-[var(--color-f4)]">(opcional)</span>
+        </label>
+        <input
+          type="text"
+          placeholder="Observação adicional..."
+          value={form.notes}
+          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+          className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
+        />
+      </div>
+
+      {/* Recorrência */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] font-medium text-[var(--color-f2)]">Recorrência</label>
+        <div className="flex gap-2">
+          {([
+            { value: "once",    label: "Não repete",  icon: IconRepeatOff },
+            { value: "monthly", label: "Todo mês",    icon: IconRepeat },
+            { value: "yearly",  label: "Todo ano",    icon: IconRepeat },
+          ] as { value: Recurrence; label: string; icon: typeof IconRepeat }[]).map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, recurrence: value }))}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[11px] font-medium border transition-all duration-150 cursor-pointer flex-1 justify-center",
+                form.recurrence === value
+                  ? "bg-[var(--color-cyan-faint)] border-[var(--color-cyan-border)] text-[var(--color-cyan)]"
+                  : "bg-[var(--color-bg3)] border-[var(--color-border)] text-[var(--color-f3)] hover:border-[var(--color-border2)] hover:text-[var(--color-f2)]"
+              )}
+            >
+              <Icon size={12} />
+              {label}
+            </button>
+          ))}
+        </div>
+        {form.recurrence === "monthly" && (
+          <div className="flex flex-col gap-1.5 mt-2">
+            <label className="text-[11px] text-[var(--color-f3)]">
+              Término (opcional) — ex: para parcelamentos
+            </label>
+            <input
+              type="month"
+              value={form.recurrenceEndsAt}
+              onChange={e => setForm(f => ({ ...f, recurrenceEndsAt: e.target.value }))}
+              className="h-[36px] bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[6px] px-3 text-[12px] text-[var(--color-f1)] outline-none focus:border-[rgba(34,211,238,0.28)]"
+            />
+            <div className="text-[10px] text-[var(--color-cyan)] bg-[var(--color-cyan-faint)] border border-[var(--color-cyan-border)] rounded-[6px] px-2.5 py-1.5">
+              {form.recurrenceEndsAt ? `Será projetada até ${form.recurrenceEndsAt}.` : "Sem término definido — será projetada indefinidamente."}
+            </div>
+          </div>
+        )}
+        {form.recurrence === "annual" && (
+          <div className="text-[10px] text-[var(--color-cyan)] bg-[var(--color-cyan-faint)] border border-[var(--color-cyan-border)] rounded-[6px] px-2.5 py-1.5 mt-2">
+            Será projetada neste mesmo mês nos próximos anos.
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="text-[11px] text-[var(--color-red)] flex items-center gap-1.5">
+          <IconX size={12} /> {error}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={isPending}
+        className={cn(
+          "flex items-center justify-center gap-2 px-5 py-[10px] rounded-[8px] text-[13px] font-medium cursor-pointer border-none transition-all duration-150",
+          "bg-[var(--color-cyan)] text-[#083344]",
+          "hover:bg-[#38D9F0] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(34,211,238,0.25)]",
+          "active:translate-y-0 active:shadow-none",
+          "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+        )}
+      >
+        <IconPlus size={15} />
+        {isPending ? "Salvando..." : "Registrar transação"}
+      </button>
+    </form>
+  );
+}

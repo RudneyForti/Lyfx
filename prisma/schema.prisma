@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Transaction {
+  id               String           @id @default(cuid())
+  date             DateTime
+  description      String
+  amount           Float
+  type             String
+  category         String
+  subcategory      String?
+  notes            String?
+  recurrence       String           @default("once")
+  recurrenceEndsAt DateTime?
+  context          String?
+  reimbursable     Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  tags             TransactionTag[]
+}
+
+model Goal {
+  id            String        @id @default(cuid())
+  name          String
+  description   String?
+  targetAmount  Float
+  currentAmount Float         @default(0)
+  deadline      DateTime
+  color         String        @default("#22D3EE")
+  icon          String        @default("target")
+  status        String        @default("active")
+  monthlyAmount Float
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  payments      GoalPayment[]
+}
+
+model GoalPayment {
+  id        String    @id @default(cuid())
+  goalId    String
+  dueDate   DateTime
+  amount    Float
+  paid      Boolean   @default(false)
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  goal      Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id           String           @id @default(cuid())
+  name         String           @unique
+  color        String           @default("#22D3EE")
+  icon         String           @default("tag")
+  createdAt    DateTime         @default(now())
+  transactions TransactionTag[]
+}
+
+model TransactionTag {
+  transactionId String
+  tagId         String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([transactionId, tagId])
+}
+
+model Budget {
+  id        String   @id @default(cuid())
+  category  String   @unique
+  amount    Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  password  String
+  avatar    String?
+  age       Int?
+  gender    String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
