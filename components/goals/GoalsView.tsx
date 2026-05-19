@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { createGoal, deleteGoal, markPayment } from "@/app/actions/goals";
 import {
   IconPlus, IconTarget, IconTrash, IconCheck, IconX,
   IconLoader2, IconAlertTriangle, IconCircleCheck, IconSparkles,
+  IconTrendingDown,
 } from "@tabler/icons-react";
 
 const GOAL_COLORS = ["#22D3EE","#A3E635","#FBBF24","#A78BFA","#FB923C","#F472B6","#F87171","#60A5FA"];
@@ -18,6 +20,8 @@ type Goal = {
 };
 
 const PT_MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+type ActiveLiability = { id: string; name: string; interestRate: number; currentBalance: number };
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -254,7 +258,15 @@ function GoalCard({ goal, avgBalance }: { goal: Goal; avgBalance: number }) {
 }
 
 /* ── Main view ── */
-export function GoalsView({ goals, avgMonthlyBalance }: { goals: Goal[]; avgMonthlyBalance: number }) {
+export function GoalsView({
+  goals,
+  avgMonthlyBalance,
+  activeLiabilities = [],
+}: {
+  goals: Goal[];
+  avgMonthlyBalance: number;
+  activeLiabilities?: ActiveLiability[];
+}) {
   const [showForm, setShowForm] = useState(false);
 
   const active    = goals.filter(g => g.status !== "completed");
@@ -262,6 +274,10 @@ export function GoalsView({ goals, avgMonthlyBalance }: { goals: Goal[]; avgMont
   const totalTarget  = active.reduce((s, g) => s + g.targetAmount, 0);
   const totalSaved   = active.reduce((s, g) => s + g.currentAmount, 0);
   const totalMonthly = active.reduce((s, g) => s + g.monthlyAmount, 0);
+
+  // Contextual alert: high-interest debts (>= 5% a.m.) that should be prioritized
+  const highInterestDebts = activeLiabilities.filter(l => l.interestRate >= 5);
+  const totalDebtBalance  = activeLiabilities.reduce((s, l) => s + l.currentBalance, 0);
 
   return (
     <div className="p-8 max-w-[960px]">
@@ -285,6 +301,68 @@ export function GoalsView({ goals, avgMonthlyBalance }: { goals: Goal[]; avgMont
           <IconPlus size={15} /> Nova meta
         </button>
       </div>
+
+      {/* Contextual alert — high-interest liabilities exist */}
+      {highInterestDebts.length > 0 && active.length > 0 && (
+        <div style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          padding: "14px 16px",
+          background: "rgba(248,113,113,0.06)",
+          border: "1px solid rgba(248,113,113,0.25)",
+          borderRadius: 10,
+          marginBottom: 20,
+        }}>
+          <IconTrendingDown size={16} style={{ color: "var(--color-red)", flexShrink: 0, marginTop: 1 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-red)", marginBottom: 3 }}>
+              Atenção: você tem {highInterestDebts.length === 1 ? "1 dívida" : `${highInterestDebts.length} dívidas`} com juros altos ({highInterestDebts.map(l => `${l.name} (${l.interestRate}% a.m.)`).join(", ")})
+            </div>
+            <div style={{ fontSize: 11, color: "var(--color-f3)", lineHeight: 1.5 }}>
+              Com <strong style={{ color: "var(--color-red)" }}>{fmt(totalDebtBalance)}</strong> em dívidas caras,
+              quitá-las antes pode render mais do que guardar para metas.
+              Considere pausar novas metas até eliminar os juros mais altos.
+            </div>
+          </div>
+          <Link
+            href="/liabilities"
+            style={{
+              flexShrink: 0,
+              fontSize: 11,
+              padding: "5px 12px",
+              borderRadius: 6,
+              background: "rgba(248,113,113,0.1)",
+              border: "1px solid rgba(248,113,113,0.25)",
+              color: "var(--color-red)",
+              textDecoration: "none",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Ver passivos
+          </Link>
+        </div>
+      )}
+
+      {/* Contextual info — small debts, no goals affected */}
+      {activeLiabilities.length > 0 && highInterestDebts.length === 0 && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "10px 14px",
+          background: "rgba(34,211,238,0.04)",
+          border: "1px solid var(--color-cyan-border)",
+          borderRadius: 8,
+          marginBottom: 20,
+          fontSize: 11,
+          color: "var(--color-f3)",
+        }}>
+          <IconCircleCheck size={13} style={{ color: "var(--color-green)", flexShrink: 0 }} />
+          Você tem {activeLiabilities.length === 1 ? "1 passivo ativo" : `${activeLiabilities.length} passivos ativos`} mas com juros baixos — suas metas estão bem priorizadas.
+        </div>
+      )}
 
       {/* Summary cards */}
       {active.length > 0 && (

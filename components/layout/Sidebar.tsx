@@ -17,6 +17,7 @@ import {
   IconHeartRateMonitor,
   IconUser,
   IconLogout,
+  IconTrendingDown,
 } from "@tabler/icons-react";
 import { logout } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ const navGroups = [
       { href: "/planning", label: "Plano Mensal", icon: IconCalendarMonth },
       { href: "/budget", label: "Orçamento", icon: IconWallet },
       { href: "/goals", label: "Metas", icon: IconTarget },
+      { href: "/liabilities", label: "Passivos", icon: IconTrendingDown },
       { href: "/projections", label: "Projeções", icon: IconChartLine },
       { href: "/fixed-expenses", label: "Contas fixas", icon: IconCalendarDue },
     ],
