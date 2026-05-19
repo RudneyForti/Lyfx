@@ -135,6 +135,11 @@ export async function getDRESummary(month?: number, year?: number): Promise<DRES
     debitFixed + debitVariable + debitCommitted +
     debitLongterm + debitSeasonal + debitUnexpected + debitIntentional;
 
+  const afterFixed     = creditTotal - debitFixed;
+  const afterVariable  = afterFixed  - debitVariable;
+  const afterCommitted = afterVariable - debitCommitted;
+  const net            = creditTotal - debitTotal;
+
   return {
     credits: { fixed: creditFixed, variable: creditVariable, total: creditTotal },
     debits: {
@@ -147,6 +152,8 @@ export async function getDRESummary(month?: number, year?: number): Promise<DRES
       intentional: debitIntentional,
       total: debitTotal,
     },
-    result: creditTotal - debitTotal,
+    margins: { afterFixed, afterVariable, afterCommitted, net },
+    saved: debitLongterm,
+    result: net,
   };
 }

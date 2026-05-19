@@ -1,5 +1,5 @@
 # Lyfx — Documentação Técnica
-> Life Fixed · v0.1 · Maio 2026
+> Life Fixed · v0.5.0 · Maio 2026
 
 ---
 
@@ -283,13 +283,50 @@ Formulário unificado de login e criação de conta.
 
 ### 6.3 Dashboard (`/dashboard`)
 
-Visão macro do período selecionado.
+Centro de comando financeiro do período atual. Redesenhado na v0.5 para expor diagnóstico, não apenas registro.
 
-- **Navegação de mês**: avançar/recuar meses com atualização dos dados
-- **KPIs principais**: receita total, despesa total, resultado (receita − despesa)
-- **DRE resumida**: breakdown por categoria (crédito fixo, crédito variável, cada tipo de débito)
-- **Gráfico de barras**: histórico mensal comparativo
-- **Transações recentes**: últimos lançamentos do período selecionado
+#### KPI Cards
+Quatro métricas no topo da página:
+- **Saldo**: resultado líquido do mês (receita − todas as despesas). Verde se positivo, vermelho se negativo
+- **Receita**: soma de todos os créditos do mês
+- **Gastos**: soma de todas as despesas do mês
+- **Poupado**: valor alocado em `debit_longterm` — o que foi direcionado para longo prazo
+
+#### DRE em cascata com margens intermediárias
+A principal evolução analítica da plataforma. Em vez de exibir apenas totais por categoria, o DRE agora mostra **três margens progressivas** após cada camada de dedução:
+
+| Nível | Cálculo | Significado |
+|---|---|---|
+| **Sobra após fixos** | Receita − Despesas fixas | Quanto sobra após pagar as obrigações certas |
+| **Margem operacional** | Sobra após fixos − Despesas variáveis | Quanto sobra após o custo de vida recorrente |
+| **Resultado operacional** | Margem operacional − Comprometido | Quanto sobra após honrar todas as dívidas ativas |
+
+Cada margem é exibida com badge colorido (verde/vermelho) inline na linha de dedução correspondente. Isso transforma uma lista de gastos em um **diagnóstico financeiro em cascata**.
+
+#### `DRESummary` — tipo atualizado
+O tipo `DRESummary` em `lib/types.ts` ganhou dois campos:
+- `margins: { afterFixed, afterVariable, afterCommitted, net }` — as quatro margens calculadas
+- `saved: number` — atalho para `debits.longterm`, usado nos KPI cards
+
+#### Lyfx Insight
+Banner contextual gerado com base nas regras de prioridade:
+1. Resultado negativo → alerta com valor do rombo
+2. Comprometido > 35% da receita → alerta de dívida alta
+3. Meta ativa + saldo livre → sugestão de redirecionamento
+4. Taxa de poupança < 10% → sugestão de aumento
+5. Mês saudável → confirmação positiva com taxa de poupança
+
+#### Goals Mini Widget
+Widget lateral com barra de progresso para cada meta ativa (até 4). Acesso direto para `/goals`.
+
+#### Gráfico de tendência mensal
+Barras dos últimos 6 meses de gastos. Mês atual destacado em cyan. Tooltip com receita, despesa e resultado ao passar o mouse.
+
+#### Transações recentes
+Últimos 8 lançamentos do mês, com acesso direto para `/transactions`.
+
+#### Fonte de dados (`app/actions/dashboard.ts`)
+Action dedicada que busca em paralelo: DRE summary, transações recentes, metas ativas, trend mensal (6 meses) e todas as tags — tudo em um único `Promise.all` para minimizar waterfalls.
 
 ### 6.4 Transações (`/transactions`)
 
@@ -507,11 +544,13 @@ lyfx/
 │   │   ├── profile/page.tsx
 │   │   └── education/page.tsx    # (pendente)
 │   ├── actions/                  # Server Actions — mutações e queries
-│   │   ├── transactions.ts
+│   │   ├── dashboard.ts          # getDashboardData() — busca tudo em paralelo
+│   │   ├── transactions.ts       # getDRESummary() agora retorna margins + saved
 │   │   ├── tags.ts
 │   │   ├── budgets.ts
 │   │   ├── goals.ts
 │   │   ├── projections.ts
+│   │   ├── reports.ts
 │   │   └── user.ts
 │   ├── api/
 │   │   └── clear-session/route.ts  # Route Handler — limpa cookie órfão
@@ -534,10 +573,18 @@ lyfx/
 │   │   ├── TransactionForm.tsx
 │   │   ├── EditTransactionModal.tsx
 │   │   └── TransactionList.tsx
+│   ├── dashboard/
+│   │   ├── DRE.tsx               # DRE em cascata com margens intermediárias
+│   │   ├── KPICards.tsx          # 4 cards: Saldo, Receita, Gastos, Poupado
+│   │   ├── InsightBanner.tsx     # Lyfx Insight — dica contextual gerada por regras
+│   │   ├── GoalsMiniWidget.tsx   # Barras de progresso das metas ativas
+│   │   └── MonthlyTrendChart.tsx # Gráfico de gastos dos últimos 6 meses
 │   ├── budget/BudgetView.tsx
+│   ├── education/EducationView.tsx
 │   ├── fixed-expenses/FixedExpensesView.tsx
 │   ├── goals/GoalsView.tsx
 │   ├── projections/ProjectionsView.tsx
+│   ├── reports/ReportsView.tsx
 │   ├── tags/
 │   │   ├── TagPicker.tsx
 │   │   └── TagsManager.tsx
@@ -607,23 +654,28 @@ lyfx/
 
 ## 11. Próximos Passos
 
-### Imediatos (próximas sessões)
+### Plano de evolução — análise do consultor financeiro (v0.5+)
 
-| # | Tarefa | Complexidade | Dependências |
-|---|---|---|---|
-| 1 | **Página de Educação** (`/education`) | Média | Nenhuma |
-| 2 | **Página de Relatórios** (`/reports`) | Alta | Transactions, Tags, Budget |
-| 3 | **Isolamento de dados por userId** | Alta | Migration + todas as actions |
+Baseado em análise técnica e bibliográfica do produto, as evoluções foram priorizadas em fases:
 
-### Roadmap de produto
+| Fase | Entregue | Descrição |
+|---|---|---|
+| **Fase 1** | ✅ v0.5.0 | DRE com margens intermediárias + Dashboard redesenhado (KPI cards, Insight, Goals mini, trend chart) |
+| **Fase 2** | 🔲 Pendente | Integridade de parcelamento: campos `installmentOf`, `installmentNumber`, `installmentTotal` em Transaction |
+| **Fase 3** | 🔲 Pendente | Budget completo: cobrir receita esperada e alocação intencional, não só teto de despesas |
+| **Fase 4** | 🔲 Pendente | Score de saúde financeira: % comprometida, meses de reserva, perfil (em recuperação / estabilizado / em construção / livre) |
+| **Fase 5** | 🔲 Pendente | Passivos (`Liability`): cheque especial, rotativo, empréstimos. Alerta contextual nas Metas. Modo Recuperação |
+| **Fase 6** | 🔲 Roadmap | Reembolso com tracking, provisão sazonal automática, importação OFX/CSV |
 
-| Funcionalidade | Descrição |
-|---|---|
-| Importação de extratos | CSV/OFX de bancos brasileiros |
-| App mobile nativo | iOS + Android |
-| Modo SaaS | Multi-tenant com isolamento por usuário |
-| Notificações | Metas em atraso, orçamento próximo do limite |
-| Relatório de patrimônio | Evolução do saldo ao longo do tempo |
+### Isolamento de dados — plano técnico
+
+Quando implementado, o plano é:
+
+1. Adicionar `userId String` em `Transaction`, `Tag`, `Budget`, `Goal`
+2. Alterar constraints únicas: `Tag.name` → `@@unique([userId, name])`, `Budget.category` → `@@unique([userId, category])`
+3. Atualizar todas as queries nas 4 actions para incluir `where: { userId }`
+4. Migration manual: buscar o único User existente e setar seu id em todos os registros antes de aplicar o `NOT NULL`
+5. Estimativa: ~1h de desenvolvimento
 
 ### Isolamento de dados — plano técnico
 
@@ -637,4 +689,4 @@ Quando implementado, o plano é:
 
 ---
 
-*Documentação gerada em 19/05/2026. Reflete o estado do sistema na versão 0.1.*
+*Última atualização: 19/05/2026. Versão atual: 0.5.0.*

@@ -63,5 +63,12 @@ export interface DRESummary {
     intentional: number;
     total: number;
   };
+  margins: {
+    afterFixed: number;      // receita − debit_fixed
+    afterVariable: number;   // afterFixed − debit_variable
+    afterCommitted: number;  // afterVariable − debit_committed (resultado operacional)
+    net: number;             // resultado final
+  };
+  saved: number;   // debit_longterm — quanto foi alocado para longo prazo
   result: number;
 }
