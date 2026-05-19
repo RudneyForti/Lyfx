@@ -6,6 +6,7 @@ import { KPICards } from "@/components/dashboard/KPICards";
 import { InsightBanner } from "@/components/dashboard/InsightBanner";
 import { GoalsMiniWidget } from "@/components/dashboard/GoalsMiniWidget";
 import { MonthlyTrendChart } from "@/components/dashboard/MonthlyTrendChart";
+import { HealthScoreCard } from "@/components/dashboard/HealthScoreCard";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { Transaction } from "@/lib/types";
 
@@ -14,7 +15,7 @@ export default async function DashboardPage() {
   const month = now.getMonth() + 1;
   const year  = now.getFullYear();
 
-  const { summary, transactions, goals, trend, allTags } = await getDashboardData(month, year);
+  const { summary, transactions, goals, trend, allTags, healthScore } = await getDashboardData(month, year);
 
   const monthName = now.toLocaleDateString("pt-BR", { month: "long" });
 
@@ -64,6 +65,7 @@ export default async function DashboardPage() {
 
         {/* Right: Goals + Insight + Transactions */}
         <div className="flex flex-col gap-4">
+          <HealthScoreCard healthScore={healthScore} />
           <GoalsMiniWidget goals={goals} />
           <InsightBanner summary={summary} goals={goals} />
 

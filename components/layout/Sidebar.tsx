@@ -14,6 +14,7 @@ import {
   IconReportAnalytics,
   IconTags,
   IconCalendarMonth,
+  IconHeartRateMonitor,
   IconUser,
   IconLogout,
 } from "@tabler/icons-react";
@@ -50,8 +51,9 @@ const navGroups = [
   {
     label: "Análise",
     items: [
-      { href: "/reports", label: "Relatórios", icon: IconReportAnalytics },
-      { href: "/tags", label: "Minhas tags", icon: IconTags },
+      { href: "/reports",  label: "Relatórios",          icon: IconReportAnalytics },
+      { href: "/health",   label: "Saúde financeira",     icon: IconHeartRateMonitor },
+      { href: "/tags",     label: "Minhas tags",          icon: IconTags },
     ],
   },
   {

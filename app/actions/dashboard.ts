@@ -2,11 +2,12 @@
 
 import { db } from "@/lib/db";
 import { getDRESummary } from "./transactions";
+import { getHealthData } from "./health";
 
 const PT_MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 export async function getDashboardData(month: number, year: number) {
-  const [summary, transactions, goals, trend, allTags] = await Promise.all([
+  const [summary, transactions, goals, trend, allTags, healthData] = await Promise.all([
     getDRESummary(month, year),
     db.transaction.findMany({
       where: {
@@ -26,9 +27,10 @@ export async function getDashboardData(month: number, year: number) {
     }),
     getMonthlyTrend(month, year),
     db.tag.findMany({ orderBy: { name: "asc" } }),
+    getHealthData(month, year),
   ]);
 
-  return { summary, transactions, goals, trend, allTags };
+  return { summary, transactions, goals, trend, allTags, healthScore: healthData.healthScore };
 }
 
 async function getMonthlyTrend(currentMonth: number, currentYear: number) {
@@ -37,7 +39,7 @@ async function getMonthlyTrend(currentMonth: number, currentYear: number) {
   for (let i = 5; i >= 0; i--) {
     const d = new Date(currentYear, currentMonth - 1 - i, 1);
     const y = d.getFullYear();
-    const m = d.getMonth(); // 0-indexed
+    const m = d.getMonth();
     const start = new Date(y, m, 1);
     const end   = new Date(y, m + 1, 0, 23, 59, 59);
 
@@ -46,8 +48,9 @@ async function getMonthlyTrend(currentMonth: number, currentYear: number) {
       select: { amount: true, type: true },
     });
 
-    const income  = txs.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-    const expense = txs.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+    // fix: DB stores "credit"/"debit", not "income"/"expense"
+    const income  = txs.filter(t => t.type === "credit").reduce((s, t) => s + t.amount, 0);
+    const expense = txs.filter(t => t.type === "debit").reduce((s, t) => s + t.amount, 0);
 
     months.push({
       label: PT_MONTHS[m],
