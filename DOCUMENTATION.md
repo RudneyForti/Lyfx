@@ -1,5 +1,5 @@
 # Lyfx — Documentação Técnica
-> Life Fixed · v0.6.0 · Maio 2026
+> Life Fixed · v0.7.0 · Maio 2026
 
 ---
 
@@ -190,6 +190,16 @@ Atualmente configurado como aplicação single-user local. Arquitetura prevista 
 │ paidAt          │ DateTime?    │ Preenchido ao marcar pago      │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 └─────────────────┴──────────────┴────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         SETTINGS                                │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ expectedMonthlyIncome│ Float   │ Receita mensal esperada        │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Nota: tabela singleton — sempre um único registro, criado lazily no primeiro acesso via getOrCreate().
 ```
 
 ### Diagrama de relações
@@ -349,14 +359,15 @@ Listagem e criação de lançamentos financeiros.
 
 ### 6.5 Orçamento (`/budget`)
 
-Limites mensais por categoria de despesa.
+Plano financeiro mensal: receita esperada, alocações por categoria e balanço planejado vs real.
 
-- **Criação/edição**: define um teto de gasto por categoria
-- **Upsert**: criar ou atualizar usa a mesma operação (category é unique)
-- **Progress bars**: verde (< 70%), amarelo (70–99%), vermelho (≥ 100%)
-- **Totalizadores**: soma dos limites, soma do gasto atual, percentual global
-- **Navegação de mês**: compara gasto real do mês vs limite definido
-- **Interação com Transaction**: o gasto real é calculado somando transações do tipo `expense` daquele mês na categoria correspondente
+- **Receita esperada**: valor único global editável inline. Salvo em `Settings.expectedMonthlyIncome`. Comparado com receita real do mês selecionado via barra de progresso verde
+- **Alocações por categoria**: substitui o conceito de "teto de gasto" por "alocação intencional" — para onde você planeja direcionar o dinheiro. Exibe `X% da receita esperada` abaixo do valor quando a receita está configurada
+- **Upsert de alocação**: `setBudget(category, amount)` usa `upsert` (category é unique)
+- **Progress bars por categoria**: verde (< 75%), amarelo (75–99%), vermelho (≥ 100%) — gasto vs alocado
+- **Navegação de mês**: o gasto real filtra transações do mês selecionado client-side; alocações são globais (mesmo plano para todos os meses)
+- **Balanço**: card com duas colunas — Planejado (receita esperada − total alocado) e Real (receita real − total gasto do mês)
+- **Settings singleton**: `getSettings()` usa padrão get-or-create; registro criado automaticamente na primeira visita
 
 ### 6.6 Contas Fixas (`/fixed-expenses`)
 
@@ -446,7 +457,11 @@ TAG
   └── aparece → FIXED-EXPENSES (breakdown de tags nos fixos)
 
 BUDGET
-  └── compara com → TRANSACTION (join lógico por category string)
+  ├── compara com → TRANSACTION (join lógico por category string)
+  └── receita esperada lida de → SETTINGS (expectedMonthlyIncome)
+
+SETTINGS
+  └── alimenta → BUDGET (receita esperada para cálculo de % e balanço)
 
 GOAL
   ├── gera → GOAL_PAYMENT (N cobranças ao criar)
@@ -503,6 +518,26 @@ Usuário clica em parcela → ActionBar → Editar
               └── busca todas as parcelas com date >= hoje
                     └── atualiza cada uma (description, amount, type, category, notes, tags)
                           └── re-aplica sufixo (N/M) em cada descrição
+```
+
+### Fluxo de dados — orçamento mensal
+
+```
+Usuário define receita esperada
+  └── updateExpectedIncome(amount) → Settings.expectedMonthlyIncome
+
+Usuário define alocação por categoria
+  └── setBudget(category, amount) → Budget upsert
+
+BudgetView ao carregar o mês:
+  ├── filtra transactions pelo mês/ano selecionado client-side
+  ├── calcula realIncome = soma de credits do mês
+  ├── calcula totalSpent = soma de debits do mês
+  ├── calcula totalAllocated = soma de Budget.amount
+  ├── por categoria: pct = spentByCategory / allocation
+  └── balanço:
+        plannedBalance = expectedMonthlyIncome - totalAllocated
+        realBalance    = realIncome - totalSpent
 ```
 
 ### Fluxo de dados — criação de meta
@@ -699,7 +734,7 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 |---|---|---|
 | **Fase 1** | ✅ v0.5.0 | DRE com margens intermediárias + Dashboard redesenhado (KPI cards, Insight, Goals mini, trend chart) |
 | **Fase 2** | ✅ v0.6.0 | Integridade de parcelamento: `installmentGroupId`, `installmentNumber`, `installmentTotal` em Transaction. Loop de projeções para parcelas. `TransactionForm` com modo parcelado. `TransactionList` com ActionBar animada. `EditTransactionModal` em 3 modos (single/installment/recurring). Padding padronizado (`p-8`) em todas as páginas. |
-| **Fase 3** | 🔲 Pendente | Budget completo: cobrir receita esperada e alocação intencional, não só teto de despesas |
+| **Fase 3** | ✅ v0.7.0 | Budget completo: modelo `Settings` com `expectedMonthlyIncome`, action `getSettings`/`updateExpectedIncome`, BudgetView redesenhado em 4 seções (receita esperada, nav mensal, alocações por categoria com % da receita, balanço planejado vs real). |
 | **Fase 4** | 🔲 Pendente | Score de saúde financeira: % comprometida, meses de reserva, perfil (em recuperação / estabilizado / em construção / livre) |
 | **Fase 5** | 🔲 Pendente | Passivos (`Liability`): cheque especial, rotativo, empréstimos. Alerta contextual nas Metas. Modo Recuperação |
 | **Fase 6** | 🔲 Roadmap | Reembolso com tracking, provisão sazonal automática, importação OFX/CSV |
@@ -716,4 +751,4 @@ Quando implementado, o plano é:
 
 ---
 
-*Última atualização: 19/05/2026. Versão atual: 0.6.0.*
+*Última atualização: 19/05/2026. Versão atual: 0.7.0.*
