@@ -2,9 +2,7 @@
 
 import { db } from "@/lib/db";
 import { getDRESummary } from "./transactions";
-import { computeHealthScore, type HealthScore } from "@/lib/health";
-
-export type { HealthScore };
+import { computeHealthScore } from "@/lib/health";
 
 export async function getHealthData(month: number, year: number) {
   // DRE do mês atual
