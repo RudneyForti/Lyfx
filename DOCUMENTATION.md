@@ -1,5 +1,5 @@
 # Lyfx — Documentação Técnica
-> Life Fixed · v0.7.0 · Maio 2026
+> Life Fixed · v0.9.0 · Maio 2026
 
 ---
 
@@ -200,6 +200,23 @@ Atualmente configurado como aplicação single-user local. Arquitetura prevista 
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
 Nota: tabela singleton — sempre um único registro, criado lazily no primeiro acesso via getOrCreate().
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        LIABILITY                                │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ name            │ String       │ Nome da dívida                 │
+│ type            │ String       │ Ver tipos abaixo               │
+│ currentBalance  │ Float        │ Saldo devedor atual            │
+│ interestRate    │ Float        │ Taxa de juros % ao mês         │
+│ minimumPayment  │ Float        │ Parcela mínima mensal          │
+│ creditor        │ String?      │ Nome do credor                 │
+│ notes           │ String?      │ Observações livres             │
+│ status          │ String       │ "active" | "paid_off"          │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Tipos de liability: "cheque_especial" | "rotativo" | "emprestimo" | "financiamento" | "outro"
 ```
 
 ### Diagrama de relações
@@ -216,9 +233,12 @@ USER
  ├── BUDGET
  │      └── category (mesma key de Transaction.category — lógica, sem FK)
  │
- └── GOAL ──────────< GOAL_PAYMENT
-          │
-          └── monthlyAmount = targetAmount / meses_até_deadline
+ ├── GOAL ──────────< GOAL_PAYMENT
+ │        │
+ │        └── monthlyAmount = targetAmount / meses_até_deadline
+ │
+ └── LIABILITY  (sem FK — entidade independente)
+          └── status: active | paid_off
 ```
 
 ---
@@ -429,7 +449,63 @@ Edição dos dados pessoais e credenciais.
 - **Acesso ao Studio**: botão na seção "Avançado" que leva para `/studio`
 - **Sidebar**: usa o nome e avatar do perfil via prop injetada pelo `AppLayout`
 
-### 6.11 Studio (`/studio`)
+### 6.11 Saúde Financeira (`/health`)
+
+Score diagnóstico com 4 dimensões e perfil evolutivo.
+
+#### Score (0–100 pts)
+
+| Dimensão | Peso | Critério máximo |
+|---|---|---|
+| Comprometimento | 30 pts | Comprometido ≤ 30% da receita |
+| Poupança | 25 pts | Poupança ≥ 20% da receita |
+| Resultado | 25 pts | Resultado líquido positivo |
+| Reserva | 20 pts | ≥ 6 meses de reserva |
+
+#### Perfis
+
+| Score | Perfil | Cor |
+|---|---|---|
+| 0–39 | Em Recuperação | Vermelho `#F87171` |
+| 40–59 | Estabilizado | Âmbar `#FBBF24` |
+| 60–79 | Em Construção | Cyan `#22D3EE` |
+| 80–100 | Livre | Verde `#4ADE80` |
+
+- **Gauge SVG**: semicírculo animado mostrando o score atual
+- **4 `DimensionCard`s**: pontuação por dimensão com barra de progresso e descrição contextual
+- **Badge de perfil**: nome + faixa de pontos + "Faltam X pts para Y"
+- **Tip banner**: dica priorizada baseada na dimensão de menor pontuação
+- **Widget no dashboard**: `HealthScoreCard` no topo da coluna direita com score, perfil e link para `/health`
+
+#### Fonte de dados (`app/actions/health.ts`)
+
+- `getDRESummary(month, year)` — DRE do mês atual
+- `db.transaction.aggregate` — acumulado all-time de `debit_longterm` como proxy de reserva
+- Média de despesas dos últimos 3 meses completos → `reserveMonths = totalLongterm / avgMonthlyExpenses`
+- Cálculo puro em `lib/health.ts` (`computeHealthScore`) — sem acesso ao banco
+
+### 6.12 Passivos (`/liabilities`)
+
+Gerenciamento de dívidas com plano de quitação em método avalanche.
+
+- **Cadastro**: nome, tipo, saldo devedor, taxa de juros (% a.m.), pagamento mínimo, credor (opcional), notas (opcional)
+- **Tipos suportados**: Cheque especial, Crédito rotativo, Empréstimo, Financiamento, Outro
+- **Cards de resumo**: total em dívidas ativas, juros queimados/mês, pagamento mínimo total
+- **LiabilityCard**: por passivo — saldo, taxa, mínimo, previsão de quitação
+  - ≤ 12 meses → verde | ≤ 36 meses → âmbar | > 36 meses → vermelho
+  - Alerta vermelho quando o mínimo não cobre os juros (dívida nunca quitada)
+- **Edição inline**: modal com re-cálculo em tempo real da previsão de quitação
+- **Marcar como quitada**: muda `status` para `paid_off`; permanece visível na seção "Quitadas"
+- **Modo Recuperação** (seção recolhível):
+  - Ordenação automática por maior taxa de juros (método avalanche)
+  - Calculadora de pagamento extra: digita um valor, o sistema mostra quantos meses são economizados em cada dívida
+  - Extra aplicado à dívida de maior juro primeiro; demais recebem apenas o mínimo
+  - Badge de prioridade (1, 2, 3...) por dívida
+  - Tip explicando o método avalanche
+- **`lib/liabilities.ts`**: função pura `monthsToPayoff(balance, monthlyRate, payment)` — separada do arquivo `"use server"` (limitação do Turbopack)
+- **Alerta contextual em `/goals`**: se existirem passivos com taxa ≥ 5% a.m., o GoalsView exibe um banner vermelho listando as dívidas e sugerindo priorização; se todas as dívidas forem de baixo juro, exibe confirmação verde
+
+### 6.13 Studio (`/studio`)
 
 Painel administrativo protegido por senha.
 
@@ -469,6 +545,14 @@ GOAL
 
 GOAL_PAYMENT
   └── controla → GOAL.status (active → completed quando currentAmount >= targetAmount)
+
+LIABILITY
+  ├── exibido → /liabilities (LiabilitiesView — CRUD + Modo Recuperação)
+  └── alerta → /goals (GoalsView — banner contextual se taxa >= 5% a.m.)
+
+HEALTH
+  ├── lê → TRANSACTION (via getDRESummary + aggregate debit_longterm)
+  └── exibido → DASHBOARD (HealthScoreCard widget) + /health (HealthView completa)
 
 USER
   ├── autentica → toda a aplicação (via cookie lyfx_session)
@@ -613,16 +697,21 @@ lyfx/
 │   │   ├── planning/page.tsx
 │   │   ├── reports/page.tsx      # (pendente)
 │   │   ├── tags/page.tsx
+│   │   ├── health/page.tsx
+│   │   ├── liabilities/page.tsx
 │   │   ├── profile/page.tsx
 │   │   └── education/page.tsx    # (pendente)
 │   ├── actions/                  # Server Actions — mutações e queries
 │   │   ├── dashboard.ts          # getDashboardData() — busca tudo em paralelo
-│   │   ├── transactions.ts       # getDRESummary() agora retorna margins + saved
+│   │   ├── transactions.ts       # getDRESummary() retorna margins + saved
 │   │   ├── tags.ts
 │   │   ├── budgets.ts
 │   │   ├── goals.ts
 │   │   ├── projections.ts
 │   │   ├── reports.ts
+│   │   ├── health.ts             # getHealthData() — DRE + reserva + score
+│   │   ├── liabilities.ts        # CRUD de passivos
+│   │   ├── settings.ts           # getSettings / updateExpectedIncome
 │   │   └── user.ts
 │   ├── api/
 │   │   └── clear-session/route.ts  # Route Handler — limpa cookie órfão
@@ -654,7 +743,10 @@ lyfx/
 │   ├── budget/BudgetView.tsx
 │   ├── education/EducationView.tsx
 │   ├── fixed-expenses/FixedExpensesView.tsx
-│   ├── goals/GoalsView.tsx
+│   ├── goals/GoalsView.tsx       # + alerta contextual de passivos
+│   ├── health/HealthView.tsx     # gauge SVG + 4 dimensões + perfil
+│   ├── liabilities/
+│   │   └── LiabilitiesView.tsx  # CRUD + Modo Recuperação (avalanche)
 │   ├── projections/ProjectionsView.tsx
 │   ├── reports/ReportsView.tsx
 │   ├── tags/
@@ -669,6 +761,8 @@ lyfx/
 │   ├── categories.ts             # Definição das 9 categorias com labels e exemplos
 │   ├── tag-icons.ts              # Mapa TAG_ICONS + paleta TAG_COLORS
 │   ├── utils.ts                  # cn() para merge de classNames
+│   ├── health.ts                 # computeHealthScore() — cálculo puro, sem DB
+│   ├── liabilities.ts            # monthsToPayoff() — utilitário puro de amortização
 │   └── generated/prisma/         # Client gerado pelo Prisma (não editar)
 │
 ├── prisma/
@@ -735,8 +829,8 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **Fase 1** | ✅ v0.5.0 | DRE com margens intermediárias + Dashboard redesenhado (KPI cards, Insight, Goals mini, trend chart) |
 | **Fase 2** | ✅ v0.6.0 | Integridade de parcelamento: `installmentGroupId`, `installmentNumber`, `installmentTotal` em Transaction. Loop de projeções para parcelas. `TransactionForm` com modo parcelado. `TransactionList` com ActionBar animada. `EditTransactionModal` em 3 modos (single/installment/recurring). Padding padronizado (`p-8`) em todas as páginas. |
 | **Fase 3** | ✅ v0.7.0 | Budget completo: modelo `Settings` com `expectedMonthlyIncome`, action `getSettings`/`updateExpectedIncome`, BudgetView redesenhado em 4 seções (receita esperada, nav mensal, alocações por categoria com % da receita, balanço planejado vs real). |
-| **Fase 4** | 🔲 Pendente | Score de saúde financeira: % comprometida, meses de reserva, perfil (em recuperação / estabilizado / em construção / livre) |
-| **Fase 5** | 🔲 Pendente | Passivos (`Liability`): cheque especial, rotativo, empréstimos. Alerta contextual nas Metas. Modo Recuperação |
+| **Fase 4** | ✅ v0.8.0 | Score de saúde financeira: 4 dimensões (comprometimento, poupança, resultado, reserva), 4 perfis com cores, gauge SVG, widget no dashboard, página `/health` com detalhamento completo. |
+| **Fase 5** | ✅ v0.9.0 | Passivos (`Liability`): CRUD completo, modo recuperação avalanche com calculadora de pagamento extra, alerta contextual nas Metas para dívidas com taxa ≥ 5% a.m. |
 | **Fase 6** | 🔲 Roadmap | Reembolso com tracking, provisão sazonal automática, importação OFX/CSV |
 
 ### Isolamento de dados — plano técnico
@@ -751,4 +845,4 @@ Quando implementado, o plano é:
 
 ---
 
-*Última atualização: 19/05/2026. Versão atual: 0.7.0.*
+*Última atualização: 19/05/2026. Versão atual: 0.9.0.*
