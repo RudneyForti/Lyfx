@@ -35,6 +35,10 @@ export interface Transaction {
   subcategory?: string | null;
   notes?: string | null;
   recurrence: Recurrence;
+  recurrenceEndsAt?: Date | null;
+  installmentGroupId?: string | null;
+  installmentNumber?: number | null;
+  installmentTotal?: number | null;
   context?: string | null;
   reimbursable?: boolean;
   createdAt: Date;

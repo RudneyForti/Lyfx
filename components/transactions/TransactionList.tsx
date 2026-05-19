@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { IconTrash, IconArrowUpRight, IconArrowDownRight, IconRepeat, IconPencil } from "@tabler/icons-react";
-import { deleteTransaction } from "@/app/actions/transactions";
+import {
+  IconArrowUpRight, IconArrowDownRight, IconRepeat,
+  IconPencil, IconStack2, IconTrash, IconX,
+} from "@tabler/icons-react";
+import { deleteTransaction, deleteInstallmentGroup } from "@/app/actions/transactions";
 import { getCategoryDef } from "@/lib/categories";
 import { Transaction, TransactionCategory, Tag } from "@/lib/types";
 import { getTagIcon } from "@/lib/tag-icons";
@@ -22,21 +25,61 @@ function formatDate(date: Date) {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(new Date(date));
 }
 
-function DeleteButton({ id }: { id: string }) {
+function ActionBar({
+  tx,
+  onEdit,
+  onClose,
+}: {
+  tx: Transaction;
+  onEdit: () => void;
+  onClose: () => void;
+}) {
   const [isPending, startTransition] = useTransition();
+  const isInstallment = !!tx.installmentGroupId;
+
   return (
-    <button
-      onClick={() => startTransition(() => deleteTransaction(id))}
-      disabled={isPending}
-      className="w-7 h-7 rounded-[6px] bg-transparent border border-transparent flex items-center justify-center text-[var(--color-f4)] hover:bg-[var(--color-red-dim)] hover:border-[var(--color-red-border)] hover:text-[var(--color-red)] transition-all duration-150 cursor-pointer opacity-0 group-hover:opacity-100 disabled:opacity-30"
-    >
-      <IconTrash size={13} />
-    </button>
+    <div className="flex items-center gap-1.5 px-3 py-2 bg-[rgba(248,113,113,0.07)] border-b border-[var(--color-red-border)]">
+      <button
+        onClick={() => { onEdit(); onClose(); }}
+        className="flex items-center gap-1 px-2.5 py-1 rounded-[5px] text-[10px] font-medium whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity"
+        style={{ background: "rgba(251,191,36,0.1)", color: "#FFC107", border: "1px solid rgba(251,191,36,0.25)" }}
+      >
+        <IconPencil size={10} /> Editar
+      </button>
+
+      <button
+        onClick={() => startTransition(() => { deleteTransaction(tx.id); onClose(); })}
+        disabled={isPending}
+        className="flex items-center gap-1 px-2.5 py-1 rounded-[5px] text-[10px] font-medium whitespace-nowrap bg-[var(--color-red-dim)] text-[var(--color-red)] border border-[var(--color-red-border)] cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-40"
+      >
+        <IconTrash size={10} /> {isInstallment ? "Só esta" : "Excluir"}
+      </button>
+
+      {isInstallment && tx.installmentGroupId && tx.installmentTotal != null && (
+        <button
+          onClick={() => startTransition(() => { deleteInstallmentGroup(tx.installmentGroupId!); onClose(); })}
+          disabled={isPending}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-[5px] text-[10px] font-medium whitespace-nowrap bg-[var(--color-red-dim)] text-[var(--color-red)] border border-[var(--color-red-border)] cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-40"
+        >
+          <IconStack2 size={10} /> Excluir {tx.installmentTotal}x
+        </button>
+      )}
+
+      <div className="flex-1" />
+
+      <button
+        onClick={onClose}
+        className="w-5 h-5 flex items-center justify-center text-[var(--color-f4)] hover:text-[var(--color-f2)] cursor-pointer rounded-[4px] hover:bg-white/[0.06] transition-all flex-shrink-0"
+      >
+        <IconX size={12} />
+      </button>
+    </div>
   );
 }
 
 export function TransactionList({ transactions, allTags }: Props) {
-  const [editing, setEditing] = useState<Transaction | null>(null);
+  const [editing, setEditing]   = useState<Transaction | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   if (transactions.length === 0) {
     return (
@@ -60,84 +103,106 @@ export function TransactionList({ transactions, allTags }: Props) {
         />
       )}
 
-      <div className="flex flex-col gap-1">
-        <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] mb-3">
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] mb-2">
           {transactions.length} transaç{transactions.length === 1 ? "ão" : "ões"} este mês
         </div>
+
         {transactions.map((tx) => {
-          const cat = getCategoryDef(tx.category as TransactionCategory);
-          const isCredit = tx.type === "credit";
-          const tags = tx.tags ?? [];
+          const cat        = getCategoryDef(tx.category as TransactionCategory);
+          const isCredit   = tx.type === "credit";
+          const tags       = tx.tags ?? [];
+          const isInstallment = !!tx.installmentGroupId;
+          const isExpanded = expanded === tx.id;
 
           return (
             <div
               key={tx.id}
-              className="group flex items-center gap-3 py-2.5 border-b border-[var(--color-border)] last:border-0"
+              className={cn(
+                "rounded-[10px] border overflow-hidden transition-all duration-200",
+                isExpanded
+                  ? "border-[var(--color-red-border)]"
+                  : "border-[var(--color-border)] hover:border-[var(--color-border2)]"
+              )}
             >
-              {/* Ícone */}
+              {/* Action bar — slide down on expand */}
               <div className={cn(
-                "w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0 border",
-                isCredit
-                  ? "bg-[var(--color-green-dim)] border-[var(--color-green-border)] text-[var(--color-green)]"
-                  : "bg-[var(--color-red-dim)] border-[var(--color-red-border)] text-[var(--color-red)]"
+                "overflow-hidden transition-[max-height] duration-200 ease-out",
+                isExpanded ? "max-h-12" : "max-h-0"
               )}>
-                {isCredit ? <IconArrowUpRight size={15} /> : <IconArrowDownRight size={15} />}
+                <ActionBar
+                  tx={tx}
+                  onEdit={() => setEditing(tx)}
+                  onClose={() => setExpanded(null)}
+                />
               </div>
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[13px] font-medium text-[var(--color-f1)] truncate">
-                    {tx.description}
-                  </span>
-                  {tx.recurrence !== "once" && (
-                    <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-[4px] bg-[var(--color-cyan-dim)] text-[var(--color-cyan)] border border-[var(--color-cyan-border)] flex-shrink-0">
-                      <IconRepeat size={9} />
-                      {tx.recurrence === "monthly" ? "Mensal" : "Anual"}
+              {/* Row content */}
+              <div
+                className="flex items-center gap-3 px-3 py-2.5 cursor-pointer select-none"
+                onClick={() => setExpanded(isExpanded ? null : tx.id)}
+              >
+                {/* Ícone */}
+                <div className={cn(
+                  "w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0 border",
+                  isCredit
+                    ? "bg-[var(--color-green-dim)] border-[var(--color-green-border)] text-[var(--color-green)]"
+                    : "bg-[var(--color-red-dim)] border-[var(--color-red-border)] text-[var(--color-red)]"
+                )}>
+                  {isCredit ? <IconArrowUpRight size={15} /> : <IconArrowDownRight size={15} />}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[13px] font-medium text-[var(--color-f1)] truncate flex-1 min-w-0">
+                      {tx.description}
                     </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  <span className="text-[10px] text-[var(--color-f4)]">
-                    {cat.label} · {formatDate(tx.date)}
-                  </span>
-                  {tags.map((tag) => {
-                    const Icon = getTagIcon(tag.icon);
-                    return (
-                      <span
-                        key={tag.id}
-                        className="flex items-center gap-0.5 px-1.5 py-px rounded-full text-[9px] font-medium border"
-                        style={{
-                          color: tag.color,
-                          borderColor: `${tag.color}44`,
-                          backgroundColor: `${tag.color}12`,
-                        }}
-                      >
-                        <Icon size={8} />
-                        {tag.name}
+                    {tx.recurrence !== "once" && !isInstallment && (
+                      <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-[4px] bg-[var(--color-cyan-dim)] text-[var(--color-cyan)] border border-[var(--color-cyan-border)] flex-shrink-0">
+                        <IconRepeat size={9} />
+                        {tx.recurrence === "monthly" ? "Mensal" : "Anual"}
                       </span>
-                    );
-                  })}
+                    )}
+                    {isInstallment && tx.installmentNumber != null && tx.installmentTotal != null && (
+                      <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-[4px] flex-shrink-0"
+                        style={{ background: "rgba(251,191,36,0.08)", color: "#FFC107", border: "1px solid rgba(251,191,36,0.2)" }}>
+                        <IconStack2 size={9} />
+                        {tx.installmentNumber}/{tx.installmentTotal}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <span className="text-[10px] text-[var(--color-f4)]">
+                      {cat.label} · {formatDate(tx.date)}
+                    </span>
+                    {tags.map((tag) => {
+                      const Icon = getTagIcon(tag.icon);
+                      return (
+                        <span
+                          key={tag.id}
+                          className="flex items-center gap-0.5 px-1.5 py-px rounded-full text-[9px] font-medium border"
+                          style={{
+                            color: tag.color,
+                            borderColor: `${tag.color}44`,
+                            backgroundColor: `${tag.color}12`,
+                          }}
+                        >
+                          <Icon size={8} />
+                          {tag.name}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
 
-              {/* Valor */}
-              <div className={cn(
-                "text-[13px] font-medium flex-shrink-0",
-                isCredit ? "text-[var(--color-green)]" : "text-[var(--color-red)]"
-              )}>
-                {isCredit ? "+" : "−"}{formatCurrency(tx.amount)}
-              </div>
-
-              {/* Ações */}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                <button
-                  onClick={() => setEditing(tx)}
-                  className="w-7 h-7 rounded-[6px] bg-transparent border border-transparent flex items-center justify-center text-[var(--color-f4)] hover:bg-[var(--color-cyan-dim)] hover:border-[var(--color-cyan-border)] hover:text-[var(--color-cyan)] transition-all duration-150 cursor-pointer"
-                >
-                  <IconPencil size={13} />
-                </button>
-                <DeleteButton id={tx.id} />
+                {/* Valor */}
+                <div className={cn(
+                  "text-[13px] font-medium flex-shrink-0",
+                  isCredit ? "text-[var(--color-green)]" : "text-[var(--color-red)]"
+                )}>
+                  {isCredit ? "+" : "−"}{formatCurrency(tx.amount)}
+                </div>
               </div>
             </div>
           );

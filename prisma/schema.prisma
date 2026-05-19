@@ -16,9 +16,12 @@ model Transaction {
   category         String
   subcategory      String?
   notes            String?
-  recurrence       String           @default("once")
-  recurrenceEndsAt DateTime?
-  context          String?
+  recurrence         String           @default("once")
+  recurrenceEndsAt   DateTime?
+  installmentGroupId String?          // UUID compartilhado entre todas as parcelas do grupo
+  installmentNumber  Int?             // 1-based: qual parcela é esta
+  installmentTotal   Int?             // total de parcelas do grupo
+  context            String?
   reimbursable     Boolean          @default(false)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt

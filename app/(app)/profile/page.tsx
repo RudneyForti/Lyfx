@@ -5,7 +5,7 @@ export default async function ProfilePage() {
   const user = await getProfile();
 
   return (
-    <div className="p-14 max-w-[600px]">
+    <div className="p-8 max-w-[600px]">
       <div className="text-[9px] font-bold tracking-[2.5px] uppercase text-[var(--color-cyan)] mb-2.5 flex items-center gap-2 after:content-[''] after:w-8 after:h-px after:bg-[var(--color-cyan-border)]">
         Conta
       </div>

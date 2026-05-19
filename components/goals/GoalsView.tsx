@@ -264,17 +264,24 @@ export function GoalsView({ goals, avgMonthlyBalance }: { goals: Goal[]; avgMont
   const totalMonthly = active.reduce((s, g) => s + g.monthlyAmount, 0);
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 800, margin: "0 auto" }}>
+    <div className="p-8 max-w-[960px]">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Metas</h1>
-          <p style={{ fontSize: 13, color: "var(--color-f3)", margin: "4px 0 0" }}>
+          <div className="text-[9px] font-bold tracking-[2.5px] uppercase text-[var(--color-cyan)] mb-2 flex items-center gap-2 after:content-[''] after:w-8 after:h-px after:bg-[var(--color-cyan-border)]">
+            Planejamento
+          </div>
+          <h1 className="font-[family-name:var(--font-display)] italic text-[36px] font-bold tracking-tight text-[var(--color-f1)] mb-2 leading-tight">
+            Me<span className="text-[var(--color-cyan)]">tas</span>
+          </h1>
+          <p className="text-[var(--color-f3)] text-sm">
             Defina objetivos e acompanhe suas cobranças mensais.
           </p>
         </div>
-        <button onClick={() => setShowForm(true)}
-          style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--color-cyan)", color: "#083344", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        <button
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(34,211,238,0.25)] border-none cursor-pointer"
+        >
           <IconPlus size={15} /> Nova meta
         </button>
       </div>

@@ -487,8 +487,11 @@ export function EducationView() {
       {/* Sidebar */}
       <div className="w-[220px] shrink-0 border-r border-[var(--color-border)] flex flex-col overflow-y-auto py-5 px-3">
         <div className="px-2 mb-4">
+          <div className="text-[8px] font-bold tracking-[2px] uppercase text-[var(--color-cyan)] mb-1.5">
+            Aprender
+          </div>
           <div className="font-[family-name:var(--font-display)] italic text-[20px] font-bold text-[var(--color-f1)] leading-none">
-            Educação
+            Educa<span className="text-[var(--color-cyan)]">ção</span>
           </div>
           <div className="text-[11px] text-[var(--color-f4)] mt-1">Base de conhecimento</div>
         </div>
@@ -534,7 +537,7 @@ export function EducationView() {
               <ArticleIcon size={18} style={{ color: article.color }} />
             </div>
             <div>
-              <h1 className="font-[family-name:var(--font-display)] italic text-[26px] font-bold text-[var(--color-f1)] leading-tight">
+              <h1 className="font-[family-name:var(--font-display)] italic text-[36px] font-bold text-[var(--color-f1)] leading-tight">
                 {article.title}
               </h1>
               <div className="text-[13px] text-[var(--color-f3)] mt-0.5">{article.subtitle}</div>

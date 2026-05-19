@@ -10,7 +10,7 @@ export default async function PlanningPage() {
   const transactions = raw as unknown as Transaction[];
 
   return (
-    <div className="p-14 max-w-[1100px]">
+    <div className="p-8 max-w-[1100px]">
       {/* Header */}
       <div className="flex items-start justify-between mb-10">
         <div>

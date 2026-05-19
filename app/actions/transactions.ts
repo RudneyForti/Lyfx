@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { TransactionCategory, TransactionType, DRESummary, Recurrence, Transaction } from "@/lib/types";
 
@@ -101,11 +102,110 @@ export async function updateTransaction(
   revalidatePath("/planning");
 }
 
+export async function updateFutureInstallments(
+  groupId: string,
+  data: {
+    baseDescription: string;
+    amount: number;
+    type: TransactionType;
+    category: TransactionCategory;
+    notes?: string;
+    tagIds?: string[];
+  }
+) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const future = await db.transaction.findMany({
+    where: { installmentGroupId: groupId, date: { gte: today } },
+    select: { id: true, installmentNumber: true, installmentTotal: true },
+  });
+
+  for (const inst of future) {
+    await db.transaction.update({
+      where: { id: inst.id },
+      data: {
+        description: `${data.baseDescription} (${inst.installmentNumber}/${inst.installmentTotal})`,
+        amount: data.amount,
+        type: data.type,
+        category: data.category,
+        notes: data.notes,
+        tags: data.tagIds !== undefined
+          ? { deleteMany: {}, create: data.tagIds.map(tagId => ({ tagId })) }
+          : undefined,
+      },
+    });
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/transactions");
+  revalidatePath("/projections");
+}
+
 export async function deleteTransaction(id: string) {
+  // If this transaction belongs to an installment group, delete only this one
   await db.transaction.delete({ where: { id } });
   revalidatePath("/dashboard");
   revalidatePath("/transactions");
   revalidatePath("/planning");
+  revalidatePath("/projections");
+}
+
+export async function deleteInstallmentGroup(groupId: string) {
+  await db.transaction.deleteMany({ where: { installmentGroupId: groupId } });
+  revalidatePath("/dashboard");
+  revalidatePath("/transactions");
+  revalidatePath("/planning");
+  revalidatePath("/projections");
+}
+
+export async function createInstallments(data: {
+  firstDate: string;           // ISO date of first installment
+  description: string;
+  totalAmount: number;
+  count: number;               // number of installments
+  type: TransactionType;
+  category: TransactionCategory;
+  notes?: string;
+  tagIds?: string[];
+}) {
+  const groupId = randomUUID();
+  const perInstallment = Math.ceil((data.totalAmount / data.count) * 100) / 100;
+  const firstDate = new Date(data.firstDate);
+
+  const records = Array.from({ length: data.count }, (_, i) => {
+    const date = new Date(firstDate.getFullYear(), firstDate.getMonth() + i, firstDate.getDate());
+    return {
+      date,
+      description: `${data.description} (${i + 1}/${data.count})`,
+      amount: perInstallment,
+      type: data.type,
+      category: data.category,
+      notes: data.notes,
+      recurrence: "once" as const,
+      installmentGroupId: groupId,
+      installmentNumber: i + 1,
+      installmentTotal: data.count,
+    };
+  });
+
+  // createMany doesn't support nested tag relations, so we create individually if tags exist
+  if (data.tagIds?.length) {
+    for (const record of records) {
+      await db.transaction.create({
+        data: {
+          ...record,
+          tags: { create: data.tagIds.map(tagId => ({ tagId })) },
+        },
+      });
+    }
+  } else {
+    await db.transaction.createMany({ data: records });
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/transactions");
+  revalidatePath("/projections");
 }
 
 export async function getDRESummary(month?: number, year?: number): Promise<DRESummary> {

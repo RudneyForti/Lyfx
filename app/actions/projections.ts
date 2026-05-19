@@ -16,19 +16,22 @@ const PT_MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","
 
 export async function getProjections(): Promise<MonthProjection[]> {
   const now = new Date();
+  const rangeEnd = new Date(now.getFullYear(), now.getMonth() + 12, 0);
 
-  // Fetch all recurring transactions
-  const recurring = await db.transaction.findMany({
-    where: { recurrence: { in: ["monthly", "annual"] } },
-    select: {
-      description: true,
-      amount: true,
-      type: true,
-      recurrence: true,
-      date: true,
-      recurrenceEndsAt: true,
-    },
-  });
+  // Fetch recurring transactions + future installments in parallel
+  const [recurring, installments] = await Promise.all([
+    db.transaction.findMany({
+      where: { recurrence: { in: ["monthly", "yearly"] } },
+      select: { description: true, amount: true, type: true, recurrence: true, date: true, recurrenceEndsAt: true },
+    }),
+    db.transaction.findMany({
+      where: {
+        installmentGroupId: { not: null },
+        date: { gte: new Date(now.getFullYear(), now.getMonth(), 1), lte: rangeEnd },
+      },
+      select: { description: true, amount: true, type: true, date: true, installmentNumber: true, installmentTotal: true },
+    }),
+  ]);
 
   const projections: MonthProjection[] = [];
 
@@ -39,6 +42,18 @@ export async function getProjections(): Promise<MonthProjection[]> {
     const projMonth = (now.getMonth() + i) % 12; // 0-indexed
 
     const items: MonthProjection["items"] = [];
+
+    for (const tx of installments) {
+      const txDate = new Date(tx.date);
+      if (txDate.getFullYear() === projYear && txDate.getMonth() === projMonth) {
+        items.push({
+          description: tx.description,
+          amount: tx.amount,
+          type: tx.type === "credit" ? "income" : "expense",
+          isAnnual: false,
+        });
+      }
+    }
 
     for (const tx of recurring) {
       const txDate = new Date(tx.date);
@@ -55,17 +70,17 @@ export async function getProjections(): Promise<MonthProjection[]> {
           items.push({
             description: tx.description,
             amount: tx.amount,
-            type: tx.type as "income" | "expense",
+            type: tx.type === "credit" ? "income" : "expense",
             isAnnual: false,
           });
         }
-      } else if (tx.recurrence === "annual") {
+      } else if (tx.recurrence === "yearly") {
         // Only appears in the month it's due
         if (txDate.getMonth() === projMonth) {
           items.push({
             description: tx.description,
             amount: tx.amount,
-            type: tx.type as "income" | "expense",
+            type: tx.type === "credit" ? "income" : "expense",
             isAnnual: true,
           });
         }

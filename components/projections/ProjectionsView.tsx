@@ -4,6 +4,22 @@ import { useState } from "react";
 import { IconTrendingUp, IconTrendingDown, IconMinus, IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import type { MonthProjection } from "@/app/actions/projections";
 
+function PageHeader() {
+  return (
+    <div className="mb-8">
+      <div className="text-[9px] font-bold tracking-[2.5px] uppercase text-[var(--color-cyan)] mb-2 flex items-center gap-2 after:content-[''] after:w-8 after:h-px after:bg-[var(--color-cyan-border)]">
+        Planejamento
+      </div>
+      <h1 className="font-[family-name:var(--font-display)] italic text-[36px] font-bold tracking-tight text-[var(--color-f1)] mb-2 leading-tight">
+        Proje<span className="text-[var(--color-cyan)]">ções</span>
+      </h1>
+      <p className="text-[var(--color-f3)] text-sm">
+        Visão dos compromissos recorrentes nos próximos 12 meses.
+      </p>
+    </div>
+  );
+}
+
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -13,9 +29,9 @@ export function ProjectionsView({ projections }: { projections: MonthProjection[
 
   if (projections.length === 0) {
     return (
-      <div style={{ padding: "28px 32px" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Projeções</h1>
-        <p style={{ fontSize: 13, color: "var(--color-f4)" }}>
+      <div className="p-8 max-w-[960px]">
+        <PageHeader />
+        <p className="text-[var(--color-f4)] text-[13px] mt-4">
           Cadastre transações recorrentes (mensais ou anuais) para ver as projeções dos próximos 12 meses.
         </p>
       </div>
@@ -33,14 +49,8 @@ export function ProjectionsView({ projections }: { projections: MonthProjection[
   const negativeMonths = projections.filter(p => p.free < 0).length;
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 960, margin: "0 auto" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Projeções</h1>
-        <p style={{ fontSize: 13, color: "var(--color-f3)", margin: "4px 0 0" }}>
-          Visão dos compromissos recorrentes nos próximos 12 meses.
-        </p>
-      </div>
+    <div className="p-8 max-w-[960px]">
+      <PageHeader />
 
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 28 }}>

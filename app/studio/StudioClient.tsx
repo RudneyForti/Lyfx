@@ -105,7 +105,7 @@ const SCHEMA = [
       { name: "category", type: "String", note: "Ex: moradia, alimentação, saúde…" },
       { name: "subcategory", type: "String?", note: "Subdivisão da categoria" },
       { name: "notes", type: "String?", note: "Observações livres" },
-      { name: "recurrence", type: "String", note: '"once" | "monthly" | "annual"' },
+      { name: "recurrence", type: "String", note: '"once" | "monthly" | "yearly"' },
       { name: "context", type: "String?", note: '"personal" | "professional"' },
       { name: "reimbursable", type: "Boolean", note: "Despesa reembolsável" },
       { name: "createdAt", type: "DateTime", note: "Auto: now()" },

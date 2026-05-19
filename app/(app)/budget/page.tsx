@@ -9,7 +9,7 @@ export default async function BudgetPage() {
   ]);
 
   return (
-    <div className="p-14 max-w-[760px]">
+    <div className="p-8 max-w-[760px]">
       <div className="text-[9px] font-bold tracking-[2.5px] uppercase text-[var(--color-cyan)] mb-2.5 flex items-center gap-2 after:content-[''] after:w-8 after:h-px after:bg-[var(--color-cyan-border)]">
         Controle de gastos
       </div>

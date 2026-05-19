@@ -1,5 +1,5 @@
 # Lyfx — Documentação Técnica
-> Life Fixed · v0.5.0 · Maio 2026
+> Life Fixed · v0.6.0 · Maio 2026
 
 ---
 
@@ -116,12 +116,15 @@ Atualmente configurado como aplicação single-user local. Arquitetura prevista 
 │ date            │ DateTime     │ Data do lançamento             │
 │ description     │ String       │ Título                         │
 │ amount          │ Float        │ Valor em reais (positivo)      │
-│ type            │ String       │ "income" | "expense"           │
+│ type            │ String       │ "credit" | "debit"             │
 │ category        │ String       │ Ver modelo de categorias       │
 │ subcategory     │ String?      │ Subdivisão livre               │
 │ notes           │ String?      │ Observações                    │
-│ recurrence      │ String       │ "once"|"monthly"|"annual"      │
-│ recurrenceEndsAt│ DateTime?    │ Fim de parcelamentos           │
+│ recurrence      │ String       │ "once"|"monthly"|"yearly"      │
+│ recurrenceEndsAt│ DateTime?    │ Fim de recorrência             │
+│ installmentGroupId│ String?    │ UUID compartilhado do grupo    │
+│ installmentNumber │ Int?       │ Número desta parcela (1-N)     │
+│ installmentTotal  │ Int?       │ Total de parcelas do grupo     │
 │ context         │ String?      │ "personal"|"professional"      │
 │ reimbursable    │ Boolean      │ Despesa reembolsável           │
 │ createdAt       │ DateTime     │ Auto: now()                    │
@@ -231,14 +234,14 @@ Atualmente **não existe** `userId` nas tabelas de dados (Transaction, Tag, Budg
 
 O coração analítico do Lyfx é sua taxonomia de categorias, que distingue não apenas receita de despesa, mas o **perfil de cada lançamento**.
 
-### Receitas (type: "income")
+### Receitas (type: "credit")
 
 | Valor | Label | Exemplos |
 |---|---|---|
 | `credit_fixed` | Fixo | Salário, pró-labore |
 | `credit_variable` | Variável | Freelas, reembolsos, vendas pontuais |
 
-### Despesas (type: "expense")
+### Despesas (type: "debit")
 
 | Valor | Label | Exemplos | Característica |
 |---|---|---|---|
@@ -332,13 +335,17 @@ Action dedicada que busca em paralelo: DRE summary, transações recentes, metas
 
 Listagem e criação de lançamentos financeiros.
 
-- **Formulário de criação**: tipo (receita/despesa), data, descrição, valor, categoria, subcategoria, notas, recorrência, contexto, reembolsável, tags
-- **Recorrência**: `once` (único), `monthly` (mensal com opcional data de término), `annual` (anual)
-- **Campo `recurrenceEndsAt`**: aparece quando recorrência = mensal; permite definir fim de parcelamentos
+- **Formulário de criação**: tipo (crédito/débito), data, descrição, valor, categoria, notas, recorrência, tags
+- **Recorrência**: `once` (único), `monthly` (mensal), `yearly` (anual)
+- **Parcelamento**: modo dedicado no formulário — define valor total + número de parcelas. Cria N registros com `installmentGroupId` UUID compartilhado, `installmentNumber` e `installmentTotal`. Descrição recebe sufixo `(N/M)` automaticamente
 - **TagPicker**: seletor inline de tags com criação rápida (nome + cor + ícone)
-- **Edição**: modal de edição com todos os mesmos campos
-- **Exclusão**: com confirmação
-- **Filtro por mês**: herda o mês selecionado no contexto da navegação
+- **Interação de lista**: clicar em uma transação expande uma `ActionBar` animada (slide-down) com fundo vermelho no topo do card
+- **ActionBar**: botões "Editar" (âmbar), "Só esta"/"Excluir" (vermelho), "Excluir Nx" (vermelho, apenas para parcelamentos), "×" fechar
+- **Edição — 3 modos automáticos**:
+  - `single`: transação pontual (`recurrence = "once"` sem `installmentGroupId`) — edita apenas o registro
+  - `installment`: transação parcelada (`installmentGroupId` definido) — chama `updateFutureInstallments()`, altera apenas parcelas a partir de hoje; não expõe campo de data
+  - `recurring`: recorrência (`recurrence !== "once"`) — edita o registro único; banner âmbar avisa que só afeta projeções futuras
+- **Exclusão**: "Só esta" deleta o registro individual; "Excluir Nx" chama `deleteInstallmentGroup()` e remove todas as parcelas do grupo
 
 ### 6.5 Orçamento (`/budget`)
 
@@ -380,14 +387,16 @@ Sistema de objetivos financeiros com cobrança automática.
 
 ### 6.8 Projeções (`/projections`)
 
-Simulação dos próximos 12 meses com base em recorrências.
+Simulação dos próximos 12 meses com base em recorrências e parcelamentos.
 
-- **Fonte de dados**: todas as transações com `recurrence = "monthly"` ou `"annual"`
-- **Respeito ao `recurrenceEndsAt`**: parcelamentos com data de término não aparecem após o mês de fim
-- **Cards de resumo**: livre acumulado no ano, média mensal livre, meses no vermelho
-- **Gráfico de barras macro**: 12 colunas clicáveis. Cada coluna tem 3 barras — receita comprometida (cyan), despesa comprometida (vermelho), saldo livre (verde)
-- **Detalhe mensal**: ao clicar em um mês, o painel inferior mostra o breakdown completo — cada entrada e saída comprometida com badge "Anual" nos lançamentos anuais
-- **Distinção importante**: projeções mostram apenas o que está **comprometido** (recorrente), não simula entradas/saídas variáveis
+- **Fonte de dados**: transações com `recurrence = "monthly"` ou `"yearly"` + transações com `installmentGroupId` (parcelas futuras individuais)
+- **Respeito ao `recurrenceEndsAt`**: recorrências com data de término não aparecem após o mês de fim
+- **Parcelamentos**: cada registro individual de parcela tem uma `date` própria — a projeção simplesmente distribui cada parcela no mês correto (sem extrapolação)
+- **Conversão de tipo**: `tx.type` no banco é `"credit"/"debit"`; a projeção converte para `"income"/"expense"` internamente para o cálculo de saldo livre
+- **Cards de resumo**: livre acumulado (soma dos meses positivos), média mensal livre, meses no vermelho
+- **Gráfico de barras macro**: 12 colunas clicáveis — receita comprometida (cyan), despesa comprometida (vermelho), saldo livre (verde)
+- **Detalhe mensal**: ao clicar em um mês, o painel inferior mostra o breakdown completo — cada entrada e saída com badge "Anual" nos lançamentos anuais
+- **Distinção importante**: projeções mostram apenas o que está **comprometido** (recorrente + parcelas), não simula entradas/saídas variáveis
 
 ### 6.9 Tags (`/tags`)
 
@@ -457,15 +466,43 @@ STUDIO
   └── lê → BUDGET (contagem)
 ```
 
-### Fluxo de dados — criação de transação recorrente com parcelamento
+### Fluxo de dados — criação de transação recorrente
 
 ```
-Usuário preenche formulário
-  └── recurrence = "monthly" + recurrenceEndsAt = "2026-12"
-        └── createTransaction() → salva no banco
-              └── getProjections() lê a transação
-                    └── para cada mês até recurrenceEndsAt → aparece na projeção
-                          └── após recurrenceEndsAt → não aparece mais
+Usuário preenche formulário (recurrence = "monthly")
+  └── createTransaction() → salva 1 registro no banco
+        └── getProjections() lê a transação
+              └── para cada mês projetado → replica o item
+                    └── se recurrenceEndsAt definido → para quando ultrapassa a data
+```
+
+### Fluxo de dados — criação de parcelamento
+
+```
+Usuário preenche modo parcelado (ex: R$ 600 em 3x a partir de Mai/26)
+  └── createInstallments()
+        ├── gera groupId = randomUUID()
+        ├── calcula perInstallment = ceil(totalAmount / count * 100) / 100
+        └── cria N registros Transaction:
+              ├── date = firstDate + i meses
+              ├── description = "Base (1/3)", "Base (2/3)", "Base (3/3)"
+              ├── installmentGroupId = groupId (compartilhado)
+              ├── installmentNumber = i + 1
+              └── installmentTotal = N
+
+getProjections() lê cada parcela individualmente
+  └── distribui cada registro no mês que corresponde à sua date
+```
+
+### Fluxo de dados — edição de parcelamento
+
+```
+Usuário clica em parcela → ActionBar → Editar
+  └── EditTransactionModal detecta mode = "installment" (installmentGroupId definido)
+        └── ao salvar → updateFutureInstallments(groupId, dados)
+              └── busca todas as parcelas com date >= hoje
+                    └── atualiza cada uma (description, amount, type, category, notes, tags)
+                          └── re-aplica sufixo (N/M) em cada descrição
 ```
 
 ### Fluxo de dados — criação de meta
@@ -661,7 +698,7 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | Fase | Entregue | Descrição |
 |---|---|---|
 | **Fase 1** | ✅ v0.5.0 | DRE com margens intermediárias + Dashboard redesenhado (KPI cards, Insight, Goals mini, trend chart) |
-| **Fase 2** | 🔲 Pendente | Integridade de parcelamento: campos `installmentOf`, `installmentNumber`, `installmentTotal` em Transaction |
+| **Fase 2** | ✅ v0.6.0 | Integridade de parcelamento: `installmentGroupId`, `installmentNumber`, `installmentTotal` em Transaction. Loop de projeções para parcelas. `TransactionForm` com modo parcelado. `TransactionList` com ActionBar animada. `EditTransactionModal` em 3 modos (single/installment/recurring). Padding padronizado (`p-8`) em todas as páginas. |
 | **Fase 3** | 🔲 Pendente | Budget completo: cobrir receita esperada e alocação intencional, não só teto de despesas |
 | **Fase 4** | 🔲 Pendente | Score de saúde financeira: % comprometida, meses de reserva, perfil (em recuperação / estabilizado / em construção / livre) |
 | **Fase 5** | 🔲 Pendente | Passivos (`Liability`): cheque especial, rotativo, empréstimos. Alerta contextual nas Metas. Modo Recuperação |
@@ -677,16 +714,6 @@ Quando implementado, o plano é:
 4. Migration manual: buscar o único User existente e setar seu id em todos os registros antes de aplicar o `NOT NULL`
 5. Estimativa: ~1h de desenvolvimento
 
-### Isolamento de dados — plano técnico
-
-Quando implementado, o plano é:
-
-1. Adicionar `userId String` em `Transaction`, `Tag`, `Budget`, `Goal`
-2. Alterar constraints únicas: `Tag.name` → `@@unique([userId, name])`, `Budget.category` → `@@unique([userId, category])`
-3. Atualizar todas as queries nas 4 actions para incluir `where: { userId }`
-4. Migration manual: buscar o único User existente e setar seu id em todos os registros antes de aplicar o `NOT NULL`
-5. Estimativa: ~1h de desenvolvimento
-
 ---
 
-*Última atualização: 19/05/2026. Versão atual: 0.5.0.*
+*Última atualização: 19/05/2026. Versão atual: 0.6.0.*

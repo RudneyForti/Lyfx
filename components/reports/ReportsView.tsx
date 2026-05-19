@@ -267,14 +267,17 @@ export function ReportsView({ data, initialPeriod = 6 }: ReportsViewProps) {
   const isEmpty = months.every(m => m.income === 0 && m.expense === 0);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-8 max-w-[960px]">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] italic text-[28px] font-bold text-[var(--color-f1)] leading-none">
-            Relatórios
+          <div className="text-[9px] font-bold tracking-[2.5px] uppercase text-[var(--color-cyan)] mb-2 flex items-center gap-2 after:content-[''] after:w-8 after:h-px after:bg-[var(--color-cyan-border)]">
+            Análise
+          </div>
+          <h1 className="font-[family-name:var(--font-display)] italic text-[36px] font-bold tracking-tight text-[var(--color-f1)] mb-2 leading-tight">
+            Relató<span className="text-[var(--color-cyan)]">rios</span>
           </h1>
-          <p className="text-[13px] text-[var(--color-f3)] mt-1.5">
+          <p className="text-[var(--color-f3)] text-sm">
             Histórico e análise por período
           </p>
         </div>
