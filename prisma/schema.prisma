@@ -7,9 +7,37 @@ datasource db {
   provider = "sqlite"
 }
 
+model Institution {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  type      String    @default("bank") // bank | fintech | broker | other
+  color     String    @default("#22D3EE")
+  icon      String    @default("building-bank")
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  accounts  Account[]
+}
+
+model Account {
+  id            String      @id @default(cuid())
+  userId        String
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  name          String
+  type          String      @default("checking") // checking | savings | credit_card | investment | wallet | other
+  balance       Float       @default(0)
+  limit         Float?
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
 model Transaction {
   id               String           @id @default(cuid())
   userId           String           @default("")
+  accountId        String?
   date             DateTime
   description      String
   amount           Float
@@ -96,9 +124,14 @@ model User {
   email     String?  @unique
   password  String
   avatar    String?
-  age       Int?
-  gender    String?
-  address   String?
+  age         Int?
+  gender      String?
+  city         String?
+  state        String?
+  zipCode      String?
+  street       String?
+  streetNumber String?
+  country      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -111,6 +144,7 @@ model Liability {
   currentBalance Float    // saldo devedor atual (positivo = quanto deve)
   interestRate   Float    @default(0)   // % ao mês
   minimumPayment Float    @default(0)   // parcela mínima mensal
+  institutionId  String?
   creditor       String?
   notes          String?
   status         String   @default("active") // active | paid_off

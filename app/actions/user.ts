@@ -22,7 +22,12 @@ export async function updateProfile(data: {
   email?: string;
   age?: number | null;
   gender?: string | null;
-  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  street?: string | null;
+  streetNumber?: string | null;
+  country?: string | null;
   avatar?: string | null;
 }) {
   const user = await requireUser();

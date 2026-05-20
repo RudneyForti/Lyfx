@@ -18,6 +18,7 @@ export interface Liability {
   currentBalance: number;
   interestRate: number;
   minimumPayment: number;
+  institutionId: string | null;
   creditor: string | null;
   notes: string | null;
   status: string;
@@ -47,6 +48,7 @@ export async function createLiability(data: {
   currentBalance: number;
   interestRate: number;
   minimumPayment: number;
+  institutionId?: string;
   creditor?: string;
   notes?: string;
 }): Promise<Liability> {
@@ -65,6 +67,7 @@ export async function updateLiability(
     currentBalance: number;
     interestRate: number;
     minimumPayment: number;
+    institutionId: string | null;
     creditor: string;
     notes: string;
     status: string;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { createGoal, deleteGoal, markPayment } from "@/app/actions/goals";
+import { MonthPicker } from "@/components/ui/MonthPicker";
 import {
   IconPlus, IconTarget, IconTrash, IconCheck, IconX,
   IconLoader2, IconAlertTriangle, IconCircleCheck, IconSparkles,
@@ -99,7 +100,7 @@ function NewGoalForm({ avgBalance, onClose }: { avgBalance: number; onClose: () 
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label style={{ fontSize: 11, color: "var(--color-f3)" }}>Prazo</label>
-              <input style={inputStyle} type="month" value={deadline} onChange={e => setDeadline(e.target.value)} />
+              <MonthPicker value={deadline} onChange={setDeadline} placeholder="Mês / Ano" />
             </div>
           </div>
 

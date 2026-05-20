@@ -1,21 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { IconPlus, IconX, IconCurrencyReal, IconRepeat, IconRepeatOff, IconStack2, IconReceipt2, IconHome, IconBriefcase } from "@tabler/icons-react";
+import { IconPlus, IconX, IconCurrencyReal, IconRepeat, IconRepeatOff, IconStack2, IconReceipt2, IconHome, IconBriefcase, IconBuildingBank } from "@tabler/icons-react";
 import { createTransaction, createInstallments } from "@/app/actions/transactions";
 import { CREDIT_CATEGORIES, DEBIT_CATEGORIES } from "@/lib/categories";
 import { TransactionType, TransactionCategory, Recurrence, Tag } from "@/lib/types";
+import type { AccountForSelect } from "@/lib/institutions";
 import { TagPicker } from "@/components/tags/TagPicker";
 import { cn } from "@/lib/utils";
 
 interface Props {
   allTags: Tag[];
+  accounts?: AccountForSelect[];
   onSuccess?: () => void;
 }
 
 const today = () => new Date().toISOString().split("T")[0];
 
-export function TransactionForm({ allTags, onSuccess }: Props) {
+export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
   const [isPending, startTransition] = useTransition();
   const [mode, setMode] = useState<"single" | "installment">("single");
   const [type, setType] = useState<TransactionType>("debit");
@@ -30,6 +32,7 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
     recurrenceEndsAt: "",
     reimbursable: false,
     context: "" as "" | "personal" | "professional",
+    accountId: "",
   });
   const [installmentCount, setInstallmentCount] = useState("2");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -54,7 +57,7 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
   }
 
   function resetForm() {
-    setForm({ date: today(), description: "", amount: "", category: "", subcategory: "", notes: "", recurrence: "once", recurrenceEndsAt: "", reimbursable: false, context: "" });
+    setForm({ date: today(), description: "", amount: "", category: "", subcategory: "", notes: "", recurrence: "once", recurrenceEndsAt: "", reimbursable: false, context: "", accountId: "" });
     setSelectedTagIds([]);
     setInstallmentCount("2");
   }
@@ -100,6 +103,7 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
           tagIds: selectedTagIds,
           reimbursable: form.reimbursable,
           context: form.context || undefined,
+          accountId: form.accountId || undefined,
         });
         resetForm();
         onSuccess?.();
@@ -360,6 +364,28 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Conta (opcional — apenas se há contas cadastradas, apenas modo avulsa) */}
+      {accounts.length > 0 && mode === "single" && (
+        <div>
+          <label className="text-[11px] font-medium text-[var(--color-f2)] mb-1.5 flex items-center gap-1.5 block">
+            <IconBuildingBank size={12} className="text-[var(--color-f4)]" />
+            Conta (opcional)
+          </label>
+          <select
+            value={form.accountId}
+            onChange={(e) => setForm((f) => ({ ...f, accountId: e.target.value }))}
+            className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 h-[38px] text-[13px] text-[var(--color-f1)] outline-none focus:border-[var(--color-cyan-border)] transition-all cursor-pointer"
+          >
+            <option value="">— Sem conta vinculada —</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.institutionName} · {a.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Reembolsável (apenas débito) */}
       {type === "debit" && (

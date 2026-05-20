@@ -1,10 +1,50 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { IconCamera, IconCheck, IconX, IconLock, IconEye, IconEyeOff, IconCode } from "@tabler/icons-react";
-import Link from "next/link";
+import { IconCamera, IconCheck, IconX, IconLock, IconEye, IconEyeOff, IconLoader2, IconSearch } from "@tabler/icons-react";
 import { updateProfile, changePassword } from "@/app/actions/user";
+import { CountrySelect } from "@/components/ui/CountrySelect";
 import { cn } from "@/lib/utils";
+
+// ── Field component defined OUTSIDE ProfileForm to prevent unmount on re-render ──
+function Field({
+  label, value, onChange, type = "text", placeholder, inputMode, readOnly, suffix,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+  inputMode?: React.InputHTMLAttributes<HTMLInputElement>["inputMode"];
+  readOnly?: boolean;
+  suffix?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] font-medium text-[var(--color-f2)]">{label}</label>
+      <div className="relative">
+        <input
+          type={type}
+          inputMode={inputMode}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          className={cn(
+            "w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]",
+            readOnly && "opacity-60 cursor-default",
+            suffix && "pr-9",
+          )}
+        />
+        {suffix && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)]">
+            {suffix}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface User {
   id: string;
@@ -13,7 +53,12 @@ interface User {
   avatar?: string | null;
   age?: number | null;
   gender?: string | null;
-  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  street?: string | null;
+  streetNumber?: string | null;
+  country?: string | null;
 }
 
 interface Props {
@@ -34,9 +79,17 @@ export function ProfileForm({ user }: Props) {
     email: user.email ?? "",
     age: user.age != null ? String(user.age) : "",
     gender: user.gender ?? "",
-    address: user.address ?? "",
+    city: user.city ?? "",
+    state: user.state ?? "",
+    zipCode: user.zipCode ?? "",
+    street: user.street ?? "",
+    streetNumber: user.streetNumber ?? "",
+    country: user.country ?? "",
     avatar: user.avatar ?? null as string | null,
   });
+
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState("");
 
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [showPw, setShowPw] = useState(false);
@@ -65,6 +118,32 @@ export function ProfileForm({ user }: Props) {
     reader.readAsDataURL(file);
   }
 
+  // ViaCEP auto-fill
+  async function handleCepBlur() {
+    const raw = form.zipCode.replace(/\D/g, "");
+    if (raw.length !== 8) return;
+    setCepLoading(true);
+    setCepError("");
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        setCepError("CEP não encontrado.");
+      } else {
+        setForm((f) => ({
+          ...f,
+          city: data.localidade ?? f.city,
+          state: data.uf ?? f.state,
+          street: data.logradouro ?? f.street,
+        }));
+      }
+    } catch {
+      setCepError("Erro ao buscar CEP.");
+    } finally {
+      setCepLoading(false);
+    }
+  }
+
   function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     setProfileMsg("");
@@ -74,7 +153,12 @@ export function ProfileForm({ user }: Props) {
         email: form.email.trim() || undefined,
         age: form.age ? Number(form.age) : null,
         gender: form.gender || null,
-        address: form.address.trim() || null,
+        city: form.city.trim() || null,
+        state: form.state.trim() || null,
+        zipCode: form.zipCode.trim() || null,
+        street: form.street.trim() || null,
+        streetNumber: form.streetNumber.trim() || null,
+        country: form.country.trim() || null,
         avatar: form.avatar,
       });
       setProfileMsg("Perfil atualizado.");
@@ -94,25 +178,6 @@ export function ProfileForm({ user }: Props) {
       setTimeout(() => setPwMsg(null), 3000);
     });
   }
-
-  const Field = ({
-    label, value, onChange, type = "text", placeholder
-  }: {
-    label: string; value: string;
-    onChange: (v: string) => void;
-    type?: string; placeholder?: string;
-  }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-[11px] font-medium text-[var(--color-f2)]">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
-      />
-    </div>
-  );
 
   return (
     <div className="flex flex-col gap-10">
@@ -174,7 +239,7 @@ export function ProfileForm({ user }: Props) {
           </div>
         </div>
 
-        {/* Fields */}
+        {/* Basic fields */}
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
             <Field label="Nome" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="Seu nome" />
@@ -182,7 +247,13 @@ export function ProfileForm({ user }: Props) {
           <div className="col-span-2">
             <Field label="E-mail (opcional)" value={form.email} onChange={(v) => setForm((f) => ({ ...f, email: v }))} type="email" placeholder="seu@email.com" />
           </div>
-          <Field label="Idade" value={form.age} onChange={(v) => setForm((f) => ({ ...f, age: v }))} type="number" placeholder="Ex: 32" />
+          <Field
+            label="Idade"
+            value={form.age}
+            onChange={(v) => setForm((f) => ({ ...f, age: v.replace(/\D/g, "") }))}
+            inputMode="numeric"
+            placeholder="Ex: 32"
+          />
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-medium text-[var(--color-f2)]">Sexo</label>
             <select
@@ -196,8 +267,84 @@ export function ProfileForm({ user }: Props) {
               <option value="other">Outro</option>
             </select>
           </div>
-          <div className="col-span-2">
-            <Field label="Endereço (opcional)" value={form.address} onChange={(v) => setForm((f) => ({ ...f, address: v }))} placeholder="Cidade, Estado" />
+        </div>
+
+        {/* Address section */}
+        <div className="flex flex-col gap-3">
+          <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)]">
+            Endereço
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {/* CEP row */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-[var(--color-f2)]">CEP / Zip code</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.zipCode}
+                  onChange={(e) => {
+                    setCepError("");
+                    setForm((f) => ({ ...f, zipCode: e.target.value.replace(/[^\d-]/g, "") }));
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCepBlur(); } }}
+                  placeholder="Ex: 01310-100"
+                  maxLength={9}
+                  className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 pr-9 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
+                />
+                <button
+                  type="button"
+                  onClick={handleCepBlur}
+                  disabled={cepLoading}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)] hover:text-[var(--color-f2)] transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  {cepLoading
+                    ? <IconLoader2 size={14} className="animate-spin" />
+                    : <IconSearch size={14} />
+                  }
+                </button>
+              </div>
+              {cepError && (
+                <span className="text-[10px] text-[var(--color-red)]">{cepError}</span>
+              )}
+            </div>
+
+            <Field
+              label="Número"
+              value={form.streetNumber}
+              onChange={(v) => setForm((f) => ({ ...f, streetNumber: v }))}
+              placeholder="Ex: 42 / Apto 3"
+            />
+
+            <div className="col-span-2">
+              <Field
+                label="Logradouro"
+                value={form.street}
+                onChange={(v) => setForm((f) => ({ ...f, street: v }))}
+                placeholder="Ex: Avenida Paulista"
+              />
+            </div>
+
+            <Field
+              label="Cidade"
+              value={form.city}
+              onChange={(v) => setForm((f) => ({ ...f, city: v }))}
+              placeholder="Ex: São Paulo"
+            />
+
+            <Field
+              label="Estado"
+              value={form.state}
+              onChange={(v) => setForm((f) => ({ ...f, state: v }))}
+              placeholder="Ex: SP"
+            />
+
+            <div className="col-span-2">
+              <CountrySelect
+                value={form.country}
+                onChange={(v) => setForm((f) => ({ ...f, country: v }))}
+              />
+            </div>
           </div>
         </div>
 

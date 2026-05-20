@@ -49,6 +49,7 @@ export async function adminDeleteUser(userId: string) {
   await db.budget.deleteMany({ where: { userId } });
   await db.goal.deleteMany({ where: { userId } }); // GoalPayments cascade via onDelete
   await db.liability.deleteMany({ where: { userId } });
+  await db.institution.deleteMany({ where: { userId } }); // Accounts cascade via onDelete
   await db.settings.deleteMany({ where: { userId } });
   await db.user.delete({ where: { id: userId } });
   revalidatePath("/studio");

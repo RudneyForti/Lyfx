@@ -1,13 +1,15 @@
 import { getTransactions } from "@/app/actions/transactions";
 import { getTags } from "@/app/actions/tags";
+import { getAccountsForSelect } from "@/app/actions/institutions";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { TransactionList } from "@/components/transactions/TransactionList";
 
 export default async function TransactionsPage() {
   const now = new Date();
-  const [transactions, allTags] = await Promise.all([
+  const [transactions, allTags, accounts] = await Promise.all([
     getTransactions({ month: now.getMonth() + 1, year: now.getFullYear() }),
     getTags(),
+    getAccountsForSelect(),
   ]);
 
   return (
@@ -29,7 +31,7 @@ export default async function TransactionsPage() {
           <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] mb-4">
             Nova transação
           </div>
-          <TransactionForm allTags={allTags} />
+          <TransactionForm allTags={allTags} accounts={accounts} />
         </div>
 
         {/* Lista */}

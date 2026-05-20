@@ -7,6 +7,7 @@ import {
   deleteLiability,
 } from "@/app/actions/liabilities";
 import type { Liability, LiabilityType } from "@/app/actions/liabilities";
+import type { Institution } from "@/lib/institutions";
 import { monthsToPayoff } from "@/lib/liabilities";
 import {
   IconPlus,
@@ -61,9 +62,11 @@ const inputStyle: React.CSSProperties = {
 /* ── Form (create / edit) ── */
 function LiabilityForm({
   initial,
+  institutions,
   onClose,
 }: {
   initial?: Liability;
+  institutions: Institution[];
   onClose: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -80,6 +83,7 @@ function LiabilityForm({
   const [minPay, setMinPay] = useState(
     initial ? String(initial.minimumPayment) : ""
   );
+  const [institutionId, setInstitutionId] = useState(initial?.institutionId ?? "");
   const [creditor, setCreditor] = useState(initial?.creditor ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [error, setError] = useState("");
@@ -106,6 +110,7 @@ function LiabilityForm({
           currentBalance: Number(balance),
           interestRate: Number(rate),
           minimumPayment: Number(minPay) || 0,
+          institutionId: institutionId || null,
           creditor: creditor || undefined,
           notes: notes || undefined,
         });
@@ -116,6 +121,7 @@ function LiabilityForm({
           currentBalance: Number(balance),
           interestRate: Number(rate),
           minimumPayment: Number(minPay) || 0,
+          institutionId: institutionId || undefined,
           creditor: creditor || undefined,
           notes: notes || undefined,
         });
@@ -261,6 +267,25 @@ function LiabilityForm({
             </div>
           </div>
 
+          {/* Institution */}
+          {institutions.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label style={{ fontSize: 11, color: "var(--color-f3)" }}>
+                Instituição vinculada (opcional)
+              </label>
+              <select
+                style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
+                value={institutionId}
+                onChange={(e) => setInstitutionId(e.target.value)}
+              >
+                <option value="">— Nenhuma —</option>
+                {institutions.map((inst) => (
+                  <option key={inst.id} value={inst.id}>{inst.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Notes */}
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label style={{ fontSize: 11, color: "var(--color-f3)" }}>
@@ -384,7 +409,7 @@ function LiabilityForm({
 }
 
 /* ── Liability card ── */
-function LiabilityCard({ liability }: { liability: Liability }) {
+function LiabilityCard({ liability, institutions }: { liability: Liability; institutions: Institution[] }) {
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [markingPaid, setMarkingPaid] = useState(false);
@@ -400,9 +425,9 @@ function LiabilityCard({ liability }: { liability: Liability }) {
   function handleMarkPaid() {
     if (!confirm(`Marcar "${liability.name}" como quitada?`)) return;
     setMarkingPaid(false);
-    startTransition(() =>
-      updateLiability(liability.id, { status: "paid_off" })
-    );
+    startTransition(async () => {
+      await updateLiability(liability.id, { status: "paid_off" });
+    });
   }
 
   const payoff = monthsToPayoff(
@@ -736,7 +761,7 @@ function LiabilityCard({ liability }: { liability: Liability }) {
       </div>
 
       {editing && (
-        <LiabilityForm initial={liability} onClose={() => setEditing(false)} />
+        <LiabilityForm initial={liability} institutions={institutions} onClose={() => setEditing(false)} />
       )}
     </>
   );
@@ -1150,7 +1175,7 @@ function ModoRecuperacao({ liabilities }: { liabilities: Liability[] }) {
 }
 
 /* ── Main view ── */
-export function LiabilitiesView({ liabilities }: { liabilities: Liability[] }) {
+export function LiabilitiesView({ liabilities, institutions = [] }: { liabilities: Liability[]; institutions?: Institution[] }) {
   const [showForm, setShowForm] = useState(false);
 
   const active = liabilities.filter((l) => l.status === "active");
@@ -1279,7 +1304,7 @@ export function LiabilitiesView({ liabilities }: { liabilities: Liability[] }) {
       {active.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {active.map((l) => (
-            <LiabilityCard key={l.id} liability={l} />
+            <LiabilityCard key={l.id} liability={l} institutions={institutions} />
           ))}
         </div>
       )}
@@ -1302,13 +1327,13 @@ export function LiabilitiesView({ liabilities }: { liabilities: Liability[] }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {paidOff.map((l) => (
-              <LiabilityCard key={l.id} liability={l} />
+              <LiabilityCard key={l.id} liability={l} institutions={institutions} />
             ))}
           </div>
         </div>
       )}
 
-      {showForm && <LiabilityForm onClose={() => setShowForm(false)} />}
+      {showForm && <LiabilityForm institutions={institutions} onClose={() => setShowForm(false)} />}
     </div>
   );
 }

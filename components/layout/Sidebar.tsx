@@ -19,6 +19,8 @@ import {
   IconLogout,
   IconTrendingDown,
   IconReceipt2,
+  IconBuildingBank,
+  IconBell,
 } from "@tabler/icons-react";
 import { logout } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
@@ -43,21 +45,23 @@ const navGroups = [
   {
     label: "Planejamento",
     items: [
-      { href: "/planning", label: "Plano Mensal", icon: IconCalendarMonth },
-      { href: "/budget", label: "Orçamento", icon: IconWallet },
-      { href: "/goals", label: "Metas", icon: IconTarget },
-      { href: "/liabilities", label: "Passivos", icon: IconTrendingDown },
-      { href: "/projections", label: "Projeções", icon: IconChartLine },
-      { href: "/fixed-expenses", label: "Contas fixas", icon: IconCalendarDue },
+      { href: "/planning",      label: "Plano Mensal",   icon: IconCalendarMonth },
+      { href: "/budget",        label: "Orçamento",      icon: IconWallet },
+      { href: "/goals",         label: "Metas",          icon: IconTarget },
+      { href: "/liabilities",   label: "Passivos",       icon: IconTrendingDown },
+      { href: "/projections",   label: "Projeções",      icon: IconChartLine },
+      { href: "/fixed-expenses",label: "Contas fixas",   icon: IconCalendarDue },
+      { href: "/institutions",  label: "Instituições",   icon: IconBuildingBank },
     ],
   },
   {
     label: "Análise",
     items: [
-      { href: "/reports",        label: "Relatórios",          icon: IconReportAnalytics },
-      { href: "/health",         label: "Saúde financeira",    icon: IconHeartRateMonitor },
-      { href: "/reimbursements", label: "Reembolsos",          icon: IconReceipt2 },
-      { href: "/tags",           label: "Minhas tags",         icon: IconTags },
+      { href: "/alerts",         label: "Alertas",            icon: IconBell },
+      { href: "/reports",        label: "Relatórios",         icon: IconReportAnalytics },
+      { href: "/health",         label: "Saúde financeira",   icon: IconHeartRateMonitor },
+      { href: "/reimbursements", label: "Reembolsos",         icon: IconReceipt2 },
+      { href: "/tags",           label: "Minhas tags",        icon: IconTags },
     ],
   },
   {

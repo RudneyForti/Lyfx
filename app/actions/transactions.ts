@@ -32,6 +32,7 @@ export async function createTransaction(data: {
   recurrenceEndsAt?: string;
   context?: string;
   reimbursable?: boolean;
+  accountId?: string;
   tagIds?: string[];
 }) {
   const userId = await requireAuth();

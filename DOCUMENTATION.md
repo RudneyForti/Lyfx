@@ -104,7 +104,12 @@ Arquitetura multi-usuário com isolamento completo por `userId`. Cada usuário v
 │ avatar          │ String?      │ Base64 JPEG 200×200px          │
 │ age             │ Int?         │ Idade                          │
 │ gender          │ String?      │ Gênero                         │
-│ address         │ String?      │ Endereço                       │
+│ city            │ String?      │ Cidade                         │
+│ state           │ String?      │ Estado / UF                    │
+│ zipCode         │ String?      │ CEP ou Zip code                │
+│ street          │ String?      │ Logradouro (auto-fill ViaCEP)  │
+│ streetNumber    │ String?      │ Número / complemento           │
+│ country         │ String?      │ País                           │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
@@ -129,6 +134,7 @@ Arquitetura multi-usuário com isolamento completo por `userId`. Cada usuário v
 │ context         │ String?      │ "personal"|"professional"      │
 │ reimbursable    │ Boolean      │ Despesa reembolsável           │
 │ reimbursedAt    │ DateTime?    │ Preenchido ao marcar recebida  │
+│ accountId       │ String?      │ FK opcional → Account.id       │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 │ tags            │ Relation     │ → TransactionTag[]             │
@@ -222,10 +228,42 @@ Nota: um registro por usuário — criado lazily no primeiro acesso via getOrCre
 │ creditor        │ String?      │ Nome do credor                 │
 │ notes           │ String?      │ Observações livres             │
 │ status          │ String       │ "active" | "paid_off"          │
+│ institutionId   │ String?      │ FK opcional → Institution.id   │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
 Tipos de liability: "cheque_especial" | "rotativo" | "emprestimo" | "financiamento" | "outro"
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        INSTITUTION                              │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ name            │ String       │ Nome do banco / fintech        │
+│ type            │ String       │ "bank"|"fintech"|"broker"|"other"│
+│ color           │ String       │ Hex para identificação visual  │
+│ icon            │ String       │ Chave de ícone                 │
+│ notes           │ String?      │ Observações livres             │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+│ accounts        │ Relation     │ → Account[]                    │
+└─────────────────┴──────────────┴────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                          ACCOUNT                                │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ institutionId   │ String (FK)  │ → Institution.id (cascade)     │
+│ name            │ String       │ Nome da conta                  │
+│ type            │ String       │ Ver tipos abaixo               │
+│ balance         │ Float        │ Saldo atual                    │
+│ limit           │ Float?       │ Limite (cartões / cheque esp.) │
+│ notes           │ String?      │ Observações livres             │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Tipos de account: "checking" | "savings" | "credit_card" | "investment" | "wallet" | "other"
 ```
 
 ### Diagrama de relações
@@ -459,7 +497,10 @@ Gerenciamento de etiquetas.
 Edição dos dados pessoais e credenciais.
 
 - **Upload de avatar**: seleção de imagem → redimensionamento client-side via Canvas API para 200×200px → conversão para JPEG base64 → armazenamento no banco
-- **Campos editáveis**: nome, e-mail, idade, gênero, endereço
+- **Campos editáveis**: nome, e-mail, idade, gênero
+- **Endereço estruturado**: CEP, logradouro, número, cidade, estado e país — em campos separados
+  - **Auto-fill ViaCEP**: ao clicar na lupa (ou pressionar Enter) no campo CEP, consulta `viacep.com.br` e preenche automaticamente logradouro, cidade e estado
+  - **País**: combobox digitável (`CountrySelect`) com todos os países do mundo em português; filtra por digitação, aceita texto livre
 - **Alteração de senha**: exige senha atual (verificada com bcrypt.compare), nova senha (mínimo 6 chars)
 - **Sidebar**: usa o nome e avatar do perfil via prop injetada pelo `AppLayout`
 
@@ -518,6 +559,39 @@ Gerenciamento de dívidas com plano de quitação em método avalanche.
   - Tip explicando o método avalanche
 - **`lib/liabilities.ts`**: função pura `monthsToPayoff(balance, monthlyRate, payment)` — separada do arquivo `"use server"` (limitação do Turbopack)
 - **Alerta contextual em `/goals`**: se existirem passivos com taxa ≥ 5% a.m., o GoalsView exibe um banner vermelho listando as dívidas e sugerindo priorização; se todas as dívidas forem de baixo juro, exibe confirmação verde
+
+### 6.13 Instituições (`/institutions`)
+
+Cadastro de bancos, fintechs e corretoras com suas contas vinculadas.
+
+- **Tipos de instituição**: Banco, Fintech, Corretora, Outro — com cor e ícone personalizáveis
+- **Contas por instituição**: cada instituição pode ter N contas (corrente, poupança, cartão de crédito, investimentos, carteira, outro) com saldo e limite opcionais
+- **Cards de resumo**: total em contas, total de passivos vinculados, número de instituições ativas
+- **InstitutionCard**: expandível — lista as contas com tipo, saldo e limite; lista os passivos vinculados à instituição
+- **Vinculação de passivos**: ao criar/editar um passivo em `/liabilities`, é possível associá-lo a uma instituição
+- **Vinculação de transações**: ao criar uma transação, é possível associá-la a uma conta específica (visível quando há contas cadastradas)
+- **Exclusão em cascade**: ao excluir uma instituição, suas contas são removidas, `institutionId` dos passivos vinculados é limpo e `accountId` das transações vinculadas é limpo
+- **`lib/institutions.ts`**: tipos e constantes (`InstitutionType`, `AccountType`, labels, interfaces) — separados do arquivo `"use server"` por limitação do Turbopack
+
+### 6.17 Alertas (`/alerts`)
+
+Central de alertas proativos gerados automaticamente com base nos dados do usuário.
+
+Quatro tipos de alerta calculados on-the-fly em `app/actions/alerts.ts`:
+
+| Tipo | Severidade | Critério |
+|---|---|---|
+| Orçamento | ⚠ warning | Categoria ≥ 80% do limite definido |
+| Orçamento | 🔴 danger | Categoria ≥ 100% do limite (estouro) |
+| Meta | ⚠ warning | GoalPayment não pago com vencimento até o fim do mês |
+| Meta | 🔴 danger | GoalPayment não pago com vencimento já vencido |
+| Projeção | 🔴 danger | Algum dos próximos 12 meses com saldo livre negativo |
+| Sazonal | ⚠ warning | Despesa anual com vencimento nos próximos 2 meses |
+
+- **Agrupamento por severidade**: danger → warning → info
+- **AlertCard**: ícone de severidade, badge de tipo, título, descrição e botão de link para a seção relevante
+- **Chips de resumo**: contagem de alertas por tipo no topo
+- **Estado vazio**: ícone de sino verde e mensagem "Tudo em ordem!" quando não há alertas
 
 ### 6.14 Reembolsos (`/reimbursements`)
 
@@ -770,6 +844,8 @@ lyfx/
 │   │   ├── liabilities/page.tsx
 │   │   ├── reimbursements/page.tsx
 │   │   ├── profile/page.tsx
+│   │   ├── institutions/page.tsx # Cadastro de bancos/fintechs e contas
+│   │   ├── alerts/page.tsx       # Central de alertas proativos
 │   │   └── education/page.tsx    # (pendente)
 │   ├── actions/                  # Server Actions — mutações e queries
 │   │   ├── dashboard.ts          # getDashboardData() — busca tudo em paralelo
@@ -782,6 +858,8 @@ lyfx/
 │   │   ├── health.ts             # getHealthData() — DRE + reserva + score
 │   │   ├── liabilities.ts        # CRUD de passivos
 │   │   ├── settings.ts           # getSettings / updateExpectedIncome
+│   │   ├── institutions.ts       # CRUD de instituições e contas
+│   │   ├── alerts.ts             # getAlerts() — 4 tipos de alertas on-the-fly
 │   │   └── user.ts
 │   ├── api/
 │   │   └── clear-session/route.ts  # Route Handler — limpa cookie órfão
@@ -817,6 +895,10 @@ lyfx/
 │   ├── health/HealthView.tsx     # gauge SVG + 4 dimensões + perfil
 │   ├── liabilities/
 │   │   └── LiabilitiesView.tsx  # CRUD + Modo Recuperação (avalanche)
+│   ├── institutions/
+│   │   └── InstitutionsView.tsx # CRUD de instituições e contas vinculadas
+│   ├── alerts/
+│   │   └── AlertsView.tsx       # Central de alertas agrupados por severidade
 │   ├── reimbursements/
 │   │   └── ReimbursementsView.tsx  # tracking de despesas reembolsáveis
 │   ├── projections/ProjectionsView.tsx
@@ -824,7 +906,10 @@ lyfx/
 │   ├── tags/
 │   │   ├── TagPicker.tsx
 │   │   └── TagsManager.tsx
-│   └── profile/ProfileForm.tsx
+│   ├── profile/ProfileForm.tsx
+│   └── ui/
+│       ├── MonthPicker.tsx       # Seletor de mês custom (substitui input[type=month])
+│       └── CountrySelect.tsx     # Combobox digitável com ~195 países em português
 │
 ├── lib/
 │   ├── db.ts                     # Singleton Prisma com adapter SQLite
@@ -835,6 +920,7 @@ lyfx/
 │   ├── utils.ts                  # cn() para merge de classNames
 │   ├── health.ts                 # computeHealthScore() — cálculo puro, sem DB
 │   ├── liabilities.ts            # monthsToPayoff() — utilitário puro de amortização
+│   ├── institutions.ts           # Tipos e constantes de instituições (fora do "use server")
 │   └── generated/prisma/         # Client gerado pelo Prisma (não editar)
 │
 ├── prisma/
@@ -871,9 +957,11 @@ lyfx/
 | `reports/page.tsx` | Renderiza `ReportsView` (seleção de período + DRE exportável). |
 | `tags/page.tsx` | Busca todas as tags do usuário e renderiza `TagsManager`. |
 | `health/page.tsx` | Busca dados de saúde financeira e renderiza `HealthView`. |
-| `liabilities/page.tsx` | Busca passivos e renderiza `LiabilitiesView`. |
+| `liabilities/page.tsx` | Busca passivos e instituições; renderiza `LiabilitiesView` com dropdown de vínculo de instituição. |
 | `reimbursements/page.tsx` | Busca despesas reembolsáveis e renderiza `ReimbursementsView`. |
 | `profile/page.tsx` | Busca perfil do usuário e renderiza `ProfileForm`. |
+| `institutions/page.tsx` | Busca instituições e passivos em paralelo; renderiza `InstitutionsView`. |
+| `alerts/page.tsx` | Busca alertas calculados e renderiza `AlertsView`. |
 
 #### `app/actions/`
 
@@ -887,9 +975,11 @@ lyfx/
 | `projections.ts` | `getProjections()` — lê recorrências mensais/anuais e parcelas futuras; distribui cada item no mês correto para os próximos 12 meses. |
 | `reports.ts` | `getReportsData(month, year)` — busca transações do período e monta estrutura de DRE para exportação/exibição. |
 | `health.ts` | `getHealthData(month, year)` — combina `getDRESummary` com aggregate de `debit_longterm` (proxy de reserva) e média de despesas dos últimos 3 meses; retorna dados para `computeHealthScore`. |
-| `liabilities.ts` | `getLiabilities`, `createLiability`, `updateLiability`, `deleteLiability`, `markPaidOff`. |
+| `liabilities.ts` | `getLiabilities`, `createLiability`, `updateLiability`, `deleteLiability`, `markPaidOff`. Passivo pode ser vinculado a uma instituição via `institutionId`. |
 | `settings.ts` | `getSettings()` com padrão get-or-create por `userId`; `updateExpectedIncome(amount)`. |
-| `user.ts` | `getProfile()`, `updateProfile()` (nome, email, idade, gênero, endereço, avatar base64), `changePassword()` (verifica senha atual com bcrypt antes de atualizar). |
+| `user.ts` | `getProfile()`, `updateProfile()` (nome, email, idade, gênero, 5 campos de endereço, avatar base64), `changePassword()` (verifica senha atual com bcrypt antes de atualizar). |
+| `institutions.ts` | `getInstitutions`, `getAccountsForSelect`, `createInstitution`, `updateInstitution`, `deleteInstitution` (cascade manual + limpeza de FKs), `createAccount`, `updateAccount`, `deleteAccount`. |
+| `alerts.ts` | `getAlerts()` — calcula on-the-fly 4 tipos de alerta: estouro de orçamento, pagamentos de metas vencidos/pendentes, projeção negativa nos próximos 12 meses e despesas sazonais iminentes. |
 
 #### `app/login/`
 
@@ -935,11 +1025,18 @@ lyfx/
 | `GoalsMiniWidget.tsx` | Widget lateral com barra de progresso para cada meta ativa (até 4), mostrando `currentAmount / targetAmount`. |
 | `MonthlyTrendChart.tsx` | Gráfico de barras dos últimos 6 meses: receita, despesa e resultado. Mês atual destacado em cyan. Tooltip interativo. |
 
+#### `components/ui/`
+
+| Arquivo | O que faz |
+|---|---|
+| `MonthPicker.tsx` | Seletor de mês customizado (substitui `<input type="month">`): botão-trigger com display "Janeiro de 2026", dropdown com navegação de ano e grade 4×3 de meses abreviados, mês selecionado em cyan, X para limpar. Props: `value` ("YYYY-MM"), `onChange`, `placeholder`, `height`, `fontSize`. |
+| `CountrySelect.tsx` | Combobox digitável de países: campo de texto com filtragem em tempo real sobre lista de ~195 países em português (lusófonos no topo), chevron para abrir/fechar, X para limpar, aceita texto livre. |
+
 #### `components/transactions/`
 
 | Arquivo | O que faz |
 |---|---|
-| `TransactionForm.tsx` | Formulário de criação de transações com dois modos: "Avulsa" (único ou recorrente) e "Parcelamento" (N parcelas mensais). Inclui `TagPicker` inline, toggle de reembolsável e seleção de contexto (pessoal/profissional). |
+| `TransactionForm.tsx` | Formulário de criação de transações com dois modos: "Avulsa" (único ou recorrente) e "Parcelamento" (N parcelas mensais). Inclui `TagPicker` inline, toggle de reembolsável, seleção de contexto (pessoal/profissional) e seletor de conta (visível quando há contas cadastradas). |
 | `TransactionList.tsx` | Lista de transações com `ActionBar` animada ao clicar (slide-down): botões editar, excluir individual e excluir grupo de parcelas. |
 | `EditTransactionModal.tsx` | Modal de edição com 3 modos automáticos: `single` (edita só o registro), `installment` (edita parcelas futuras do grupo), `recurring` (edita o registro com aviso de impacto em projeções). |
 
@@ -962,7 +1059,9 @@ lyfx/
 | `projections/ProjectionsView.tsx` | Cards de resumo (livre acumulado, média, meses no vermelho), gráfico de 12 barras clicáveis, painel de detalhe mensal. |
 | `reports/ReportsView.tsx` | Seleção de período (mês/ano), DRE detalhado por categoria com valores e percentuais sobre a receita. |
 | `reimbursements/ReimbursementsView.tsx` | Cards de resumo (a receber / recebido), listas de despesas pendentes e quitadas com marcação/desmarcação. |
-| `profile/ProfileForm.tsx` | Upload de avatar com resize client-side via Canvas, campos de perfil (nome, email, idade, gênero, endereço) e formulário de troca de senha com verificação da senha atual. |
+| `profile/ProfileForm.tsx` | Upload de avatar com resize client-side via Canvas, campos de perfil (nome, email, idade, gênero), endereço estruturado em 5 campos com auto-fill ViaCEP (lupa + Enter) e `CountrySelect`, formulário de troca de senha com verificação da senha atual. |
+| `institutions/InstitutionsView.tsx` | CRUD completo de instituições e contas: `InstitutionModal` (criar/editar), `AccountForm` (formulário inline), `InstitutionCard` (expandível com lista de contas e passivos vinculados), `AccountRow` (linha com editar/excluir), cards de resumo e estado vazio. |
+| `alerts/AlertsView.tsx` | Exibe alertas agrupados por severidade (danger → warning → info): `AlertCard` com ícone, badge de tipo, título, descrição e link; chips de contagem por tipo; estado vazio "Tudo em ordem!". |
 
 #### `lib/`
 
@@ -976,12 +1075,13 @@ lyfx/
 | `utils.ts` | Função `cn(...inputs)` — combina `clsx` e `tailwind-merge` para merge seguro de classes Tailwind. |
 | `health.ts` | Função pura `computeHealthScore(data)` — calcula o score 0–100 e o perfil financeiro a partir de DRE, reserva e médias. Sem acesso ao banco. |
 | `liabilities.ts` | Função pura `monthsToPayoff(balance, monthlyRate, payment)` — calcula meses até quitação de uma dívida pela fórmula de amortização. Separada do arquivo `"use server"` por limitação do Turbopack. |
+| `institutions.ts` | Tipos e constantes de instituições (`InstitutionType`, `AccountType`, `INSTITUTION_TYPE_LABELS`, `ACCOUNT_TYPE_LABELS`, interfaces `Institution`, `Account`, `AccountForSelect`) — separados do arquivo `"use server"` por limitação do Turbopack. |
 
 #### `prisma/`
 
 | Arquivo | O que faz |
 |---|---|
-| `schema.prisma` | Fonte de verdade do banco: define todos os modelos (User, Transaction, Tag, TransactionTag, Budget, Goal, GoalPayment, Settings, Liability) com campos, tipos, defaults, constraints únicas compostas e relações. |
+| `schema.prisma` | Fonte de verdade do banco: define todos os modelos (User, Transaction, Tag, TransactionTag, Budget, Goal, GoalPayment, Settings, Liability, Institution, Account) com campos, tipos, defaults, constraints únicas compostas e relações. |
 
 ---
 
