@@ -7,7 +7,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-local-003B57?style=flat-square&logo=sqlite)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
-![Version](https://img.shields.io/badge/version-0.4.0-22D3EE?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.3.1-22D3EE?style=flat-square)
 
 ---
 
@@ -19,17 +19,23 @@ O Lyfx aplica o conceito do **DRE (Demonstrativo de Resultado do Exercício)** �
 
 | Módulo | Descrição |
 |---|---|
-| **Dashboard** | DRE pessoal em tempo real |
-| **Transações** | CRUD com categorias, tags e recorrência |
-| **Orçamento** | Tetos de gasto por categoria |
+| **Dashboard** | DRE pessoal em tempo real, KPIs, tendência de 6 meses, metas e score de saúde |
+| **Transações** | CRUD com categorias, tags, recorrência e parcelamento |
+| **Orçamento** | Tetos de gasto por categoria com acompanhamento mensal |
 | **Metas** | Objetivos com parcelas automáticas e análise de viabilidade |
 | **Projeções** | 12 meses de compromissos recorrentes à frente |
-| **Contas Fixas** | Visão das despesas fixas mensais |
+| **Contas Fixas** | Visão das despesas fixas mensais e provisão sazonal |
 | **Plano Mensal** | Calendário de lançamentos do mês |
+| **Passivos** | Dívidas com plano de quitação pelo método avalanche |
+| **Instituições** | Bancos e fintechs com contas e saldos vinculados |
+| **Bens e Imóveis** | Imóveis, veículos e outros bens com impostos e despesas associadas |
+| **Alertas** | Central proativa de alertas: orçamento, metas, projeções e sazonais |
+| **Saúde Financeira** | Score 0–100 em 4 dimensões com perfil evolutivo |
+| **Relatórios** | DRE detalhado por período com percentuais sobre a receita |
+| **Reembolsos** | Rastreamento de despesas reembolsáveis e seu recebimento |
 | **Tags** | Etiquetas personalizadas por transação |
-| **Relatórios** | Tendência histórica 3/6/12 meses por categoria |
-| **Educação** | Base de conhecimento sobre finanças pessoais |
-| **Studio** | Painel de administração protegido por senha |
+| **Perfil** | Dados pessoais, endereço com auto-fill por CEP e troca de senha |
+| **Studio** | Painel de administração protegido por senha separada |
 
 ## Stack
 
