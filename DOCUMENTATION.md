@@ -1,5 +1,5 @@
 # Lyfx — Documentação Técnica
-> Life Fixed · v0.9.0 · Maio 2026
+> Life Fixed · v1.0.0 · Maio 2026
 
 ---
 
@@ -127,6 +127,7 @@ Atualmente configurado como aplicação single-user local. Arquitetura prevista 
 │ installmentTotal  │ Int?       │ Total de parcelas do grupo     │
 │ context         │ String?      │ "personal"|"professional"      │
 │ reimbursable    │ Boolean      │ Despesa reembolsável           │
+│ reimbursedAt    │ DateTime?    │ Preenchido ao marcar recebida  │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 │ tags            │ Relation     │ → TransactionTag[]             │
@@ -366,8 +367,10 @@ Action dedicada que busca em paralelo: DRE summary, transações recentes, metas
 Listagem e criação de lançamentos financeiros.
 
 - **Formulário de criação**: tipo (crédito/débito), data, descrição, valor, categoria, notas, recorrência, tags
-- **Recorrência**: `once` (único), `monthly` (mensal), `yearly` (anual)
-- **Parcelamento**: modo dedicado no formulário — define valor total + número de parcelas. Cria N registros com `installmentGroupId` UUID compartilhado, `installmentNumber` e `installmentTotal`. Descrição recebe sufixo `(N/M)` automaticamente
+- **Modos do formulário**: "Avulsa" (lançamento único ou recorrente) e "Parcelamento" (N parcelas mensais)
+- **Recorrência** (modo Avulsa): `once` = "Não repete", `monthly` = "Todo mês", `yearly` = "Todo ano"
+- **Parcelamento**: modo dedicado — define valor total + número de parcelas. Cria N registros com `installmentGroupId` UUID compartilhado, `installmentNumber` e `installmentTotal`. Descrição recebe sufixo `(N/M)` automaticamente
+- **Toggle reembolsável**: aparece apenas em débitos — ativa `reimbursable = true` e direciona o lançamento para rastreamento em `/reimbursements`
 - **TagPicker**: seletor inline de tags com criação rápida (nome + cor + ícone)
 - **Interação de lista**: clicar em uma transação expande uma `ActionBar` animada (slide-down) com fundo vermelho no topo do card
 - **ActionBar**: botões "Editar" (âmbar), "Só esta"/"Excluir" (vermelho), "Excluir Nx" (vermelho, apenas para parcelamentos), "×" fechar
@@ -505,7 +508,30 @@ Gerenciamento de dívidas com plano de quitação em método avalanche.
 - **`lib/liabilities.ts`**: função pura `monthsToPayoff(balance, monthlyRate, payment)` — separada do arquivo `"use server"` (limitação do Turbopack)
 - **Alerta contextual em `/goals`**: se existirem passivos com taxa ≥ 5% a.m., o GoalsView exibe um banner vermelho listando as dívidas e sugerindo priorização; se todas as dívidas forem de baixo juro, exibe confirmação verde
 
-### 6.13 Studio (`/studio`)
+### 6.14 Reembolsos (`/reimbursements`)
+
+Rastreamento de despesas reembolsáveis e seu status de recebimento.
+
+- **Como funciona**: ao registrar uma transação de débito, o usuário pode ativar o toggle "Despesa reembolsável" — o campo `reimbursable` é salvo como `true`
+- **Campo novo**: `reimbursedAt DateTime?` em `Transaction` — preenchido ao marcar como recebida; `null` = pendente
+- **Cards de resumo**: A receber (total pendente), Já reembolsado (total recebido), Total registrado
+- **Lista "Aguardando reembolso"**: badge âmbar, botão circular para marcar como recebida
+- **Lista "Reembolsadas"**: badge verde, exibe data do recebimento; botão para desfazer
+- **Actions**: `getReimbursables()`, `markReimbursed(id)`, `unmarkReimbursed(id)` em `transactions.ts`
+- **Link na Sidebar**: sob Análise, ícone `IconReceipt2`
+
+### 6.15 Provisão Sazonal (em `/fixed-expenses`)
+
+Seção adicionada ao final da página de Contas Fixas, visível quando há despesas anuais cadastradas.
+
+- **Lógica**: para cada despesa anual (`recurrence = "yearly"`), calcula `valor ÷ meses até o próximo vencimento` — não divide por 12 fixo, mas pelo tempo real restante
+- **Urgência**: ≤ 2 meses = vermelho "Urgente" | ≤ 4 meses = âmbar | restante = verde
+- **Ordenação**: da mais urgente para a mais distante
+- **Por item**: barra de progresso visual do consumo do prazo, data do próximo vencimento, valor total e valor mensal a provisionar
+- **Resumo**: total consolidado a provisionar por mês exibido no tip banner
+- **Componente**: `ProvisaoSazonal` — sub-componente dentro de `FixedExpensesView.tsx`
+
+### 6.16 Studio (`/studio`)
 
 Painel administrativo protegido por senha.
 
@@ -549,6 +575,12 @@ GOAL_PAYMENT
 LIABILITY
   ├── exibido → /liabilities (LiabilitiesView — CRUD + Modo Recuperação)
   └── alerta → /goals (GoalsView — banner contextual se taxa >= 5% a.m.)
+
+TRANSACTION.reimbursable
+  └── exibido → /reimbursements (filtra reimbursable=true, agrupa por status)
+
+TRANSACTION.recurrence = "yearly"
+  └── alimenta → /fixed-expenses (seção ProvisaoSazonal — valor/meses até vencimento)
 
 HEALTH
   ├── lê → TRANSACTION (via getDRESummary + aggregate debit_longterm)
@@ -699,6 +731,7 @@ lyfx/
 │   │   ├── tags/page.tsx
 │   │   ├── health/page.tsx
 │   │   ├── liabilities/page.tsx
+│   │   ├── reimbursements/page.tsx
 │   │   ├── profile/page.tsx
 │   │   └── education/page.tsx    # (pendente)
 │   ├── actions/                  # Server Actions — mutações e queries
@@ -747,6 +780,8 @@ lyfx/
 │   ├── health/HealthView.tsx     # gauge SVG + 4 dimensões + perfil
 │   ├── liabilities/
 │   │   └── LiabilitiesView.tsx  # CRUD + Modo Recuperação (avalanche)
+│   ├── reimbursements/
+│   │   └── ReimbursementsView.tsx  # tracking de despesas reembolsáveis
 │   ├── projections/ProjectionsView.tsx
 │   ├── reports/ReportsView.tsx
 │   ├── tags/
@@ -831,7 +866,7 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **Fase 3** | ✅ v0.7.0 | Budget completo: modelo `Settings` com `expectedMonthlyIncome`, action `getSettings`/`updateExpectedIncome`, BudgetView redesenhado em 4 seções (receita esperada, nav mensal, alocações por categoria com % da receita, balanço planejado vs real). |
 | **Fase 4** | ✅ v0.8.0 | Score de saúde financeira: 4 dimensões (comprometimento, poupança, resultado, reserva), 4 perfis com cores, gauge SVG, widget no dashboard, página `/health` com detalhamento completo. |
 | **Fase 5** | ✅ v0.9.0 | Passivos (`Liability`): CRUD completo, modo recuperação avalanche com calculadora de pagamento extra, alerta contextual nas Metas para dívidas com taxa ≥ 5% a.m. |
-| **Fase 6** | 🔲 Roadmap | Reembolso com tracking, provisão sazonal automática, importação OFX/CSV |
+| **Fase 6** | ✅ v1.0.0 | Reembolso com tracking (`reimbursedAt`, página `/reimbursements`, toggle no formulário), provisão sazonal automática em `/fixed-expenses`, modo "Avulsa" renomeado no formulário. Importação OFX/CSV adiada para fase futura. |
 
 ### Isolamento de dados — plano técnico
 
@@ -845,4 +880,4 @@ Quando implementado, o plano é:
 
 ---
 
-*Última atualização: 19/05/2026. Versão atual: 0.9.0.*
+*Última atualização: 19/05/2026. Versão atual: 1.0.0.*

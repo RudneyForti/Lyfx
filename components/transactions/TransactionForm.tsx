@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { IconPlus, IconX, IconCurrencyReal, IconRepeat, IconRepeatOff, IconStack2 } from "@tabler/icons-react";
+import { IconPlus, IconX, IconCurrencyReal, IconRepeat, IconRepeatOff, IconStack2, IconReceipt2 } from "@tabler/icons-react";
 import { createTransaction, createInstallments } from "@/app/actions/transactions";
 import { CREDIT_CATEGORIES, DEBIT_CATEGORIES } from "@/lib/categories";
 import { TransactionType, TransactionCategory, Recurrence, Tag } from "@/lib/types";
@@ -28,6 +28,7 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
     notes: "",
     recurrence: "once" as Recurrence,
     recurrenceEndsAt: "",
+    reimbursable: false,
   });
   const [installmentCount, setInstallmentCount] = useState("2");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -52,7 +53,7 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
   }
 
   function resetForm() {
-    setForm({ date: today(), description: "", amount: "", category: "", subcategory: "", notes: "", recurrence: "once", recurrenceEndsAt: "" });
+    setForm({ date: today(), description: "", amount: "", category: "", subcategory: "", notes: "", recurrence: "once", recurrenceEndsAt: "", reimbursable: false });
     setSelectedTagIds([]);
     setInstallmentCount("2");
   }
@@ -96,6 +97,7 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
           recurrence: form.recurrence,
           recurrenceEndsAt: form.recurrenceEndsAt || undefined,
           tagIds: selectedTagIds,
+          reimbursable: form.reimbursable,
         });
         resetForm();
         onSuccess?.();
@@ -110,7 +112,7 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
         <label className="text-[11px] font-medium text-[var(--color-f2)] mb-1.5 block">Modo</label>
         <div className="flex gap-2 bg-[var(--color-bg3)] p-[3px] rounded-[10px]">
           {([
-            { value: "single",      label: "Transação" },
+            { value: "single",      label: "Avulsa" },
             { value: "installment", label: "Parcelamento" },
           ] as const).map(({ value, label }) => (
             <button
@@ -327,6 +329,45 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Reembolsável (apenas débito) */}
+      {type === "debit" && (
+        <button
+          type="button"
+          onClick={() => setForm((f) => ({ ...f, reimbursable: !f.reimbursable }))}
+          className={cn(
+            "flex items-center gap-3 px-3.5 py-2.5 rounded-[8px] border text-left transition-all duration-150 cursor-pointer w-full",
+            form.reimbursable
+              ? "bg-[rgba(34,211,238,0.06)] border-[var(--color-cyan-border)]"
+              : "bg-[var(--color-bg3)] border-[var(--color-border)] hover:border-[var(--color-border2)]"
+          )}
+        >
+          <div className={cn(
+            "w-8 h-8 rounded-[8px] flex items-center justify-center flex-shrink-0 border transition-all",
+            form.reimbursable
+              ? "bg-[var(--color-cyan-dim)] border-[var(--color-cyan-border)] text-[var(--color-cyan)]"
+              : "bg-[var(--color-bg4)] border-[var(--color-border2)] text-[var(--color-f4)]"
+          )}>
+            <IconReceipt2 size={15} />
+          </div>
+          <div>
+            <div className={cn("text-[12px] font-medium", form.reimbursable ? "text-[var(--color-cyan)]" : "text-[var(--color-f2)]")}>
+              Despesa reembolsável
+            </div>
+            <div className="text-[10px] text-[var(--color-f4)] mt-0.5">
+              {form.reimbursable ? "Será rastreada em /reembolsos" : "Marcar para acompanhar o recebimento"}
+            </div>
+          </div>
+          <div className={cn(
+            "ml-auto w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
+            form.reimbursable
+              ? "border-[var(--color-cyan)] bg-[var(--color-cyan)]"
+              : "border-[var(--color-border2)] bg-transparent"
+          )}>
+            {form.reimbursable && <div className="w-1.5 h-1.5 rounded-full bg-[#083344]" />}
+          </div>
+        </button>
       )}
 
       {error && (

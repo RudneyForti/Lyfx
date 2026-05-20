@@ -257,3 +257,30 @@ export async function getDRESummary(month?: number, year?: number): Promise<DRES
     result: net,
   };
 }
+
+// ── Reembolso ────────────────────────────────────────────────────────────────
+
+export async function getReimbursables(): Promise<Transaction[]> {
+  const raw = await db.transaction.findMany({
+    where: { reimbursable: true },
+    orderBy: { date: "desc" },
+    include: INCLUDE_TAGS,
+  });
+  return raw.map(mapTx);
+}
+
+export async function markReimbursed(id: string): Promise<void> {
+  await db.transaction.update({
+    where: { id },
+    data: { reimbursedAt: new Date() },
+  });
+  revalidatePath("/reimbursements");
+}
+
+export async function unmarkReimbursed(id: string): Promise<void> {
+  await db.transaction.update({
+    where: { id },
+    data: { reimbursedAt: null },
+  });
+  revalidatePath("/reimbursements");
+}

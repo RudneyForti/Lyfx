@@ -4,6 +4,8 @@ import {
   IconRepeat,
   IconCalendarDue,
   IconTag,
+  IconPigMoney,
+  IconAlertTriangle,
 } from "@tabler/icons-react";
 import { Transaction, TransactionCategory, Tag } from "@/lib/types";
 import { getCategoryDef } from "@/lib/categories";
@@ -295,6 +297,120 @@ export function FixedExpensesView({ allTransactions }: Props) {
             <span className="text-[10px] text-[var(--color-f4)]">Anuais (meses de vencimento)</span>
           </div>
         </div>
+      </div>
+
+      {/* ── Provisão sazonal ────────────────────────────── */}
+      {annuals.filter((t) => t.type === "debit").length > 0 && (
+        <ProvisaoSazonal annuals={annuals.filter((t) => t.type === "debit")} today={today} />
+      )}
+    </div>
+  );
+}
+
+/* ── Provisão sazonal ── */
+function ProvisaoSazonal({ annuals, today }: { annuals: Transaction[]; today: Date }) {
+  const totalMonthlyProvision = annuals.reduce((s, t) => s + t.amount / 12, 0);
+
+  // For each annual, compute months until next occurrence and how much to save/month
+  const items = annuals.map((tx) => {
+    const txDate   = new Date(tx.date);
+    // Next occurrence: same month/day but this year or next
+    const next = new Date(today.getFullYear(), txDate.getMonth(), txDate.getDate());
+    if (next <= today) next.setFullYear(next.getFullYear() + 1);
+    const monthsUntil = Math.max(1,
+      (next.getFullYear() - today.getFullYear()) * 12 +
+      (next.getMonth() - today.getMonth())
+    );
+    const provisionNeeded = tx.amount / monthsUntil;
+    const urgency = monthsUntil <= 2 ? "high" : monthsUntil <= 4 ? "medium" : "low";
+    return { tx, next, monthsUntil, provisionNeeded, urgency };
+  }).sort((a, b) => a.monthsUntil - b.monthsUntil);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] flex items-center gap-1.5">
+          <IconPigMoney size={11} />
+          Provisão sazonal
+        </div>
+      </div>
+
+      {/* Tip */}
+      <div className="flex items-start gap-2.5 px-4 py-3 bg-[rgba(34,211,238,0.05)] border border-[var(--color-cyan-border)] rounded-[10px] text-[11px] text-[var(--color-f3)] leading-relaxed">
+        <IconPigMoney size={13} className="text-[var(--color-cyan)] flex-shrink-0 mt-0.5" />
+        <span>
+          Para não ser pego de surpresa pelos gastos anuais, separe mensalmente o valor abaixo de cada item.
+          Total a provisionar por mês:{" "}
+          <strong className="text-[var(--color-cyan)]">{fmt(totalMonthlyProvision)}</strong>
+        </span>
+      </div>
+
+      {/* Items */}
+      <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[12px] overflow-hidden">
+        {items.map(({ tx, next, monthsUntil, provisionNeeded, urgency }) => {
+          const urgencyColor =
+            urgency === "high"   ? "var(--color-red)"   :
+            urgency === "medium" ? "var(--color-amber)"  :
+                                   "var(--color-green)";
+          const barPct = Math.min(100, ((12 - monthsUntil) / 12) * 100);
+
+          return (
+            <div
+              key={tx.id}
+              className="flex items-center gap-4 px-5 py-4 border-b border-[var(--color-border)] last:border-0"
+            >
+              {/* Urgency dot */}
+              <div
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ background: urgencyColor }}
+              />
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[13px] font-medium text-[var(--color-f1)] truncate">
+                    {tx.description}
+                  </span>
+                  {urgency === "high" && (
+                    <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-[4px] bg-[rgba(248,113,113,0.1)] text-[var(--color-red)] border border-[rgba(248,113,113,0.2)] flex-shrink-0">
+                      <IconAlertTriangle size={8} />
+                      Urgente
+                    </span>
+                  )}
+                </div>
+                {/* Progress bar — how "full" the provision timeline is */}
+                <div className="h-1.5 bg-[var(--color-bg4)] rounded-full overflow-hidden mb-1">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${barPct}%`, background: urgencyColor, opacity: 0.7 }}
+                  />
+                </div>
+                <div className="flex items-center gap-3 text-[10px] text-[var(--color-f4)]">
+                  <span>
+                    Vence em{" "}
+                    <strong style={{ color: urgencyColor }}>
+                      {next.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                    </strong>
+                    {" "}({monthsUntil} {monthsUntil === 1 ? "mês" : "meses"})
+                  </span>
+                  <span>·</span>
+                  <span>Total: {fmt(tx.amount)}</span>
+                </div>
+              </div>
+
+              {/* Monthly provision */}
+              <div className="text-right flex-shrink-0">
+                <div className="text-[11px] text-[var(--color-f4)] mb-0.5">guardar/mês</div>
+                <div
+                  className="text-[15px] font-bold font-[family-name:var(--font-display)] italic"
+                  style={{ color: urgencyColor }}
+                >
+                  {fmt(provisionNeeded)}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

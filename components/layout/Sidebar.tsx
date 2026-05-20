@@ -18,6 +18,7 @@ import {
   IconUser,
   IconLogout,
   IconTrendingDown,
+  IconReceipt2,
 } from "@tabler/icons-react";
 import { logout } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
@@ -53,9 +54,10 @@ const navGroups = [
   {
     label: "Análise",
     items: [
-      { href: "/reports",  label: "Relatórios",          icon: IconReportAnalytics },
-      { href: "/health",   label: "Saúde financeira",     icon: IconHeartRateMonitor },
-      { href: "/tags",     label: "Minhas tags",          icon: IconTags },
+      { href: "/reports",        label: "Relatórios",          icon: IconReportAnalytics },
+      { href: "/health",         label: "Saúde financeira",    icon: IconHeartRateMonitor },
+      { href: "/reimbursements", label: "Reembolsos",          icon: IconReceipt2 },
+      { href: "/tags",           label: "Minhas tags",         icon: IconTags },
     ],
   },
   {
