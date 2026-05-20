@@ -846,6 +846,143 @@ lyfx/
 └── dev.db                        # Banco SQLite (não versionar)
 ```
 
+### 9.1 Descrição dos arquivos
+
+#### `app/`
+
+| Arquivo | O que faz |
+|---|---|
+| `page.tsx` | Rota pública `/`. Redireciona para `/dashboard` se houver sessão ativa; caso contrário renderiza `LandingPage`. |
+| `layout.tsx` | Root layout. Carrega as fontes Playfair Display e Inter via `next/font/google`, injeta variáveis CSS e importa `globals.css`. |
+| `globals.css` | Design system completo: tokens de cor (`--color-cyan`, `--color-bg2`, etc.), tipografia, keyframes de animação (marquee, pulse, shake) e utilitários Tailwind v4 via `@theme inline {}`. |
+| `proxy.ts` | Proteção de rotas no Edge Runtime (substituto do `middleware.ts` depreciado no Next.js 16). Verifica o cookie `lyfx_session` e redireciona rotas protegidas para `/login`; redireciona `/` e `/login` para `/dashboard` quando há sessão. |
+
+#### `app/(app)/`
+
+| Arquivo | O que faz |
+|---|---|
+| `layout.tsx` | `AppLayout` — Server Component que valida a sessão em cada request: lê o cookie, busca o usuário no banco, redireciona para `/api/clear-session` se o usuário não existir mais. Injeta a `Sidebar` com nome e avatar. |
+| `dashboard/page.tsx` | Busca dados do dashboard via `getDashboardData()` e renderiza `DashboardView`. |
+| `transactions/page.tsx` | Busca transações e tags do mês e renderiza `TransactionList` + `TransactionForm`. |
+| `budget/page.tsx` | Busca orçamentos, configurações e transações do mês; renderiza `BudgetView`. |
+| `fixed-expenses/page.tsx` | Busca transações recorrentes e renderiza `FixedExpensesView`. |
+| `goals/page.tsx` | Busca metas, pagamentos e passivos ativos; renderiza `GoalsView`. |
+| `projections/page.tsx` | Busca projeções de recorrências e parcelas; renderiza `ProjectionsView`. |
+| `reports/page.tsx` | Renderiza `ReportsView` (seleção de período + DRE exportável). |
+| `tags/page.tsx` | Busca todas as tags do usuário e renderiza `TagsManager`. |
+| `health/page.tsx` | Busca dados de saúde financeira e renderiza `HealthView`. |
+| `liabilities/page.tsx` | Busca passivos e renderiza `LiabilitiesView`. |
+| `reimbursements/page.tsx` | Busca despesas reembolsáveis e renderiza `ReimbursementsView`. |
+| `profile/page.tsx` | Busca perfil do usuário e renderiza `ProfileForm`. |
+
+#### `app/actions/`
+
+| Arquivo | O que faz |
+|---|---|
+| `dashboard.ts` | `getDashboardData()` — único `Promise.all` que busca DRE, transações recentes, metas ativas, trend de 6 meses e tags. Inclui `getDRESummary()` que agrupa transações por categoria e calcula as 4 margens (afterFixed, afterVariable, afterCommitted, net). |
+| `transactions.ts` | CRUD completo de transações: `getTransactions`, `createTransaction`, `createInstallments`, `updateTransaction`, `updateFutureInstallments`, `deleteTransaction`, `deleteInstallmentGroup`, `markReimbursed`, `unmarkReimbursed`, `getReimbursables`. |
+| `tags.ts` | `getTags`, `createTag`, `updateTag`, `deleteTag` — upsert com chave composta `[userId, name]`. |
+| `budgets.ts` | `getBudgets`, `setBudget` (upsert por `[userId, category]`), `deleteBudget`. |
+| `goals.ts` | `getGoals`, `createGoal` (gera GoalPayments automáticos), `deleteGoal`, `markPayment`, `getMonthlyBalance` (média de sobra dos últimos 3 meses para cálculo de viabilidade). |
+| `projections.ts` | `getProjections()` — lê recorrências mensais/anuais e parcelas futuras; distribui cada item no mês correto para os próximos 12 meses. |
+| `reports.ts` | `getReportsData(month, year)` — busca transações do período e monta estrutura de DRE para exportação/exibição. |
+| `health.ts` | `getHealthData(month, year)` — combina `getDRESummary` com aggregate de `debit_longterm` (proxy de reserva) e média de despesas dos últimos 3 meses; retorna dados para `computeHealthScore`. |
+| `liabilities.ts` | `getLiabilities`, `createLiability`, `updateLiability`, `deleteLiability`, `markPaidOff`. |
+| `settings.ts` | `getSettings()` com padrão get-or-create por `userId`; `updateExpectedIncome(amount)`. |
+| `user.ts` | `getProfile()`, `updateProfile()` (nome, email, idade, gênero, endereço, avatar base64), `changePassword()` (verifica senha atual com bcrypt antes de atualizar). |
+
+#### `app/login/`
+
+| Arquivo | O que faz |
+|---|---|
+| `page.tsx` | Server Component: verifica se já existe usuário no banco (`hasUser`) para decidir o modo inicial do formulário; injeta o mês atual em português. |
+| `LoginForm.tsx` | Client Component com toda a UI de autenticação: modo login/setup, toggle entre modos, animação shake, toast para social login, modal "Esqueci a senha", botão `← Início` e link discreto "Acessar Studio". |
+| `actions.ts` | `setup()` (cria o primeiro usuário + inicia sessão), `login()` (valida credenciais + inicia sessão), `logout()` (limpa cookie + redireciona para `/`). |
+
+#### `app/studio/`
+
+| Arquivo | O que faz |
+|---|---|
+| `page.tsx` | Server Component: verifica cookie `lyfx_admin`; renderiza `StudioLoginForm` ou o painel completo `StudioClient` passando os dados buscados. |
+| `StudioClient.tsx` | Client Component com toda a UI do Studio: abas Schema/Docs/Usuários/Dados, formulário de login, criação/exclusão de usuários com confirmação inline, combobox digitável de filtro por usuário, cards de sistema, renderização Markdown da documentação com TOC clicável (h2/h3/h4). |
+| `actions.ts` | `adminLogin`, `adminLogout` (limpa ambos os cookies + redireciona), `getStudioData`, `getStudioDataForUser`, `adminResetPassword`, `adminCreateUser`, `adminDeleteUser` (cascade manual), `getDocumentation`. |
+
+#### `app/api/`
+
+| Arquivo | O que faz |
+|---|---|
+| `clear-session/route.ts` | Route Handler GET — deleta o cookie `lyfx_session` e redireciona para `/login`. Usado como escape hatch quando o `userId` do cookie não existe mais no banco, evitando loop infinito no `AppLayout`. |
+
+#### `components/landing/`
+
+| Arquivo | O que faz |
+|---|---|
+| `LandingPage.tsx` | Página pública de marketing: navbar sticky com âncoras, hero com `DashboardMockup`, marquee de termos, 4 cards de features com mini-mockups, seção "Como funciona" em 3 passos, FAQ accordion com 6 itens, CTA final e footer. |
+
+#### `components/layout/`
+
+| Arquivo | O que faz |
+|---|---|
+| `Sidebar.tsx` | Barra lateral de navegação: links para todas as rotas protegidas com ícones Tabler, highlight da rota ativa via `usePathname`, avatar + nome do usuário no rodapé, botão de logout com `useTransition`. Colapsa/expande via estado. |
+
+#### `components/dashboard/`
+
+| Arquivo | O que faz |
+|---|---|
+| `DRE.tsx` | DRE em cascata: agrupa transações por categoria, calcula e exibe as 3 margens intermediárias (após fixos, operacional, após comprometidos) com badges coloridos inline. |
+| `KPICards.tsx` | 4 cards no topo do dashboard: Saldo (verde/vermelho), Receita, Gastos, Poupado (`debit_longterm`). |
+| `InsightBanner.tsx` | Gera e exibe a dica contextual do "Lyfx Insight" com base em 5 regras de prioridade sobre o estado financeiro do mês. |
+| `GoalsMiniWidget.tsx` | Widget lateral com barra de progresso para cada meta ativa (até 4), mostrando `currentAmount / targetAmount`. |
+| `MonthlyTrendChart.tsx` | Gráfico de barras dos últimos 6 meses: receita, despesa e resultado. Mês atual destacado em cyan. Tooltip interativo. |
+
+#### `components/transactions/`
+
+| Arquivo | O que faz |
+|---|---|
+| `TransactionForm.tsx` | Formulário de criação de transações com dois modos: "Avulsa" (único ou recorrente) e "Parcelamento" (N parcelas mensais). Inclui `TagPicker` inline, toggle de reembolsável e seleção de contexto (pessoal/profissional). |
+| `TransactionList.tsx` | Lista de transações com `ActionBar` animada ao clicar (slide-down): botões editar, excluir individual e excluir grupo de parcelas. |
+| `EditTransactionModal.tsx` | Modal de edição com 3 modos automáticos: `single` (edita só o registro), `installment` (edita parcelas futuras do grupo), `recurring` (edita o registro com aviso de impacto em projeções). |
+
+#### `components/tags/`
+
+| Arquivo | O que faz |
+|---|---|
+| `TagPicker.tsx` | Seletor inline de tags com criação rápida (nome + cor + ícone). Usado dentro do `TransactionForm`. |
+| `TagsManager.tsx` | Página completa de gerenciamento: lista de tags com edição inline de nome, cor e ícone; exclusão com cascade automático. |
+
+#### `components/` (demais views)
+
+| Arquivo | O que faz |
+|---|---|
+| `budget/BudgetView.tsx` | Receita esperada editável, navegação de mês, alocações por categoria com barra de progresso e % da receita, balanço planejado vs real. |
+| `fixed-expenses/FixedExpensesView.tsx` | Cards de resumo (mensal/anual/12 meses), listas de fixos mensais e anuais, gráfico de barras horizontais de projeção e seção `ProvisaoSazonal`. |
+| `goals/GoalsView.tsx` | CRUD de metas, cobranças mensais com marcação de pagamento, cálculo de viabilidade em tempo real, banner de alerta de passivos com juros altos. |
+| `health/HealthView.tsx` | Gauge SVG animado, 4 `DimensionCard`s com score e barra de progresso, badge de perfil (Em Recuperação → Livre), tip banner da pior dimensão. |
+| `liabilities/LiabilitiesView.tsx` | CRUD de passivos, previsão de quitação por dívida, modo recuperação avalanche com calculadora de pagamento extra. |
+| `projections/ProjectionsView.tsx` | Cards de resumo (livre acumulado, média, meses no vermelho), gráfico de 12 barras clicáveis, painel de detalhe mensal. |
+| `reports/ReportsView.tsx` | Seleção de período (mês/ano), DRE detalhado por categoria com valores e percentuais sobre a receita. |
+| `reimbursements/ReimbursementsView.tsx` | Cards de resumo (a receber / recebido), listas de despesas pendentes e quitadas com marcação/desmarcação. |
+| `profile/ProfileForm.tsx` | Upload de avatar com resize client-side via Canvas, campos de perfil (nome, email, idade, gênero, endereço) e formulário de troca de senha com verificação da senha atual. |
+
+#### `lib/`
+
+| Arquivo | O que faz |
+|---|---|
+| `db.ts` | Singleton do `PrismaClient` com `PrismaBetterSqlite3` como adapter. Reutiliza a instância entre hot-reloads em desenvolvimento via `globalThis`. |
+| `session.ts` | `getSessionUserId()` lê o cookie `lyfx_session`; `setSession(userId)` grava o cookie httpOnly; `clearSession()` apaga o cookie; `requireAuth()` retorna o `userId` ou lança erro se não autenticado. |
+| `types.ts` | Interfaces TypeScript do domínio: `Transaction`, `Tag`, `Goal`, `GoalPayment`, `Liability`, `DRESummary` (com `margins` e `saved`), tipos de categoria, recorrência e contexto. |
+| `categories.ts` | Array `CATEGORIES` com as 9 categorias (2 de crédito + 7 de débito), cada uma com `value`, `label`, `group`, `groupLabel` e `examples`. Fonte de verdade para dropdowns e agrupamentos. |
+| `tag-icons.ts` | Objeto `TAG_ICONS` mapeando 12 chaves para componentes Tabler Icons; array `TAG_COLORS` com 8 cores predefinidas em hex. |
+| `utils.ts` | Função `cn(...inputs)` — combina `clsx` e `tailwind-merge` para merge seguro de classes Tailwind. |
+| `health.ts` | Função pura `computeHealthScore(data)` — calcula o score 0–100 e o perfil financeiro a partir de DRE, reserva e médias. Sem acesso ao banco. |
+| `liabilities.ts` | Função pura `monthsToPayoff(balance, monthlyRate, payment)` — calcula meses até quitação de uma dívida pela fórmula de amortização. Separada do arquivo `"use server"` por limitação do Turbopack. |
+
+#### `prisma/`
+
+| Arquivo | O que faz |
+|---|---|
+| `schema.prisma` | Fonte de verdade do banco: define todos os modelos (User, Transaction, Tag, TransactionTag, Budget, Goal, GoalPayment, Settings, Liability) com campos, tipos, defaults, constraints únicas compostas e relações. |
+
 ---
 
 ## 10. Decisões Arquiteturais
