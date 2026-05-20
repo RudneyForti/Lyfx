@@ -18,6 +18,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Lyfx — Life Fixed",
   description: "Transforme o caos financeiro em uma equação com solução.",
+  icons: {
+    icon: { url: "/assets/favicon.svg", type: "image/svg+xml" },
+  },
 };
 
 export default function RootLayout({

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Fundo cyan transparente -->
+  <rect width="32" height="32" rx="6" ry="6" fill="rgba(34,211,238,0.12)"/>
+  <!-- Borda cyan -->
+  <rect x="0.5" y="0.5" width="31" height="31" rx="5.5" ry="5.5" fill="none" stroke="rgba(34,211,238,0.4)" stroke-width="1"/>
+  <!-- f(x) -->
+  <text
+    x="16"
+    y="16"
+    text-anchor="middle"
+    dominant-baseline="central"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-style="italic"
+    font-weight="700"
+    font-size="11"
+    fill="#22D3EE"
+  >f(x)</text>
+</svg>
