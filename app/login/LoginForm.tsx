@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { IconLogin, IconX, IconEye, IconEyeOff, IconBrain, IconSend, IconLoader2 } from "@tabler/icons-react";
 import { setup, login } from "./actions";
 
@@ -223,6 +224,15 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
         className="flex flex-col justify-center relative overflow-y-auto w-full md:w-[420px] md:min-w-[420px] px-11 py-12"
         style={{ background: "var(--color-bg2)" }}
       >
+        {/* back to landing */}
+        <Link
+          href="/"
+          className="absolute top-5 left-5 flex items-center gap-1.5 text-[11px] text-[var(--color-f4)] hover:text-[var(--color-f2)] transition-colors no-underline"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Início
+        </Link>
+
         {/* Logo */}
         <FadeUp delay={0} className="mb-9">
           <div
@@ -384,7 +394,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
                 <span className="flex-1 h-px bg-[rgba(255,255,255,0.13)]" />
               </FadeUp>
 
-              <FadeUp delay={0.35} className="flex flex-col gap-2 mb-6">
+              <FadeUp delay={0.35} className="flex flex-col gap-2 mb-4">
                 {[
                   {
                     label: "Continuar com Google",
@@ -419,6 +429,14 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
                     {label}
                   </button>
                 ))}
+              </FadeUp>
+              <FadeUp delay={0.4} className="flex justify-center mb-2">
+                <Link
+                  href="/studio"
+                  className="text-[10px] text-[var(--color-f4)] hover:text-[var(--color-f3)] transition-colors no-underline tracking-wide"
+                >
+                  Acessar Studio
+                </Link>
               </FadeUp>
             </>
           )}

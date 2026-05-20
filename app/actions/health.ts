@@ -1,16 +1,19 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/session";
 import { getDRESummary } from "./transactions";
 import { computeHealthScore } from "@/lib/health";
 
 export async function getHealthData(month: number, year: number) {
+  const userId = await requireAuth();
+
   // DRE do mês atual
   const summary = await getDRESummary(month, year);
 
   // Total acumulado em longo prazo (all-time proxy de reserva)
   const agg = await db.transaction.aggregate({
-    where: { category: "debit_longterm" },
+    where: { userId, category: "debit_longterm" },
     _sum: { amount: true },
   });
   const totalLongterm = agg._sum.amount ?? 0;

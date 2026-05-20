@@ -2,9 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/session";
 
 export async function getGoals() {
+  const userId = await requireAuth();
   return db.goal.findMany({
+    where: { userId },
     orderBy: { createdAt: "desc" },
     include: { payments: { orderBy: { dueDate: "asc" } } },
   });
@@ -18,6 +21,7 @@ export async function createGoal(data: {
   color: string;
   icon: string;
 }) {
+  const userId = await requireAuth();
   const deadline = new Date(data.deadline);
   const now = new Date();
 
@@ -32,6 +36,7 @@ export async function createGoal(data: {
 
   const goal = await db.goal.create({
     data: {
+      userId,
       name: data.name,
       description: data.description,
       targetAmount: data.targetAmount,
@@ -79,11 +84,13 @@ export async function markPayment(paymentId: string, paid: boolean) {
 }
 
 export async function deleteGoal(id: string) {
-  await db.goal.delete({ where: { id } });
+  const userId = await requireAuth();
+  await db.goal.delete({ where: { id, userId } });
   revalidatePath("/goals");
 }
 
 export async function getMonthlyBalance() {
+  const userId = await requireAuth();
   const now = new Date();
   const results = [];
 
@@ -92,7 +99,7 @@ export async function getMonthlyBalance() {
     const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
 
     const txs = await db.transaction.findMany({
-      where: { date: { gte: start, lte: end } },
+      where: { userId, date: { gte: start, lte: end } },
       select: { amount: true, type: true },
     });
 

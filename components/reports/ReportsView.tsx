@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import type { MonthReport, CategoryTotal } from "@/app/actions/reports";
 import { cn } from "@/lib/utils";
 
+interface ContextBreakdown {
+  personal:     { income: number; expense: number };
+  professional: { income: number; expense: number };
+  none:         { income: number; expense: number };
+}
+
 interface Props {
   data: {
     months: MonthReport[];
@@ -12,6 +18,7 @@ interface Props {
     totalIncome: number;
     totalExpense: number;
     avgMonthlyResult: number;
+    contextBreakdown: ContextBreakdown;
   };
 }
 
@@ -262,7 +269,10 @@ export function ReportsView({ data, initialPeriod = 6 }: ReportsViewProps) {
     router.push(`/reports?months=${v}`);
   }
 
-  const { months, categoryTotals, totalIncome, totalExpense, avgMonthlyResult } = data;
+  const { months, categoryTotals, totalIncome, totalExpense, avgMonthlyResult, contextBreakdown } = data;
+
+  const hasContextData = contextBreakdown.personal.income + contextBreakdown.personal.expense
+    + contextBreakdown.professional.income + contextBreakdown.professional.expense > 0;
 
   const isEmpty = months.every(m => m.income === 0 && m.expense === 0);
 
@@ -324,6 +334,50 @@ export function ReportsView({ data, initialPeriod = 6 }: ReportsViewProps) {
           {categoryTotals.length > 0 && (
             <div className="mb-5">
               <CategoryBreakdown categoryTotals={categoryTotals} months={months.length} />
+            </div>
+          )}
+
+          {/* Context breakdown */}
+          {hasContextData && (
+            <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[12px] p-5 mb-5">
+              <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] mb-4">
+                Por contexto
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  { key: "personal",     label: "Pessoal",      color: "var(--color-cyan)" },
+                  { key: "professional", label: "Profissional", color: "var(--color-green)" },
+                ] as const).map(({ key, label, color }) => {
+                  const d = contextBreakdown[key];
+                  const result = d.income - d.expense;
+                  if (d.income === 0 && d.expense === 0) return null;
+                  return (
+                    <div key={key} className="bg-[var(--color-bg3)] border border-[var(--color-border)] rounded-[10px] p-4">
+                      <div className="text-[11px] font-semibold mb-3" style={{ color }}>{label}</div>
+                      <div className="flex flex-col gap-1.5">
+                        {d.income > 0 && (
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-[var(--color-f4)]">Receita</span>
+                            <span className="text-[var(--color-green)] font-medium">+{fmt(d.income)}</span>
+                          </div>
+                        )}
+                        {d.expense > 0 && (
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-[var(--color-f4)]">Despesa</span>
+                            <span className="text-[var(--color-red)] font-medium">−{fmt(d.expense)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-[11px] pt-1.5 border-t border-[var(--color-border)]">
+                          <span className="text-[var(--color-f3)] font-medium">Resultado</span>
+                          <span className={cn("font-semibold", result >= 0 ? "text-[var(--color-green)]" : "text-[var(--color-red)]")}>
+                            {result >= 0 ? "+" : "−"}{fmt(Math.abs(result))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

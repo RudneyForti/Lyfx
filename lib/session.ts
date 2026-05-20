@@ -23,3 +23,10 @@ export async function clearSession() {
   const jar = await cookies();
   jar.delete(COOKIE);
 }
+
+/** Throws if not authenticated. Use at the top of every server action. */
+export async function requireAuth(): Promise<string> {
+  const userId = await getSessionUserId();
+  if (!userId) throw new Error("Unauthenticated");
+  return userId;
+}

@@ -33,7 +33,7 @@ Pessoa física que deseja controle financeiro com visão analítica, sem depende
 
 ### Modelo de distribuição
 
-Atualmente configurado como aplicação single-user local. Arquitetura prevista para evolução para SaaS multi-tenant (ver seção de decisões arquiteturais).
+Arquitetura multi-usuário com isolamento completo por `userId`. Cada usuário vê exclusivamente seus próprios dados. Suporte a múltiplos usuários gerenciados via painel Studio.
 
 ---
 
@@ -113,6 +113,7 @@ Atualmente configurado como aplicação single-user local. Arquitetura prevista 
 │                        TRANSACTION                              │
 ├─────────────────┬──────────────┬────────────────────────────────┤
 │ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
 │ date            │ DateTime     │ Data do lançamento             │
 │ description     │ String       │ Título                         │
 │ amount          │ Float        │ Valor em reais (positivo)      │
@@ -137,11 +138,13 @@ Atualmente configurado como aplicação single-user local. Arquitetura prevista 
 │                           TAG                                   │
 ├─────────────────┬──────────────┬────────────────────────────────┤
 │ id              │ String (PK)  │ cuid()                         │
-│ name            │ String       │ Único globalmente              │
+│ userId          │ String       │ FK lógica → User.id            │
+│ name            │ String       │ Único por usuário              │
 │ color           │ String       │ Hex, ex: #22D3EE               │
 │ icon            │ String       │ Chave do TAG_ICONS             │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ transactions    │ Relation     │ → TransactionTag[]             │
+│                 │ Unique       │ @@unique([userId, name])        │
 └─────────────────┴──────────────┴────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -156,16 +159,19 @@ Atualmente configurado como aplicação single-user local. Arquitetura prevista 
 │                          BUDGET                                 │
 ├─────────────────┬──────────────┬────────────────────────────────┤
 │ id              │ String (PK)  │ cuid()                         │
-│ category        │ String       │ Único — mesma key de category  │
+│ userId          │ String       │ FK lógica → User.id            │
+│ category        │ String       │ Único por usuário              │
 │ amount          │ Float        │ Limite mensal em reais         │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
+│                 │ Unique       │ @@unique([userId, category])    │
 └─────────────────┴──────────────┴────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                           GOAL                                  │
 ├─────────────────┬──────────────┬────────────────────────────────┤
 │ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
 │ name            │ String       │ Nome do objetivo               │
 │ description     │ String?      │ Contexto livre                 │
 │ targetAmount    │ Float        │ Valor total a atingir          │
@@ -196,16 +202,18 @@ Atualmente configurado como aplicação single-user local. Arquitetura prevista 
 │                         SETTINGS                                │
 ├─────────────────┬──────────────┬────────────────────────────────┤
 │ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id (único)    │
 │ expectedMonthlyIncome│ Float   │ Receita mensal esperada        │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
-Nota: tabela singleton — sempre um único registro, criado lazily no primeiro acesso via getOrCreate().
+Nota: um registro por usuário — criado lazily no primeiro acesso via getOrCreate(). userId é unique.
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                        LIABILITY                                │
 ├─────────────────┬──────────────┬────────────────────────────────┤
 │ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
 │ name            │ String       │ Nome da dívida                 │
 │ type            │ String       │ Ver tipos abaixo               │
 │ currentBalance  │ Float        │ Saldo devedor atual            │
@@ -224,7 +232,7 @@ Tipos de liability: "cheque_especial" | "rotativo" | "emprestimo" | "financiamen
 
 ```
 USER
- │ (sem FK nos dados — arquitetura atual single-user)
+ │ (userId como FK lógica em todas as tabelas de dados)
  │
  ├── TRANSACTION ──────────< TRANSACTION_TAG >────── TAG
  │        │
@@ -238,8 +246,10 @@ USER
  │        │
  │        └── monthlyAmount = targetAmount / meses_até_deadline
  │
- └── LIABILITY  (sem FK — entidade independente)
-          └── status: active | paid_off
+ ├── LIABILITY  (userId presente — entidade isolada por usuário)
+ │        └── status: active | paid_off
+ │
+ └── SETTINGS  (um registro por usuário — userId unique)
 ```
 
 ---
@@ -255,9 +265,9 @@ USER
 | Budget | Transaction | Lógica | category (string) | Budget.category = Transaction.category — sem FK no banco; join feito em aplicação |
 | Transaction | Projections | Lógica | recurrence + recurrenceEndsAt | Transações recorrentes são extrapoladas para 12 meses em memória |
 
-### Observação sobre isolamento
+### Isolamento de dados por usuário
 
-Atualmente **não existe** `userId` nas tabelas de dados (Transaction, Tag, Budget, Goal). Todos os dados são globais dentro do banco. A arquitetura está documentada e planejada para receber isolamento por usuário em versão futura (ver seção de próximos passos).
+Todas as tabelas de dados possuem `userId` (Transaction, Tag, Budget, Goal, Liability, Settings). Cada query em todos os Server Actions inclui `where: { userId }` obtido via `requireAuth()`. Usuários não têm acesso aos dados uns dos outros.
 
 ---
 
@@ -313,7 +323,9 @@ Formulário unificado de login e criação de conta.
 - **Modal "Esqueci a senha"**: explica que o Lyfx não envia e-mail e orienta redefinição via perfil
 - **Estado de sucesso**: botão muda para verde com checkmark após login bem-sucedido
 - **Painel esquerdo**: dot grid animado, watermark f(x), KPIs estáticos, pill de insight, mês atual
-- **Server Actions**: `setup()` para criação, `login()` para autenticação
+- **Botão voltar**: `← Início` (posicionado no topo esquerdo do painel direito) navega para a landing page `/`
+- **Link "Acessar Studio"**: exibido discretamente abaixo dos botões de login social (10px, cor `--color-f4`); rota direta para `/studio` sem passar pelo perfil
+- **Server Actions**: `setup()` para criação, `login()` para autenticação; `logout()` redireciona para `/`
 
 ### 6.3 Dashboard (`/dashboard`)
 
@@ -449,7 +461,6 @@ Edição dos dados pessoais e credenciais.
 - **Upload de avatar**: seleção de imagem → redimensionamento client-side via Canvas API para 200×200px → conversão para JPEG base64 → armazenamento no banco
 - **Campos editáveis**: nome, e-mail, idade, gênero, endereço
 - **Alteração de senha**: exige senha atual (verificada com bcrypt.compare), nova senha (mínimo 6 chars)
-- **Acesso ao Studio**: botão na seção "Avançado" que leva para `/studio`
 - **Sidebar**: usa o nome e avatar do perfil via prop injetada pelo `AppLayout`
 
 ### 6.11 Saúde Financeira (`/health`)
@@ -533,13 +544,37 @@ Seção adicionada ao final da página de Contas Fixas, visível quando há desp
 
 ### 6.16 Studio (`/studio`)
 
-Painel administrativo protegido por senha.
+Painel administrativo protegido por senha separada da sessão do usuário.
 
-- **Autenticação**: senha configurada em `.env` → `ADMIN_SECRET`. Cookie `lyfx_admin` com expiração de 2 horas e `path: "/studio"`
-- **Acesso**: `/studio` (independente da sessão do app principal), também acessível via botão no Perfil
-- **Aba Schema**: visualização de todas as 7 tabelas com campos, tipos e descrições. Expansível por tabela. Mostra relações entre modelos
-- **Aba Usuários**: lista de usuários com avatar, nome, e-mail, data de cadastro. Função de reset de senha (inline, com confirmação)
-- **Aba Dados**: contadores de transações, tags e orçamentos. Tabela das 5 transações mais recentes com tipo, categoria e valor
+#### Autenticação e sessão
+
+- **Senha**: configurada em `.env` → `ADMIN_SECRET`. Comparação direta (sem hash) — segredo de operação
+- **Cookie**: `lyfx_admin` com `httpOnly: true`, `sameSite: lax`, expiração 2 horas, `path: "/studio"` (não vaza para outras rotas)
+- **Acesso**: `/studio` — independente da sessão do app principal; acessível via link discreto na página `/login`
+- **Logout**: limpa `lyfx_admin` (com `path: "/studio"`) **e** `lyfx_session` (com `path: "/"`) simultaneamente → redireciona para `/` via `redirect()` no server action (sem flash de tela)
+- **Login form**: botão `← Login` no topo esquerdo navega para `/login`
+
+#### Aba Schema
+
+Visualização de todas as tabelas do banco com campos, tipos e descrições. Expansível por tabela. Mostra relações entre modelos.
+
+#### Aba Docs
+
+Renderização em Markdown do arquivo `DOCUMENTATION.md`. TOC lateral clicável com h2, h3 e h4 (h3 indentado 20px, h4 indentado 32px, tamanhos decrescentes). Clique em qualquer item do TOC faz scroll suave até o heading correspondente (slugify do texto).
+
+#### Aba Usuários
+
+- **Lista**: avatar, nome, e-mail, data de cadastro de todos os usuários
+- **Reset de senha**: inline com confirmação — campo de nova senha (mínimo 6 chars) + botão de confirmação
+- **Criar usuário**: formulário inline — nome, e-mail, senha. `revalidatePath("/studio")` + `router.refresh()` para atualização imediata sem reload
+- **Deletar usuário**: botão vermelho com painel de confirmação inline. Cascade manual na ordem: transactions → tags → budgets → goals → liabilities → settings → user (sem FK do User para os modelos de dados)
+
+#### Aba Dados
+
+- **Seção Sistema** (topo): 3 cards — Usuários (contagem), Registros totais (soma de todas as tabelas), Tamanho do banco (leitura de `dev.db` via `fs/promises stat()`, formatado em B/KB/MB/GB)
+- **Seção Usuários**: combobox digitável para filtrar usuários por nome ou e-mail (dropdown com busca, destaque cyan no item selecionado, fecha ao clicar fora via `useRef + useEffect`)
+- **Dados por usuário**: ao selecionar, exibe contadores (transações, tags, orçamentos, metas) e tabela das 10 transações mais recentes do usuário
+- **Dados globais** (sem filtro): exibe as 10 transações mais recentes do sistema
 
 ---
 
@@ -692,7 +727,7 @@ Usuário define nome + valor + prazo
    └── setSession(user.id) → cookie httpOnly, 30 dias
 
 5. Logout:
-   └── clearSession() → deleta cookie → redirect /login
+   └── clearSession() → deleta cookie → redirect /
 ```
 
 ### Segurança
@@ -704,12 +739,14 @@ Usuário define nome + valor + prazo
 - Proxy não acessa o banco (Edge Runtime) — verifica apenas a existência do cookie, não sua validade
 - Validação completa de existência do usuário no `AppLayout` (Node.js runtime, com acesso ao banco)
 
-### Studio (modo dev)
+### Studio
 
 - Cookie separado: `lyfx_admin` com `path: "/studio"` (não vaza para outras rotas)
 - Expiração curta: 2 horas
 - Senha via variável de ambiente `ADMIN_SECRET` — nunca no código
 - Comparação por igualdade direta (sem hash) — senha é um segredo de operação, não de usuário
+- Logout do Studio também invalida a sessão do usuário app (`lyfx_session`) em uma única operação
+- Deleção de cookie sempre especifica `path` correspondente ao de criação — sem isso o cookie persiste
 
 ---
 
@@ -831,13 +868,18 @@ lyfx/
 
 **Motivo**: eliminação de dependência de bucket de storage (S3, Cloudinary). Aceitável para imagens 200×200px (~30KB após compressão JPEG 85%). O resize é feito client-side via Canvas API antes do upload.
 
-### Sem isolamento de dados por usuário (ainda)
+### Isolamento completo de dados por `userId`
 
-**Decisão**: Transaction, Tag, Budget e Goal não possuem `userId`.
+**Decisão**: todas as tabelas de dados (Transaction, Tag, Budget, Goal, Liability, Settings) possuem campo `userId`. Todas as queries em todos os Server Actions filtram por `userId` obtido via `requireAuth()`.
 
-**Motivo**: app de uso pessoal single-user. Adicionar userId agora não entregaria valor. A decisão é reversível com uma migration bem planejada (plano documentado em `memory/project_lyfx_isolation.md`).
+**Implementação**:
+- `requireAuth()` em `lib/session.ts` — lê o cookie de sessão, lança erro se ausente, retorna `userId`
+- Todos os `app/actions/*.ts` chamam `requireAuth()` como primeira operação
+- Constraints únicas compostas: `@@unique([userId, name])` em Tag, `@@unique([userId, category])` em Budget
+- Backfill: ao adicionar `userId @default("")`, todos os registros existentes receberam o id do único usuário via script
+- GoalPayment não possui `userId` — segurança via API: apenas GoalPayments de metas do próprio usuário são retornados por `getGoals()`
 
-**Impacto**: se criado um segundo usuário, ambos veriam os mesmos dados.
+**Resultado**: múltiplos usuários podem usar o mesmo banco com isolamento completo. Criação e gestão de usuários via Studio.
 
 ### Proxy em vez de Middleware
 
@@ -867,17 +909,14 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **Fase 4** | ✅ v0.8.0 | Score de saúde financeira: 4 dimensões (comprometimento, poupança, resultado, reserva), 4 perfis com cores, gauge SVG, widget no dashboard, página `/health` com detalhamento completo. |
 | **Fase 5** | ✅ v0.9.0 | Passivos (`Liability`): CRUD completo, modo recuperação avalanche com calculadora de pagamento extra, alerta contextual nas Metas para dívidas com taxa ≥ 5% a.m. |
 | **Fase 6** | ✅ v1.0.0 | Reembolso com tracking (`reimbursedAt`, página `/reimbursements`, toggle no formulário), provisão sazonal automática em `/fixed-expenses`, modo "Avulsa" renomeado no formulário. Importação OFX/CSV adiada para fase futura. |
+| **Fase 7** | ✅ v1.1.0 | Isolamento multi-usuário completo: `userId` em todas as tabelas de dados, `requireAuth()` em todos os Server Actions, constraints únicas compostas em Tag e Budget. Studio aprimorado: criar usuário, deletar com cascade, filtro por usuário com combobox digitável, cards de sistema (usuários/registros/tamanho DB). Navegação: acesso ao Studio via `/login`, logout sempre redireciona para `/`, back buttons em ambas as telas de login. |
 
-### Isolamento de dados — plano técnico
+### Próximas evoluções sugeridas
 
-Quando implementado, o plano é:
-
-1. Adicionar `userId String` em `Transaction`, `Tag`, `Budget`, `Goal`
-2. Alterar constraints únicas: `Tag.name` → `@@unique([userId, name])`, `Budget.category` → `@@unique([userId, category])`
-3. Atualizar todas as queries nas 4 actions para incluir `where: { userId }`
-4. Migration manual: buscar o único User existente e setar seu id em todos os registros antes de aplicar o `NOT NULL`
-5. Estimativa: ~1h de desenvolvimento
+- **Importação OFX/CSV**: leitura de extratos bancários para lançamento semi-automático
+- **Relatórios avançados**: comparativo mês a mês, evolução de categorias ao longo do tempo
+- **Deploy em produção**: migração de SQLite para PostgreSQL (apenas troca do adapter Prisma + datasource URL)
 
 ---
 
-*Última atualização: 19/05/2026. Versão atual: 1.0.0.*
+*Última atualização: 20/05/2026. Versão atual: 1.1.0.*

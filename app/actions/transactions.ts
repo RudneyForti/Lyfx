@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/session";
 import { TransactionCategory, TransactionType, DRESummary, Recurrence, Transaction } from "@/lib/types";
 
 const INCLUDE_TAGS = {
@@ -33,10 +34,12 @@ export async function createTransaction(data: {
   reimbursable?: boolean;
   tagIds?: string[];
 }) {
+  const userId = await requireAuth();
   const { tagIds, recurrenceEndsAt, ...rest } = data;
   await db.transaction.create({
     data: {
       ...rest,
+      userId,
       date: new Date(rest.date),
       recurrenceEndsAt: recurrenceEndsAt ? new Date(recurrenceEndsAt) : undefined,
       tags: tagIds?.length
@@ -52,7 +55,8 @@ export async function getTransactions(params?: {
   month?: number;
   year?: number;
 }): Promise<Transaction[]> {
-  const where: Record<string, unknown> = {};
+  const userId = await requireAuth();
+  const where: Record<string, unknown> = { userId };
 
   if (params?.month !== undefined && params?.year !== undefined) {
     const start = new Date(params.year, params.month - 1, 1);
@@ -85,9 +89,10 @@ export async function updateTransaction(
     tagIds?: string[];
   }
 ) {
+  const userId = await requireAuth();
   const { tagIds, ...rest } = data;
   await db.transaction.update({
-    where: { id },
+    where: { id, userId },
     data: {
       ...rest,
       date: new Date(rest.date),
@@ -113,11 +118,12 @@ export async function updateFutureInstallments(
     tagIds?: string[];
   }
 ) {
+  const userId = await requireAuth();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const future = await db.transaction.findMany({
-    where: { installmentGroupId: groupId, date: { gte: today } },
+    where: { installmentGroupId: groupId, userId, date: { gte: today } },
     select: { id: true, installmentNumber: true, installmentTotal: true },
   });
 
@@ -143,8 +149,8 @@ export async function updateFutureInstallments(
 }
 
 export async function deleteTransaction(id: string) {
-  // If this transaction belongs to an installment group, delete only this one
-  await db.transaction.delete({ where: { id } });
+  const userId = await requireAuth();
+  await db.transaction.delete({ where: { id, userId } });
   revalidatePath("/dashboard");
   revalidatePath("/transactions");
   revalidatePath("/planning");
@@ -152,7 +158,8 @@ export async function deleteTransaction(id: string) {
 }
 
 export async function deleteInstallmentGroup(groupId: string) {
-  await db.transaction.deleteMany({ where: { installmentGroupId: groupId } });
+  const userId = await requireAuth();
+  await db.transaction.deleteMany({ where: { installmentGroupId: groupId, userId } });
   revalidatePath("/dashboard");
   revalidatePath("/transactions");
   revalidatePath("/planning");
@@ -169,6 +176,7 @@ export async function createInstallments(data: {
   notes?: string;
   tagIds?: string[];
 }) {
+  const userId = await requireAuth();
   const groupId = randomUUID();
   const perInstallment = Math.ceil((data.totalAmount / data.count) * 100) / 100;
   const firstDate = new Date(data.firstDate);
@@ -176,6 +184,7 @@ export async function createInstallments(data: {
   const records = Array.from({ length: data.count }, (_, i) => {
     const date = new Date(firstDate.getFullYear(), firstDate.getMonth() + i, firstDate.getDate());
     return {
+      userId,
       date,
       description: `${data.description} (${i + 1}/${data.count})`,
       amount: perInstallment,
@@ -261,8 +270,9 @@ export async function getDRESummary(month?: number, year?: number): Promise<DRES
 // ── Reembolso ────────────────────────────────────────────────────────────────
 
 export async function getReimbursables(): Promise<Transaction[]> {
+  const userId = await requireAuth();
   const raw = await db.transaction.findMany({
-    where: { reimbursable: true },
+    where: { reimbursable: true, userId },
     orderBy: { date: "desc" },
     include: INCLUDE_TAGS,
   });
@@ -270,16 +280,18 @@ export async function getReimbursables(): Promise<Transaction[]> {
 }
 
 export async function markReimbursed(id: string): Promise<void> {
+  const userId = await requireAuth();
   await db.transaction.update({
-    where: { id },
+    where: { id, userId },
     data: { reimbursedAt: new Date() },
   });
   revalidatePath("/reimbursements");
 }
 
 export async function unmarkReimbursed(id: string): Promise<void> {
+  const userId = await requireAuth();
   await db.transaction.update({
-    where: { id },
+    where: { id, userId },
     data: { reimbursedAt: null },
   });
   revalidatePath("/reimbursements");

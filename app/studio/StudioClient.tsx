@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser } from "./actions";
+import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, getStudioDataForUser } from "./actions";
 import {
   IconLock, IconLoader2, IconX, IconLogout, IconDatabase,
   IconUsers, IconTable, IconKey, IconTrash, IconChevronDown, IconChevronRight,
-  IconFileDescription,
+  IconFileDescription, IconUserPlus, IconFilter,
 } from "@tabler/icons-react";
 
 /* ── Login gate ── */
@@ -27,6 +29,24 @@ export function StudioLoginForm() {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "var(--color-bg)" }}>
+      {/* back to login */}
+      <Link
+        href="/login"
+        style={{
+          position: "fixed", top: 20, left: 20,
+          display: "flex", alignItems: "center", gap: 6,
+          fontSize: 12, color: "var(--color-f4)",
+          textDecoration: "none", padding: "6px 10px",
+          borderRadius: 8, border: "1px solid var(--color-border)",
+          background: "var(--color-bg2)",
+          transition: "color 150ms",
+        }}
+        onMouseEnter={e => (e.currentTarget.style.color = "var(--color-f2)")}
+        onMouseLeave={e => (e.currentTarget.style.color = "var(--color-f4)")}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Login
+      </Link>
       <div style={{ width: 340, background: "var(--color-bg2)", border: "1px solid var(--color-border2)", borderRadius: 16, padding: 32 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
           <span style={{ background: "rgba(34,211,238,0.1)", border: "1px solid var(--color-cyan-border)", borderRadius: 8, padding: "6px 8px", display: "flex" }}>
@@ -156,6 +176,7 @@ const RELATIONS = [
 
 /* ── Logout button ── */
 function LogoutButton() {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   return (
     <button
@@ -225,6 +246,7 @@ export function StudioMain({ data, docs }: { data: StudioData; docs: string }) {
         {tab === "users"  && <UsersTab users={data.users} />}
         {tab === "data"   && <DataTab data={data} />}
         {tab === "docs"   && <DocsTab content={docs} />}
+
       </div>
     </div>
   );
@@ -295,10 +317,21 @@ function SchemaTab({ expanded, setExpanded }: { expanded: string | null; setExpa
 
 /* ── Users Tab ── */
 function UsersTab({ users }: { data?: unknown; users: { id: string; name: string; email: string | null; createdAt: Date; avatar: string | null }[] }) {
+  const router = useRouter();
   const [resetId, setResetId] = useState<string | null>(null);
   const [newPw, setNewPw] = useState("");
   const [msg, setMsg] = useState<{ id: string; text: string; ok: boolean } | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // delete confirmation
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeleting, startDeleting] = useTransition();
+
+  // create user form
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: "", email: "", password: "" });
+  const [createMsg, setCreateMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [isCreating, startCreating] = useTransition();
 
   function handleReset(userId: string) {
     if (newPw.length < 6) { setMsg({ id: userId, text: "Mínimo 6 caracteres.", ok: false }); return; }
@@ -309,10 +342,89 @@ function UsersTab({ users }: { data?: unknown; users: { id: string; name: string
     });
   }
 
+  function handleDelete(userId: string) {
+    startDeleting(async () => {
+      await adminDeleteUser(userId);
+      setConfirmDeleteId(null);
+      router.refresh();
+    });
+  }
+
+  function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setCreateMsg(null);
+    startCreating(async () => {
+      const result = await adminCreateUser(createForm);
+      if (result?.error) {
+        setCreateMsg({ text: result.error, ok: false });
+      } else {
+        setCreateForm({ name: "", email: "", password: "" });
+        setShowCreate(false);
+        router.refresh();
+      }
+    });
+  }
+
   return (
     <div>
-      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Usuários</div>
-      <div style={{ fontSize: 13, color: "var(--color-f3)", marginBottom: 20 }}>{users.length} cadastrado{users.length !== 1 ? "s" : ""}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>Usuários</div>
+        <button
+          onClick={() => { setShowCreate(!showCreate); setCreateMsg(null); }}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", fontSize: 11, borderRadius: 6, border: "1px solid var(--color-border2)", background: "var(--color-bg3)", color: "var(--color-cyan)", cursor: "pointer" }}
+        >
+          <IconUserPlus size={12} /> Criar usuário
+        </button>
+      </div>
+      <div style={{ fontSize: 13, color: "var(--color-f3)", marginBottom: 16 }}>{users.length} cadastrado{users.length !== 1 ? "s" : ""}</div>
+
+      {/* Create user form */}
+      {showCreate && (
+        <div style={{ background: "var(--color-bg2)", border: "1px solid var(--color-cyan-border)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-cyan)", marginBottom: 12 }}>Novo usuário</div>
+          <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input
+              placeholder="Nome"
+              value={createForm.name}
+              onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
+              style={{ height: 36, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 12px", fontSize: 12, color: "var(--color-f1)", outline: "none" }}
+            />
+            <input
+              placeholder="E-mail"
+              type="email"
+              value={createForm.email}
+              onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
+              style={{ height: 36, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 12px", fontSize: 12, color: "var(--color-f1)", outline: "none" }}
+            />
+            <input
+              placeholder="Senha (min 6)"
+              type="password"
+              value={createForm.password}
+              onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
+              style={{ height: 36, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 12px", fontSize: 12, color: "var(--color-f1)", outline: "none" }}
+            />
+            {createMsg && (
+              <div style={{ fontSize: 11, color: createMsg.ok ? "var(--color-green)" : "var(--color-red)" }}>{createMsg.text}</div>
+            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="submit"
+                disabled={isCreating}
+                style={{ flex: 1, height: 36, background: "var(--color-cyan)", color: "#083344", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+              >
+                {isCreating ? <IconLoader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : "Criar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCreate(false)}
+                style={{ height: 36, padding: "0 12px", background: "var(--color-bg4)", color: "var(--color-f3)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12, cursor: "pointer" }}
+              >
+                <IconX size={12} />
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {users.length === 0 && (
         <div style={{ color: "var(--color-f4)", fontSize: 13 }}>Nenhum usuário cadastrado.</div>
@@ -331,13 +443,45 @@ function UsersTab({ users }: { data?: unknown; users: { id: string; name: string
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               <button
-                onClick={() => { setResetId(resetId === u.id ? null : u.id); setNewPw(""); setMsg(null); }}
+                onClick={() => { setResetId(resetId === u.id ? null : u.id); setNewPw(""); setMsg(null); setConfirmDeleteId(null); }}
                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", fontSize: 11, borderRadius: 6, border: "1px solid var(--color-border2)", background: "var(--color-bg3)", color: "var(--color-f2)", cursor: "pointer" }}
               >
                 <IconKey size={12} /> Resetar senha
               </button>
+              <button
+                onClick={() => { setConfirmDeleteId(confirmDeleteId === u.id ? null : u.id); setResetId(null); setMsg(null); }}
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", fontSize: 11, borderRadius: 6, border: "1px solid rgba(248,113,113,0.3)", background: "rgba(248,113,113,0.06)", color: "var(--color-red)", cursor: "pointer" }}
+              >
+                <IconTrash size={12} /> Excluir
+              </button>
             </div>
           </div>
+
+          {/* Delete confirmation */}
+          {confirmDeleteId === u.id && (
+            <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 8, background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.25)" }}>
+              <div style={{ fontSize: 12, color: "var(--color-red)", fontWeight: 600, marginBottom: 4 }}>Atenção: ação irreversível</div>
+              <div style={{ fontSize: 11, color: "var(--color-f3)", marginBottom: 12 }}>
+                Isso vai excluir <strong style={{ color: "var(--color-f1)" }}>{u.name}</strong> e <strong style={{ color: "var(--color-f1)" }}>todos os seus dados</strong> — transações, metas, tags, orçamentos e passivos.
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => handleDelete(u.id)}
+                  disabled={isDeleting}
+                  style={{ display: "flex", alignItems: "center", gap: 5, height: 32, padding: "0 14px", background: "var(--color-red)", color: "#fff", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                >
+                  {isDeleting ? <IconLoader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <IconTrash size={12} />}
+                  Confirmar exclusão
+                </button>
+                <button
+                  onClick={() => setConfirmDeleteId(null)}
+                  style={{ height: 32, padding: "0 12px", background: "var(--color-bg4)", color: "var(--color-f3)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11, cursor: "pointer" }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
 
           {resetId === u.id && (
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -381,8 +525,20 @@ function slugify(text: string) {
 function DocsTab({ content }: { content: string }) {
   const headings = content
     .split("\n")
-    .filter(l => l.startsWith("## ") || l.startsWith("### "))
-    .map(l => ({ isH3: l.startsWith("### "), text: l.replace(/^#{2,3} /, "") }));
+    .filter(l => /^#{2,4} /.test(l))
+    .map(l => {
+      const level = l.match(/^(#{2,4}) /)?.[1].length ?? 2;
+      const text = l.replace(/^#{2,4} /, "");
+      return { level, text };
+    });
+
+  const indentMap: Record<number, string> = { 2: "8px", 3: "20px", 4: "32px" };
+  const sizeMap:   Record<number, string> = { 2: "12px", 3: "11px", 4: "10px" };
+  const colorMap:  Record<number, string> = {
+    2: "var(--color-f2)",
+    3: "var(--color-f4)",
+    4: "var(--color-f4)",
+  };
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 101px)" }}>
@@ -397,7 +553,7 @@ function DocsTab({ content }: { content: string }) {
         <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "1.8px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 10, padding: "0 8px" }}>
           Índice
         </div>
-        {headings.map(({ isH3, text }, i) => (
+        {headings.map(({ level, text }, i) => (
           <button
             key={i}
             onClick={() => document.getElementById(slugify(text))?.scrollIntoView({ behavior: "smooth", block: "start" })}
@@ -405,9 +561,9 @@ function DocsTab({ content }: { content: string }) {
               display: "block",
               width: "100%",
               textAlign: "left",
-              padding: isH3 ? "4px 8px 4px 20px" : "5px 8px",
-              fontSize: isH3 ? 11 : 12,
-              color: isH3 ? "var(--color-f4)" : "var(--color-f2)",
+              padding: `4px 8px 4px ${indentMap[level]}`,
+              fontSize: sizeMap[level],
+              color: colorMap[level],
               background: "none",
               border: "none",
               borderRadius: 6,
@@ -453,6 +609,7 @@ function DocsTab({ content }: { content: string }) {
             components={{
               h2: ({ children }) => <h2 id={slugify(String(children))}>{children}</h2>,
               h3: ({ children }) => <h3 id={slugify(String(children))}>{children}</h3>,
+              h4: ({ children }) => <h4 id={slugify(String(children))}>{children}</h4>,
             }}
           >
             {content}
@@ -463,19 +620,201 @@ function DocsTab({ content }: { content: string }) {
   );
 }
 
+/* ── User Combobox ── */
+type UserOption = { id: string; name: string; email: string | null };
+
+function UserCombobox({ users, value, onChange }: {
+  users: UserOption[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const allOptions = [{ id: "all", name: "Todos os usuários", email: null }, ...users];
+  const selected = allOptions.find(u => u.id === value) ?? allOptions[0];
+
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = query.trim() === ""
+    ? allOptions
+    : allOptions.filter(u =>
+        u.name.toLowerCase().includes(query.toLowerCase()) ||
+        (u.email ?? "").toLowerCase().includes(query.toLowerCase())
+      );
+
+  // close on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  function select(id: string) {
+    onChange(id);
+    setOpen(false);
+    setQuery("");
+  }
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", width: 220 }}>
+      {/* trigger */}
+      <div
+        onClick={() => { setOpen(!open); setTimeout(() => inputRef.current?.focus(), 10); }}
+        style={{
+          height: 32, display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "0 10px", fontSize: 12, borderRadius: 6, cursor: "pointer",
+          background: "var(--color-bg3)", border: `1px solid ${open ? "rgba(34,211,238,0.4)" : "var(--color-border2)"}`,
+          color: "var(--color-f2)", userSelect: "none", transition: "border-color 150ms",
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {selected.name}
+        </span>
+        <IconChevronDown size={12} style={{ flexShrink: 0, marginLeft: 6, color: "var(--color-f4)", transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms" }} />
+      </div>
+
+      {/* dropdown */}
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 100,
+          background: "var(--color-bg2)", border: "1px solid var(--color-border2)",
+          borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", overflow: "hidden",
+        }}>
+          {/* search input */}
+          <div style={{ padding: "8px 8px 6px", borderBottom: "1px solid var(--color-border)" }}>
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Buscar usuário…"
+              style={{
+                width: "100%", height: 28, background: "var(--color-bg3)",
+                border: "1px solid var(--color-border2)", borderRadius: 5,
+                padding: "0 8px", fontSize: 11, color: "var(--color-f1)", outline: "none",
+              }}
+            />
+          </div>
+          {/* options */}
+          <div style={{ maxHeight: 180, overflowY: "auto" }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--color-f4)" }}>Nenhum resultado.</div>
+            ) : filtered.map(u => (
+              <div
+                key={u.id}
+                onClick={() => select(u.id)}
+                style={{
+                  padding: "8px 12px", cursor: "pointer", fontSize: 12,
+                  background: u.id === value ? "rgba(34,211,238,0.07)" : "transparent",
+                  color: u.id === value ? "var(--color-cyan)" : "var(--color-f2)",
+                  transition: "background 100ms",
+                  display: "flex", flexDirection: "column", gap: 1,
+                }}
+                onMouseEnter={e => { if (u.id !== value) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.04)"; }}
+                onMouseLeave={e => { if (u.id !== value) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+              >
+                <span>{u.name}</span>
+                {u.email && <span style={{ fontSize: 10, color: "var(--color-f4)" }}>{u.email}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Data Tab ── */
+type TxRow = { id: string; description: string; amount: number; type: string; category: string; date: Date };
+type DataView = { txCount: number; tagCount: number; budgetCount: number; goalCount: number; recentTx: TxRow[] };
+
 function DataTab({ data }: { data: StudioData }) {
+  const [selectedUser, setSelectedUser] = useState<string>("all");
+  const [filtered, setFiltered] = useState<DataView | null>(null);
+  const [isLoading, startLoading] = useTransition();
+
+  function handleUserChange(userId: string) {
+    setSelectedUser(userId);
+    if (userId === "all") { setFiltered(null); return; }
+    startLoading(async () => {
+      const result = await getStudioDataForUser(userId);
+      setFiltered(result);
+    });
+  }
+
+  const view: DataView = filtered ?? {
+    txCount: data.txCount,
+    tagCount: data.tagCount,
+    budgetCount: data.budgetCount,
+    goalCount: data.goalCount,
+    recentTx: data.recentTx,
+  };
+
   const stats = [
-    { label: "Transações", value: data.txCount, color: "#A3E635" },
-    { label: "Tags", value: data.tagCount, color: "#FBBF24" },
-    { label: "Orçamentos", value: data.budgetCount, color: "#FB923C" },
+    { label: "Transações", value: view.txCount, color: "#A3E635" },
+    { label: "Tags", value: view.tagCount, color: "#FBBF24" },
+    { label: "Orçamentos", value: view.budgetCount, color: "#FB923C" },
+    { label: "Metas", value: view.goalCount, color: "#22D3EE" },
   ];
+
+  const selectedName = selectedUser === "all"
+    ? "Todos"
+    : data.users.find(u => u.id === selectedUser)?.name ?? "—";
+
+  // format DB size
+  const dbSize = (() => {
+    const b = data.dbSizeBytes;
+    if (b >= 1024 * 1024 * 1024) return `${(b / (1024 ** 3)).toFixed(2)} GB`;
+    if (b >= 1024 * 1024)        return `${(b / (1024 ** 2)).toFixed(2)} MB`;
+    if (b >= 1024)               return `${(b / 1024).toFixed(1)} KB`;
+    return `${b} B`;
+  })();
 
   return (
     <div>
-      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>Visão geral dos dados</div>
+      {/* Page title + filter */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>Visão geral dos dados</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <IconFilter size={13} style={{ color: "var(--color-f4)" }} />
+          <UserCombobox users={data.users} value={selectedUser} onChange={handleUserChange} />
+          {isLoading && <IconLoader2 size={13} style={{ color: "var(--color-f4)", animation: "spin 1s linear infinite" }} />}
+        </div>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 24 }}>
+      {/* Sistema */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, color: "var(--color-f4)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 10 }}>Sistema</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+          {[
+            { label: "Usuários", value: data.userCount, color: "#22D3EE", sub: "contas ativas" },
+            { label: "Registros totais", value: data.totalRecords.toLocaleString("pt-BR"), color: "#A78BFA", sub: "em todas as tabelas" },
+            { label: "Tamanho do banco", value: dbSize, color: "#FB923C", sub: "arquivo dev.db" },
+          ].map(s => (
+            <div key={s.label} style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "14px 16px" }}>
+              <div style={{ fontSize: 22, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color: s.color, marginBottom: 2 }}>{s.value}</div>
+              <div style={{ fontSize: 11, color: "var(--color-f2)", fontWeight: 500 }}>{s.label}</div>
+              <div style={{ fontSize: 10, color: "var(--color-f4)", marginTop: 2 }}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Usuários */}
+      <div style={{ fontSize: 11, color: "var(--color-f4)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 10 }}>Usuários</div>
+
+      {selectedUser !== "all" && (
+        <div style={{ fontSize: 11, color: "var(--color-cyan)", marginBottom: 14, padding: "5px 10px", borderRadius: 6, background: "rgba(34,211,238,0.06)", border: "1px solid var(--color-cyan-border)", display: "inline-block" }}>
+          Filtrando por: {selectedName}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 24 }}>
         {stats.map(s => (
           <div key={s.label} style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "14px 16px" }}>
             <div style={{ fontSize: 24, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color: s.color }}>{s.value}</div>
@@ -485,11 +824,11 @@ function DataTab({ data }: { data: StudioData }) {
       </div>
 
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Últimas transações</div>
-      {data.recentTx.length === 0 && (
+      {view.recentTx.length === 0 && (
         <div style={{ color: "var(--color-f4)", fontSize: 13 }}>Nenhuma transação cadastrada.</div>
       )}
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        {data.recentTx.length > 0 && (
+        {view.recentTx.length > 0 && (
           <thead>
             <tr style={{ background: "var(--color-bg2)" }}>
               {["Data", "Descrição", "Categoria", "Tipo", "Valor"].map(h => (
@@ -499,18 +838,18 @@ function DataTab({ data }: { data: StudioData }) {
           </thead>
         )}
         <tbody>
-          {data.recentTx.map(tx => (
+          {view.recentTx.map(tx => (
             <tr key={tx.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
               <td style={{ padding: "7px 12px", color: "var(--color-f3)" }}>{new Date(tx.date).toLocaleDateString("pt-BR")}</td>
               <td style={{ padding: "7px 12px", color: "var(--color-f1)" }}>{tx.description}</td>
               <td style={{ padding: "7px 12px", color: "var(--color-f3)" }}>{tx.category}</td>
               <td style={{ padding: "7px 12px" }}>
-                <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: tx.type === "income" ? "rgba(163,230,53,0.1)" : "rgba(248,113,113,0.1)", color: tx.type === "income" ? "var(--color-green)" : "var(--color-red)" }}>
-                  {tx.type === "income" ? "receita" : "despesa"}
+                <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: tx.type === "credit" ? "rgba(163,230,53,0.1)" : "rgba(248,113,113,0.1)", color: tx.type === "credit" ? "var(--color-green)" : "var(--color-red)" }}>
+                  {tx.type === "credit" ? "receita" : "despesa"}
                 </span>
               </td>
-              <td style={{ padding: "7px 12px", color: tx.type === "income" ? "var(--color-green)" : "var(--color-red)", fontWeight: 500 }}>
-                {tx.type === "expense" ? "-" : "+"}R$ {tx.amount.toFixed(2)}
+              <td style={{ padding: "7px 12px", color: tx.type === "credit" ? "var(--color-green)" : "var(--color-red)", fontWeight: 500 }}>
+                {tx.type === "debit" ? "-" : "+"}R$ {tx.amount.toFixed(2)}
               </td>
             </tr>
           ))}

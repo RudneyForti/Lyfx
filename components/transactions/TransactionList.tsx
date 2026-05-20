@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import {
   IconArrowUpRight, IconArrowDownRight, IconRepeat,
   IconPencil, IconStack2, IconTrash, IconX,
+  IconHome, IconBriefcase,
 } from "@tabler/icons-react";
 import { deleteTransaction, deleteInstallmentGroup } from "@/app/actions/transactions";
 import { getCategoryDef } from "@/lib/categories";
@@ -77,9 +78,27 @@ function ActionBar({
   );
 }
 
+type ContextFilter = "all" | "personal" | "professional" | "none";
+
+const CONTEXT_FILTERS: { value: ContextFilter; label: string; icon?: React.ElementType }[] = [
+  { value: "all",          label: "Todos" },
+  { value: "personal",     label: "Pessoal",      icon: IconHome },
+  { value: "professional", label: "Profissional", icon: IconBriefcase },
+  { value: "none",         label: "Sem contexto" },
+];
+
 export function TransactionList({ transactions, allTags }: Props) {
   const [editing, setEditing]   = useState<Transaction | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [ctxFilter, setCtxFilter] = useState<ContextFilter>("all");
+
+  const hasContext = transactions.some(t => t.context);
+
+  const filtered = transactions.filter(tx => {
+    if (ctxFilter === "all")          return true;
+    if (ctxFilter === "none")         return !tx.context;
+    return tx.context === ctxFilter;
+  });
 
   if (transactions.length === 0) {
     return (
@@ -104,16 +123,37 @@ export function TransactionList({ transactions, allTags }: Props) {
       )}
 
       <div className="flex flex-col gap-1.5">
+        {/* Context filter — only shown when at least one tx has context */}
+        {hasContext && (
+          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+            {CONTEXT_FILTERS.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                onClick={() => setCtxFilter(value)}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1 rounded-[6px] text-[10px] font-medium border transition-all cursor-pointer",
+                  ctxFilter === value
+                    ? "bg-[var(--color-cyan-faint)] border-[var(--color-cyan-border)] text-[var(--color-cyan)]"
+                    : "bg-[var(--color-bg3)] border-[var(--color-border)] text-[var(--color-f4)] hover:text-[var(--color-f2)]"
+                )}
+              >
+                {Icon && <Icon size={10} />}
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] mb-2">
-          {transactions.length} transaç{transactions.length === 1 ? "ão" : "ões"} este mês
+          {filtered.length} transaç{filtered.length === 1 ? "ão" : "ões"}{ctxFilter !== "all" ? " (filtradas)" : " este mês"}
         </div>
 
-        {transactions.map((tx) => {
-          const cat        = getCategoryDef(tx.category as TransactionCategory);
-          const isCredit   = tx.type === "credit";
-          const tags       = tx.tags ?? [];
+        {filtered.map((tx) => {
+          const cat           = getCategoryDef(tx.category as TransactionCategory);
+          const isCredit      = tx.type === "credit";
+          const tags          = tx.tags ?? [];
           const isInstallment = !!tx.installmentGroupId;
-          const isExpanded = expanded === tx.id;
+          const isExpanded    = expanded === tx.id;
 
           return (
             <div
@@ -169,6 +209,16 @@ export function TransactionList({ transactions, allTags }: Props) {
                         style={{ background: "rgba(251,191,36,0.08)", color: "#FFC107", border: "1px solid rgba(251,191,36,0.2)" }}>
                         <IconStack2 size={9} />
                         {tx.installmentNumber}/{tx.installmentTotal}
+                      </span>
+                    )}
+                    {tx.context === "personal" && (
+                      <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-[4px] flex-shrink-0 bg-[rgba(34,211,238,0.07)] text-[var(--color-cyan)] border border-[var(--color-cyan-border)]">
+                        <IconHome size={9} /> Pessoal
+                      </span>
+                    )}
+                    {tx.context === "professional" && (
+                      <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-[4px] flex-shrink-0 bg-[rgba(163,230,53,0.07)] text-[var(--color-green)] border border-[rgba(163,230,53,0.2)]">
+                        <IconBriefcase size={9} /> Profissional
                       </span>
                     )}
                   </div>

@@ -9,6 +9,7 @@ datasource db {
 
 model Transaction {
   id               String           @id @default(cuid())
+  userId           String           @default("")
   date             DateTime
   description      String
   amount           Float
@@ -31,6 +32,7 @@ model Transaction {
 
 model Goal {
   id            String        @id @default(cuid())
+  userId        String        @default("")
   name          String
   description   String?
   targetAmount  Float
@@ -58,11 +60,14 @@ model GoalPayment {
 
 model Tag {
   id           String           @id @default(cuid())
-  name         String           @unique
+  userId       String           @default("")
+  name         String
   color        String           @default("#22D3EE")
   icon         String           @default("tag")
   createdAt    DateTime         @default(now())
   transactions TransactionTag[]
+
+  @@unique([userId, name])
 }
 
 model TransactionTag {
@@ -76,10 +81,13 @@ model TransactionTag {
 
 model Budget {
   id        String   @id @default(cuid())
-  category  String   @unique
+  userId    String   @default("")
+  category  String
   amount    Float
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([userId, category])
 }
 
 model User {
@@ -97,6 +105,7 @@ model User {
 
 model Liability {
   id             String   @id @default(cuid())
+  userId         String   @default("")
   name           String
   type           String   // cheque_especial | rotativo | emprestimo | financiamento | outro
   currentBalance Float    // saldo devedor atual (positivo = quanto deve)
@@ -111,6 +120,7 @@ model Liability {
 
 model Settings {
   id                    String   @id @default(cuid())
+  userId                String   @default("") @unique
   expectedMonthlyIncome Float    @default(0)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

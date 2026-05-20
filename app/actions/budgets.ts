@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/session";
 import { TransactionCategory } from "@/lib/types";
 
 export interface Budget {
   id: string;
+  userId: string;
   category: string;
   amount: number;
   createdAt: Date;
@@ -13,20 +15,23 @@ export interface Budget {
 }
 
 export async function getBudgets(): Promise<Budget[]> {
-  return db.budget.findMany({ orderBy: { category: "asc" } });
+  const userId = await requireAuth();
+  return db.budget.findMany({ where: { userId }, orderBy: { category: "asc" } });
 }
 
 export async function setBudget(category: TransactionCategory, amount: number): Promise<Budget> {
+  const userId = await requireAuth();
   const budget = await db.budget.upsert({
-    where: { category },
+    where: { userId_category: { userId, category } },
     update: { amount },
-    create: { category, amount },
+    create: { userId, category, amount },
   });
   revalidatePath("/budget");
   return budget;
 }
 
 export async function deleteBudget(category: TransactionCategory) {
-  await db.budget.delete({ where: { category } });
+  const userId = await requireAuth();
+  await db.budget.delete({ where: { userId_category: { userId, category } } });
   revalidatePath("/budget");
 }

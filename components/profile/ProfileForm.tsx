@@ -274,18 +274,6 @@ export function ProfileForm({ user }: Props) {
         </div>
       </form>
 
-      {/* Dev mode */}
-      <div className="border-t border-[var(--color-border)] pt-6">
-        <div className="text-[11px] font-medium text-[var(--color-f4)] mb-3 uppercase tracking-[1.2px]">Avançado</div>
-        <Link
-          href="/studio"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[12px] text-[var(--color-f3)] border border-[var(--color-border)] bg-transparent hover:bg-[rgba(255,255,255,0.04)] hover:text-[var(--color-f2)] hover:border-[var(--color-border2)] transition-all no-underline"
-        >
-          <IconCode size={14} />
-          Modo Dev · Studio
-        </Link>
-        <p className="text-[10px] text-[var(--color-f4)] mt-2">Requer senha de administrador.</p>
-      </div>
     </div>
   );
 }

@@ -2,8 +2,9 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
-import { readFile } from "fs/promises";
+import { readFile, stat } from "fs/promises";
 import path from "path";
 import { db } from "@/lib/db";
 
@@ -24,8 +25,9 @@ export async function adminLogin(password: string) {
 
 export async function adminLogout() {
   const jar = await cookies();
-  jar.delete(COOKIE);
-  redirect("/studio");
+  jar.set(COOKIE, "", { maxAge: 0, path: "/studio" });
+  jar.set("lyfx_session", "", { maxAge: 0, path: "/" });
+  redirect("/");
 }
 
 export async function getAdminSession(): Promise<boolean> {
@@ -41,23 +43,82 @@ export async function adminResetPassword(userId: string, newPassword: string) {
 }
 
 export async function adminDeleteUser(userId: string) {
+  // Delete all user data (cascade manually — no FK relation from User to these models)
+  await db.transaction.deleteMany({ where: { userId } }); // TransactionTags cascade via onDelete
+  await db.tag.deleteMany({ where: { userId } });
+  await db.budget.deleteMany({ where: { userId } });
+  await db.goal.deleteMany({ where: { userId } }); // GoalPayments cascade via onDelete
+  await db.liability.deleteMany({ where: { userId } });
+  await db.settings.deleteMany({ where: { userId } });
   await db.user.delete({ where: { id: userId } });
+  revalidatePath("/studio");
   return { ok: true };
 }
 
-export async function getStudioData() {
-  const [users, txCount, tagCount, budgetCount, recentTx] = await Promise.all([
-    db.user.findMany({ select: { id: true, name: true, email: true, createdAt: true, avatar: true } }),
-    db.transaction.count(),
-    db.tag.count(),
-    db.budget.count(),
+export async function getStudioDataForUser(userId: string) {
+  const [txCount, tagCount, budgetCount, goalCount, recentTx] = await Promise.all([
+    db.transaction.count({ where: { userId } }),
+    db.tag.count({ where: { userId } }),
+    db.budget.count({ where: { userId } }),
+    db.goal.count({ where: { userId } }),
     db.transaction.findMany({
-      take: 5,
+      where: { userId },
+      take: 10,
       orderBy: { createdAt: "desc" },
       select: { id: true, description: true, amount: true, type: true, category: true, date: true },
     }),
   ]);
-  return { users, txCount, tagCount, budgetCount, recentTx };
+  return { txCount, tagCount, budgetCount, goalCount, recentTx };
+}
+
+export async function adminCreateUser(data: { name: string; email: string; password: string }) {
+  if (!data.name.trim()) return { error: "Nome obrigatório." };
+  if (!data.email.trim()) return { error: "E-mail obrigatório." };
+  if (data.password.length < 6) return { error: "Senha deve ter ao menos 6 caracteres." };
+
+  const existing = await db.user.findUnique({ where: { email: data.email.trim().toLowerCase() } });
+  if (existing) return { error: "E-mail já cadastrado." };
+
+  const hashed = await bcrypt.hash(data.password, 10);
+  await db.user.create({
+    data: { name: data.name.trim(), email: data.email.trim().toLowerCase(), password: hashed },
+  });
+  revalidatePath("/studio");
+  return { ok: true };
+}
+
+export async function getStudioData() {
+  const [users, txCount, tagCount, budgetCount, goalCount, liabilityCount, goalPaymentCount, recentTx] = await Promise.all([
+    db.user.findMany({ select: { id: true, name: true, email: true, createdAt: true, avatar: true } }),
+    db.transaction.count(),
+    db.tag.count(),
+    db.budget.count(),
+    db.goal.count(),
+    db.liability.count(),
+    db.goalPayment.count(),
+    db.transaction.findMany({
+      take: 10,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, description: true, amount: true, type: true, category: true, date: true },
+    }),
+  ]);
+
+  const totalRecords =
+    users.length + txCount + tagCount + budgetCount +
+    goalCount + liabilityCount + goalPaymentCount;
+
+  // DB file size
+  let dbSizeBytes = 0;
+  try {
+    const dbPath = path.join(process.cwd(), "dev.db");
+    const info = await stat(dbPath);
+    dbSizeBytes = info.size;
+  } catch { /* ignore */ }
+
+  return {
+    users, txCount, tagCount, budgetCount, goalCount, recentTx,
+    userCount: users.length, totalRecords, dbSizeBytes,
+  };
 }
 
 export async function getDocumentation(): Promise<string> {

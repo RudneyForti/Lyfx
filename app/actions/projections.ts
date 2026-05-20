@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/session";
 
 export interface MonthProjection {
   year: number;
@@ -15,17 +16,19 @@ export interface MonthProjection {
 const PT_MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 export async function getProjections(): Promise<MonthProjection[]> {
+  const userId = await requireAuth();
   const now = new Date();
   const rangeEnd = new Date(now.getFullYear(), now.getMonth() + 12, 0);
 
   // Fetch recurring transactions + future installments in parallel
   const [recurring, installments] = await Promise.all([
     db.transaction.findMany({
-      where: { recurrence: { in: ["monthly", "yearly"] } },
+      where: { userId, recurrence: { in: ["monthly", "yearly"] } },
       select: { description: true, amount: true, type: true, recurrence: true, date: true, recurrenceEndsAt: true },
     }),
     db.transaction.findMany({
       where: {
+        userId,
         installmentGroupId: { not: null },
         date: { gte: new Date(now.getFullYear(), now.getMonth(), 1), lte: rangeEnd },
       },

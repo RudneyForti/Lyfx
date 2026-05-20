@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { IconPlus, IconX, IconCurrencyReal, IconRepeat, IconRepeatOff, IconStack2, IconReceipt2 } from "@tabler/icons-react";
+import { IconPlus, IconX, IconCurrencyReal, IconRepeat, IconRepeatOff, IconStack2, IconReceipt2, IconHome, IconBriefcase } from "@tabler/icons-react";
 import { createTransaction, createInstallments } from "@/app/actions/transactions";
 import { CREDIT_CATEGORIES, DEBIT_CATEGORIES } from "@/lib/categories";
 import { TransactionType, TransactionCategory, Recurrence, Tag } from "@/lib/types";
@@ -29,6 +29,7 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
     recurrence: "once" as Recurrence,
     recurrenceEndsAt: "",
     reimbursable: false,
+    context: "" as "" | "personal" | "professional",
   });
   const [installmentCount, setInstallmentCount] = useState("2");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -53,7 +54,7 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
   }
 
   function resetForm() {
-    setForm({ date: today(), description: "", amount: "", category: "", subcategory: "", notes: "", recurrence: "once", recurrenceEndsAt: "", reimbursable: false });
+    setForm({ date: today(), description: "", amount: "", category: "", subcategory: "", notes: "", recurrence: "once", recurrenceEndsAt: "", reimbursable: false, context: "" });
     setSelectedTagIds([]);
     setInstallmentCount("2");
   }
@@ -98,6 +99,7 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
           recurrenceEndsAt: form.recurrenceEndsAt || undefined,
           tagIds: selectedTagIds,
           reimbursable: form.reimbursable,
+          context: form.context || undefined,
         });
         resetForm();
         onSuccess?.();
@@ -330,6 +332,34 @@ export function TransactionForm({ allTags, onSuccess }: Props) {
           )}
         </div>
       )}
+
+      {/* Contexto */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] font-medium text-[var(--color-f2)]">
+          Contexto <span className="text-[var(--color-f4)]">(opcional)</span>
+        </label>
+        <div className="flex gap-2">
+          {([
+            { value: "personal",     label: "Pessoal",      icon: IconHome },
+            { value: "professional", label: "Profissional", icon: IconBriefcase },
+          ] as const).map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setForm(f => ({ ...f, context: f.context === value ? "" : value }))}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[11px] font-medium border transition-all duration-150 cursor-pointer flex-1 justify-center",
+                form.context === value
+                  ? "bg-[var(--color-cyan-faint)] border-[var(--color-cyan-border)] text-[var(--color-cyan)]"
+                  : "bg-[var(--color-bg3)] border-[var(--color-border)] text-[var(--color-f3)] hover:border-[var(--color-border2)] hover:text-[var(--color-f2)]"
+              )}
+            >
+              <Icon size={12} />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Reembolsável (apenas débito) */}
       {type === "debit" && (

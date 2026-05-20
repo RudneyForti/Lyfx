@@ -1,16 +1,20 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/session";
 import { getDRESummary } from "./transactions";
 import { getHealthData } from "./health";
 
 const PT_MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 export async function getDashboardData(month: number, year: number) {
+  const userId = await requireAuth();
+
   const [summary, transactions, goals, trend, allTags, healthData] = await Promise.all([
     getDRESummary(month, year),
     db.transaction.findMany({
       where: {
+        userId,
         date: {
           gte: new Date(year, month - 1, 1),
           lte: new Date(year, month, 0, 23, 59, 59),
@@ -21,19 +25,19 @@ export async function getDashboardData(month: number, year: number) {
       include: { tags: { include: { tag: true } } },
     }),
     db.goal.findMany({
-      where: { status: "active" },
+      where: { userId, status: "active" },
       orderBy: { createdAt: "desc" },
       select: { id: true, name: true, targetAmount: true, currentAmount: true, color: true, status: true },
     }),
-    getMonthlyTrend(month, year),
-    db.tag.findMany({ orderBy: { name: "asc" } }),
+    getMonthlyTrend(userId, month, year),
+    db.tag.findMany({ where: { userId }, orderBy: { name: "asc" } }),
     getHealthData(month, year),
   ]);
 
   return { summary, transactions, goals, trend, allTags, healthScore: healthData.healthScore };
 }
 
-async function getMonthlyTrend(currentMonth: number, currentYear: number) {
+async function getMonthlyTrend(userId: string, currentMonth: number, currentYear: number) {
   const months = [];
 
   for (let i = 5; i >= 0; i--) {
@@ -44,7 +48,7 @@ async function getMonthlyTrend(currentMonth: number, currentYear: number) {
     const end   = new Date(y, m + 1, 0, 23, 59, 59);
 
     const txs = await db.transaction.findMany({
-      where: { date: { gte: start, lte: end } },
+      where: { userId, date: { gte: start, lte: end } },
       select: { amount: true, type: true },
     });
 

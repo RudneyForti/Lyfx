@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/session";
 import { TransactionType, TransactionCategory } from "@/lib/types";
 
 export interface MonthReport {
@@ -42,7 +43,13 @@ export async function getReports(monthsBack: number = 6): Promise<{
   totalIncome: number;
   totalExpense: number;
   avgMonthlyResult: number;
+  contextBreakdown: {
+    personal:     { income: number; expense: number };
+    professional: { income: number; expense: number };
+    none:         { income: number; expense: number };
+  };
 }> {
+  const userId = await requireAuth();
   const now = new Date();
 
   // Build date range: from start of (now - monthsBack + 1) months ago to end of current month
@@ -51,9 +58,10 @@ export async function getReports(monthsBack: number = 6): Promise<{
 
   const transactions = await db.transaction.findMany({
     where: {
+      userId,
       date: { gte: startMonth, lte: endMonth },
     },
-    select: { date: true, amount: true, type: true, category: true },
+    select: { date: true, amount: true, type: true, category: true, context: true },
   });
 
   const reports: MonthReport[] = [];
@@ -116,5 +124,19 @@ export async function getReports(monthsBack: number = 6): Promise<{
     ? reports.reduce((s, r) => s + r.result, 0) / reports.length
     : 0;
 
-  return { months: reports, categoryTotals, totalIncome, totalExpense, avgMonthlyResult };
+  // Context breakdown
+  const contextBreakdown = {
+    personal:     { income: 0, expense: 0 },
+    professional: { income: 0, expense: 0 },
+    none:         { income: 0, expense: 0 },
+  };
+  for (const tx of transactions) {
+    const key = tx.context === "personal" ? "personal"
+              : tx.context === "professional" ? "professional"
+              : "none";
+    if (tx.type === "credit") contextBreakdown[key].income += tx.amount;
+    else                      contextBreakdown[key].expense += tx.amount;
+  }
+
+  return { months: reports, categoryTotals, totalIncome, totalExpense, avgMonthlyResult, contextBreakdown };
 }

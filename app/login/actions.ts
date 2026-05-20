@@ -35,5 +35,5 @@ export async function login(data: { email: string; password: string }) {
 
 export async function logout() {
   await clearSession();
-  redirect("/login");
+  redirect("/");
 }

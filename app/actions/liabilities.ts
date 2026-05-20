@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/session";
 
 export type LiabilityType =
   | "cheque_especial"
@@ -25,12 +26,17 @@ export interface Liability {
 }
 
 export async function getLiabilities(): Promise<Liability[]> {
-  return db.liability.findMany({ orderBy: { createdAt: "desc" } });
+  const userId = await requireAuth();
+  return db.liability.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 export async function getActiveLiabilities(): Promise<Liability[]> {
+  const userId = await requireAuth();
   return db.liability.findMany({
-    where: { status: "active" },
+    where: { userId, status: "active" },
     orderBy: { interestRate: "desc" }, // avalanche order
   });
 }
@@ -44,7 +50,8 @@ export async function createLiability(data: {
   creditor?: string;
   notes?: string;
 }): Promise<Liability> {
-  const liability = await db.liability.create({ data });
+  const userId = await requireAuth();
+  const liability = await db.liability.create({ data: { ...data, userId } });
   revalidatePath("/liabilities");
   revalidatePath("/goals");
   return liability;
@@ -63,15 +70,16 @@ export async function updateLiability(
     status: string;
   }>
 ): Promise<Liability> {
-  const liability = await db.liability.update({ where: { id }, data });
+  const userId = await requireAuth();
+  const liability = await db.liability.update({ where: { id, userId }, data });
   revalidatePath("/liabilities");
   revalidatePath("/goals");
   return liability;
 }
 
 export async function deleteLiability(id: string) {
-  await db.liability.delete({ where: { id } });
+  const userId = await requireAuth();
+  await db.liability.delete({ where: { id, userId } });
   revalidatePath("/liabilities");
   revalidatePath("/goals");
 }
-
