@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { IconPlus } from "@tabler/icons-react";
 import { getDashboardData } from "@/app/actions/dashboard";
+import { getAssetsSummary } from "@/app/actions/assets";
 import { DRE } from "@/components/dashboard/DRE";
 import { KPICards } from "@/components/dashboard/KPICards";
 import { InsightBanner } from "@/components/dashboard/InsightBanner";
 import { GoalsMiniWidget } from "@/components/dashboard/GoalsMiniWidget";
 import { MonthlyTrendChart } from "@/components/dashboard/MonthlyTrendChart";
 import { HealthScoreCard } from "@/components/dashboard/HealthScoreCard";
+import { AssetsMiniWidget } from "@/components/dashboard/AssetsMiniWidget";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { Transaction } from "@/lib/types";
 
@@ -15,7 +17,8 @@ export default async function DashboardPage() {
   const month = now.getMonth() + 1;
   const year  = now.getFullYear();
 
-  const { summary, transactions, goals, trend, allTags, healthScore } = await getDashboardData(month, year);
+  const [{ summary, transactions, goals, trend, allTags, healthScore }, assetsSummary] =
+    await Promise.all([getDashboardData(month, year), getAssetsSummary()]);
 
   const monthName = now.toLocaleDateString("pt-BR", { month: "long" });
 
@@ -66,6 +69,7 @@ export default async function DashboardPage() {
         {/* Right: Goals + Insight + Transactions */}
         <div className="flex flex-col gap-4">
           <HealthScoreCard healthScore={healthScore} />
+          <AssetsMiniWidget {...assetsSummary} />
           <GoalsMiniWidget goals={goals} />
           <InsightBanner summary={summary} goals={goals} />
 

@@ -82,7 +82,8 @@ export async function updateLiability(
 
 export async function deleteLiability(id: string) {
   const userId = await requireAuth();
-  await db.liability.delete({ where: { id, userId } });
+  // [FIX B-2] Use deleteMany — delete() ignores non-PK fields in where
+  await db.liability.deleteMany({ where: { id, userId } });
   revalidatePath("/liabilities");
   revalidatePath("/goals");
 }

@@ -67,7 +67,8 @@ export async function deleteInstitution(id: string) {
     await db.transaction.updateMany({ where: { userId, accountId: acc.id }, data: { accountId: null } });
   }
   // Delete institution (cascades to accounts)
-  await db.institution.delete({ where: { id, userId } });
+  // [FIX B-2] Use deleteMany — delete() ignores non-PK fields in where
+  await db.institution.deleteMany({ where: { id, userId } });
   revalidatePath("/institutions");
   return { ok: true };
 }
@@ -103,7 +104,8 @@ export async function deleteAccount(id: string) {
   const userId = await requireAuth();
   // Clear accountId from transactions
   await db.transaction.updateMany({ where: { userId, accountId: id }, data: { accountId: null } });
-  await db.account.delete({ where: { id, userId } });
+  // [FIX B-2] Use deleteMany — delete() ignores non-PK fields in where
+  await db.account.deleteMany({ where: { id, userId } });
   revalidatePath("/institutions");
   return { ok: true };
 }

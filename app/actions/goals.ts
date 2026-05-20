@@ -32,7 +32,9 @@ export async function createGoal(data: {
       (deadline.getMonth() - now.getMonth())
   );
 
-  const monthlyAmount = Math.ceil(data.targetAmount / months);
+  // [FIX M-3] Last payment absorbs rounding residual so total == targetAmount
+  const baseAmount = Math.floor(data.targetAmount / months);
+  const lastAmount = data.targetAmount - baseAmount * (months - 1);
 
   const goal = await db.goal.create({
     data: {
@@ -43,7 +45,7 @@ export async function createGoal(data: {
       deadline,
       color: data.color,
       icon: data.icon,
-      monthlyAmount,
+      monthlyAmount: baseAmount,
     },
   });
 
@@ -51,7 +53,11 @@ export async function createGoal(data: {
   const payments = [];
   for (let i = 0; i < months; i++) {
     const due = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
-    payments.push({ goalId: goal.id, dueDate: due, amount: monthlyAmount });
+    payments.push({
+      goalId: goal.id,
+      dueDate: due,
+      amount: i === months - 1 ? lastAmount : baseAmount,
+    });
   }
   await db.goalPayment.createMany({ data: payments });
 
@@ -60,8 +66,16 @@ export async function createGoal(data: {
 }
 
 export async function markPayment(paymentId: string, paid: boolean) {
-  const payment = await db.goalPayment.update({
-    where: { id: paymentId },
+  const userId = await requireAuth();
+
+  // [FIX C-1] Verify ownership via Goal relation before updating
+  const payment = await db.goalPayment.findFirst({
+    where: { id: paymentId, goal: { userId } },
+  });
+  if (!payment) throw new Error("Pagamento não encontrado.");
+
+  await db.goalPayment.update({
+    where: { id: payment.id },
     data: { paid, paidAt: paid ? new Date() : null },
   });
 
@@ -85,7 +99,8 @@ export async function markPayment(paymentId: string, paid: boolean) {
 
 export async function deleteGoal(id: string) {
   const userId = await requireAuth();
-  await db.goal.delete({ where: { id, userId } });
+  // [FIX B-2] Use deleteMany so userId filter is applied (delete ignores non-PK fields)
+  await db.goal.deleteMany({ where: { id, userId } });
   revalidatePath("/goals");
 }
 
@@ -103,8 +118,9 @@ export async function getMonthlyBalance() {
       select: { amount: true, type: true },
     });
 
-    const income = txs.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-    const expense = txs.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+    // [FIX C-2] Correct type values: "credit" / "debit" (not "income" / "expense")
+    const income  = txs.filter(t => t.type === "credit").reduce((s, t) => s + t.amount, 0);
+    const expense = txs.filter(t => t.type === "debit").reduce((s, t) => s + t.amount, 0);
     results.push(income - expense);
   }
 

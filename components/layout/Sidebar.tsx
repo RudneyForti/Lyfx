@@ -21,6 +21,7 @@ import {
   IconReceipt2,
   IconBuildingBank,
   IconBell,
+  IconHome2,
 } from "@tabler/icons-react";
 import { logout } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,7 @@ const navGroups = [
       { href: "/projections",   label: "Projeções",      icon: IconChartLine },
       { href: "/fixed-expenses",label: "Contas fixas",   icon: IconCalendarDue },
       { href: "/institutions",  label: "Instituições",   icon: IconBuildingBank },
+      { href: "/assets",        label: "Bens e Imóveis", icon: IconHome2 },
     ],
   },
   {

@@ -129,19 +129,24 @@ export async function updateFutureInstallments(
   });
 
   for (const inst of future) {
-    await db.transaction.update({
-      where: { id: inst.id },
-      data: {
-        description: `${data.baseDescription} (${inst.installmentNumber}/${inst.installmentTotal})`,
-        amount: data.amount,
-        type: data.type,
-        category: data.category,
-        notes: data.notes,
-        tags: data.tagIds !== undefined
-          ? { deleteMany: {}, create: data.tagIds.map(tagId => ({ tagId })) }
-          : undefined,
-      },
-    });
+    // [FIX M-2] Guard: inst already came from a userId-filtered query, but we
+    // separate scalar and relation updates — updateMany can't handle nested writes.
+    const scalarData = {
+      description: `${data.baseDescription} (${inst.installmentNumber}/${inst.installmentTotal})`,
+      amount: data.amount,
+      type: data.type,
+      category: data.category,
+      notes: data.notes,
+    };
+    await db.transaction.updateMany({ where: { id: inst.id, userId }, data: scalarData });
+    if (data.tagIds !== undefined) {
+      await db.transactionTag.deleteMany({ where: { transactionId: inst.id } });
+      if (data.tagIds.length > 0) {
+        await db.transactionTag.createMany({
+          data: data.tagIds.map((tagId) => ({ transactionId: inst.id, tagId })),
+        });
+      }
+    }
   }
 
   revalidatePath("/dashboard");
@@ -151,7 +156,8 @@ export async function updateFutureInstallments(
 
 export async function deleteTransaction(id: string) {
   const userId = await requireAuth();
-  await db.transaction.delete({ where: { id, userId } });
+  // [FIX B-2] Use deleteMany — delete() ignores non-PK fields in where
+  await db.transaction.deleteMany({ where: { id, userId } });
   revalidatePath("/dashboard");
   revalidatePath("/transactions");
   revalidatePath("/planning");

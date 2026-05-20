@@ -35,7 +35,14 @@ export async function getAdminSession(): Promise<boolean> {
   return jar.get(COOKIE)?.value === "1";
 }
 
+// [FIX C-4] Internal guard — all sensitive actions must call this first
+async function requireAdmin() {
+  const ok = await getAdminSession();
+  if (!ok) throw new Error("Unauthorized.");
+}
+
 export async function adminResetPassword(userId: string, newPassword: string) {
+  await requireAdmin();
   if (newPassword.length < 6) return { error: "Mínimo 6 caracteres." };
   const hashed = await bcrypt.hash(newPassword, 10);
   await db.user.update({ where: { id: userId }, data: { password: hashed } });
@@ -43,6 +50,7 @@ export async function adminResetPassword(userId: string, newPassword: string) {
 }
 
 export async function adminDeleteUser(userId: string) {
+  await requireAdmin();
   // Delete all user data (cascade manually — no FK relation from User to these models)
   await db.transaction.deleteMany({ where: { userId } }); // TransactionTags cascade via onDelete
   await db.tag.deleteMany({ where: { userId } });
@@ -50,6 +58,7 @@ export async function adminDeleteUser(userId: string) {
   await db.goal.deleteMany({ where: { userId } }); // GoalPayments cascade via onDelete
   await db.liability.deleteMany({ where: { userId } });
   await db.institution.deleteMany({ where: { userId } }); // Accounts cascade via onDelete
+  await db.asset.deleteMany({ where: { userId } });        // AssetExpenses cascade via onDelete
   await db.settings.deleteMany({ where: { userId } });
   await db.user.delete({ where: { id: userId } });
   revalidatePath("/studio");
@@ -57,6 +66,7 @@ export async function adminDeleteUser(userId: string) {
 }
 
 export async function getStudioDataForUser(userId: string) {
+  await requireAdmin();
   const [txCount, tagCount, budgetCount, goalCount, recentTx] = await Promise.all([
     db.transaction.count({ where: { userId } }),
     db.tag.count({ where: { userId } }),
@@ -73,6 +83,7 @@ export async function getStudioDataForUser(userId: string) {
 }
 
 export async function adminCreateUser(data: { name: string; email: string; password: string }) {
+  await requireAdmin();
   if (!data.name.trim()) return { error: "Nome obrigatório." };
   if (!data.email.trim()) return { error: "E-mail obrigatório." };
   if (data.password.length < 6) return { error: "Senha deve ter ao menos 6 caracteres." };
@@ -89,6 +100,7 @@ export async function adminCreateUser(data: { name: string; email: string; passw
 }
 
 export async function getStudioData() {
+  await requireAdmin();
   const [users, txCount, tagCount, budgetCount, goalCount, liabilityCount, goalPaymentCount, recentTx] = await Promise.all([
     db.user.findMany({ select: { id: true, name: true, email: true, createdAt: true, avatar: true } }),
     db.transaction.count(),

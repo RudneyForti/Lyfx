@@ -264,6 +264,45 @@ Tipos de liability: "cheque_especial" | "rotativo" | "emprestimo" | "financiamen
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
 Tipos de account: "checking" | "savings" | "credit_card" | "investment" | "wallet" | "other"
+
+┌─────────────────────────────────────────────────────────────────┐
+│                           ASSET                                 │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ name            │ String       │ Apelido do bem                 │
+│ type            │ String       │ "real_estate"|"vehicle"|"other"│
+│ propertyAddress │ String?      │ Endereço (imóveis)             │
+│ make            │ String?      │ Marca (veículos)               │
+│ model           │ String?      │ Modelo (veículos)              │
+│ year            │ Int?         │ Ano (veículos)                 │
+│ plate           │ String?      │ Placa (veículos)               │
+│ purchaseValue   │ Float?       │ Valor de aquisição             │
+│ currentValue    │ Float?       │ Valor atual estimado           │
+│ purchaseDate    │ DateTime?    │ Data de compra                 │
+│ notes           │ String?      │ Observações livres             │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+│ expenses        │ Relation     │ → AssetExpense[]               │
+└─────────────────┴──────────────┴────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        ASSET_EXPENSE                            │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ assetId         │ String (FK)  │ → Asset.id (cascade)           │
+│ name            │ String       │ Ex: "IPTU 2025"                │
+│ type            │ String       │ Ver tipos abaixo               │
+│ amount          │ Float        │ Valor em reais                 │
+│ dueDate         │ DateTime?    │ Data de vencimento             │
+│ paid            │ Boolean      │ false por padrão               │
+│ paidAt          │ DateTime?    │ Preenchido ao marcar pago      │
+│ notes           │ String?      │ Observações livres             │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Tipos de AssetExpense: "iptu" | "ipva" | "itr" | "dpvat" | "seguro" | "licenciamento" | "manutencao" | "other"
 ```
 
 ### Diagrama de relações
@@ -616,6 +655,22 @@ Seção adicionada ao final da página de Contas Fixas, visível quando há desp
 - **Resumo**: total consolidado a provisionar por mês exibido no tip banner
 - **Componente**: `ProvisaoSazonal` — sub-componente dentro de `FixedExpensesView.tsx`
 
+### 6.18 Bens e Imóveis (`/assets`)
+
+Cadastro e acompanhamento de bens físicos com seus impostos e despesas associadas.
+
+- **Tipos de bem**: Imóvel (endereço), Veículo (marca/modelo/ano/placa), Outro bem
+- **Campos comuns**: valor de compra, valor atual estimado, data de aquisição, observações
+- **Variação**: diferença entre valor de compra e atual exibida em verde/vermelho no card expandido
+- **Despesas por bem**: IPTU, IPVA, ITR, DPVAT/SPVAT, Seguro, Licenciamento, Manutenção, Outro
+  - Toggle de pago/pendente com data de pagamento registrada
+  - Alerta visual (fundo vermelho) para despesas vencidas
+  - Sugestões de tipo de despesa adaptadas ao tipo do bem (ex: IPVA não aparece para imóvel)
+- **Totais por bem**: pago × pendente × total no rodapé expandido
+- **Cards de resumo globais**: bens cadastrados, valor total estimado, custo anual total, despesas vencidas
+- **Widget no dashboard** (`AssetsMiniWidget`): exibe bens, valor total e custo anual; badge de pendentes se houver; oculto automaticamente se não há bens cadastrados
+- **`lib/assets.ts`**: tipos e constantes (`AssetType`, `AssetExpenseType`, labels, `EXPENSE_SUGGESTIONS`) — separados do arquivo `"use server"` por limitação do Turbopack
+
 ### 6.16 Studio (`/studio`)
 
 Painel administrativo protegido por senha separada da sessão do usuário.
@@ -770,13 +825,15 @@ BudgetView ao carregar o mês:
 ```
 Usuário define nome + valor + prazo
   └── createGoal()
-        ├── calcula monthlyAmount = targetAmount / meses
+        ├── calcula baseAmount = floor(targetAmount / meses)
+        │     lastAmount = targetAmount - baseAmount × (meses - 1)  ← absorve resíduo de arredondamento
         ├── avalia viabilidade vs avgMonthlyBalance (média 3 meses)
         ├── cria registro Goal
         └── cria N registros GoalPayment (1 por mês até o prazo)
               └── usuário marca GoalPayments como pagos
-                    └── markPayment() recalcula currentAmount
-                          └── se currentAmount >= targetAmount → status = "completed"
+                    └── markPayment() verifica ownership via { id, goal: { userId } }
+                          └── recalcula currentAmount
+                                └── se currentAmount >= targetAmount → status = "completed"
 ```
 
 ---
@@ -821,6 +878,7 @@ Usuário define nome + valor + prazo
 - Comparação por igualdade direta (sem hash) — senha é um segredo de operação, não de usuário
 - Logout do Studio também invalida a sessão do usuário app (`lyfx_session`) em uma única operação
 - Deleção de cookie sempre especifica `path` correspondente ao de criação — sem isso o cookie persiste
+- **Todas as Server Actions sensíveis** (`adminDeleteUser`, `adminResetPassword`, `adminCreateUser`, `getStudioData`, `getStudioDataForUser`) chamam `requireAdmin()` internamente — proteção dupla além da guarda no componente de página
 
 ---
 
@@ -846,6 +904,7 @@ lyfx/
 │   │   ├── profile/page.tsx
 │   │   ├── institutions/page.tsx # Cadastro de bancos/fintechs e contas
 │   │   ├── alerts/page.tsx       # Central de alertas proativos
+│   │   ├── assets/page.tsx       # Bens, imóveis, veículos e despesas associadas
 │   │   └── education/page.tsx    # (pendente)
 │   ├── actions/                  # Server Actions — mutações e queries
 │   │   ├── dashboard.ts          # getDashboardData() — busca tudo em paralelo
@@ -860,6 +919,7 @@ lyfx/
 │   │   ├── settings.ts           # getSettings / updateExpectedIncome
 │   │   ├── institutions.ts       # CRUD de instituições e contas
 │   │   ├── alerts.ts             # getAlerts() — 4 tipos de alertas on-the-fly
+│   │   ├── assets.ts             # CRUD de bens e despesas (AssetExpense)
 │   │   └── user.ts
 │   ├── api/
 │   │   └── clear-session/route.ts  # Route Handler — limpa cookie órfão
@@ -899,6 +959,8 @@ lyfx/
 │   │   └── InstitutionsView.tsx # CRUD de instituições e contas vinculadas
 │   ├── alerts/
 │   │   └── AlertsView.tsx       # Central de alertas agrupados por severidade
+│   ├── assets/
+│   │   └── AssetsView.tsx       # CRUD de bens com despesas/impostos expansíveis
 │   ├── reimbursements/
 │   │   └── ReimbursementsView.tsx  # tracking de despesas reembolsáveis
 │   ├── projections/ProjectionsView.tsx
@@ -910,6 +972,9 @@ lyfx/
 │   └── ui/
 │       ├── MonthPicker.tsx       # Seletor de mês custom (substitui input[type=month])
 │       └── CountrySelect.tsx     # Combobox digitável com ~195 países em português
+│
+│   (dashboard extras)
+│       └── AssetsMiniWidget.tsx  # Widget de bens para o dashboard
 │
 ├── lib/
 │   ├── db.ts                     # Singleton Prisma com adapter SQLite
@@ -962,6 +1027,7 @@ lyfx/
 | `profile/page.tsx` | Busca perfil do usuário e renderiza `ProfileForm`. |
 | `institutions/page.tsx` | Busca instituições e passivos em paralelo; renderiza `InstitutionsView`. |
 | `alerts/page.tsx` | Busca alertas calculados e renderiza `AlertsView`. |
+| `assets/page.tsx` | Busca todos os bens do usuário (com despesas incluídas) e renderiza `AssetsView`. |
 
 #### `app/actions/`
 
@@ -980,6 +1046,7 @@ lyfx/
 | `user.ts` | `getProfile()`, `updateProfile()` (nome, email, idade, gênero, 5 campos de endereço, avatar base64), `changePassword()` (verifica senha atual com bcrypt antes de atualizar). |
 | `institutions.ts` | `getInstitutions`, `getAccountsForSelect`, `createInstitution`, `updateInstitution`, `deleteInstitution` (cascade manual + limpeza de FKs), `createAccount`, `updateAccount`, `deleteAccount`. |
 | `alerts.ts` | `getAlerts()` — calcula on-the-fly 4 tipos de alerta: estouro de orçamento, pagamentos de metas vencidos/pendentes, projeção negativa nos próximos 12 meses e despesas sazonais iminentes. |
+| `assets.ts` | `getAssets`, `getAssetsSummary` (para widget do dashboard), `createAsset`, `updateAsset`, `deleteAsset`. Para despesas: `createAssetExpense` (verifica ownership do asset), `updateAssetExpense`, `toggleExpensePaid`, `deleteAssetExpense`. Parsing `parseBR()` normaliza valores no formato brasileiro (`"1.234,56"` → `1234.56`). |
 
 #### `app/login/`
 
@@ -1062,6 +1129,8 @@ lyfx/
 | `profile/ProfileForm.tsx` | Upload de avatar com resize client-side via Canvas, campos de perfil (nome, email, idade, gênero), endereço estruturado em 5 campos com auto-fill ViaCEP (lupa + Enter) e `CountrySelect`, formulário de troca de senha com verificação da senha atual. |
 | `institutions/InstitutionsView.tsx` | CRUD completo de instituições e contas: `InstitutionModal` (criar/editar), `AccountForm` (formulário inline), `InstitutionCard` (expandível com lista de contas e passivos vinculados), `AccountRow` (linha com editar/excluir), cards de resumo e estado vazio. |
 | `alerts/AlertsView.tsx` | Exibe alertas agrupados por severidade (danger → warning → info): `AlertCard` com ícone, badge de tipo, título, descrição e link; chips de contagem por tipo; estado vazio "Tudo em ordem!". |
+| `assets/AssetsView.tsx` | CRUD de bens: `AssetModal` (criar/editar com campos por tipo), `ExpenseForm` (inline por bem), `ExpenseRow` (toggle pago/pendente, alerta de vencido), `AssetCard` (expansível com despesas, variação de valor, totais), cards de resumo globais. |
+| `dashboard/AssetsMiniWidget.tsx` | Widget para o dashboard: mostra bens, valor total estimado e custo anual; badge vermelho se há despesas pendentes; link para `/assets`; oculto se não há bens. |
 
 #### `lib/`
 
@@ -1076,12 +1145,13 @@ lyfx/
 | `health.ts` | Função pura `computeHealthScore(data)` — calcula o score 0–100 e o perfil financeiro a partir de DRE, reserva e médias. Sem acesso ao banco. |
 | `liabilities.ts` | Função pura `monthsToPayoff(balance, monthlyRate, payment)` — calcula meses até quitação de uma dívida pela fórmula de amortização. Separada do arquivo `"use server"` por limitação do Turbopack. |
 | `institutions.ts` | Tipos e constantes de instituições (`InstitutionType`, `AccountType`, `INSTITUTION_TYPE_LABELS`, `ACCOUNT_TYPE_LABELS`, interfaces `Institution`, `Account`, `AccountForSelect`) — separados do arquivo `"use server"` por limitação do Turbopack. |
+| `assets.ts` | Tipos e constantes de bens (`AssetType`, `AssetExpenseType`, `ASSET_TYPE_LABELS`, `ASSET_EXPENSE_TYPE_LABELS`, `EXPENSE_SUGGESTIONS`, interfaces `Asset`, `AssetExpense`) — separados do arquivo `"use server"` por limitação do Turbopack. |
 
 #### `prisma/`
 
 | Arquivo | O que faz |
 |---|---|
-| `schema.prisma` | Fonte de verdade do banco: define todos os modelos (User, Transaction, Tag, TransactionTag, Budget, Goal, GoalPayment, Settings, Liability, Institution, Account) com campos, tipos, defaults, constraints únicas compostas e relações. |
+| `schema.prisma` | Fonte de verdade do banco: define todos os modelos (User, Transaction, Tag, TransactionTag, Budget, Goal, GoalPayment, Settings, Liability, Institution, Account, Asset, AssetExpense) com campos, tipos, defaults, constraints únicas compostas e relações. |
 
 ---
 
@@ -1114,7 +1184,8 @@ lyfx/
 - Todos os `app/actions/*.ts` chamam `requireAuth()` como primeira operação
 - Constraints únicas compostas: `@@unique([userId, name])` em Tag, `@@unique([userId, category])` em Budget
 - Backfill: ao adicionar `userId @default("")`, todos os registros existentes receberam o id do único usuário via script
-- GoalPayment não possui `userId` — segurança via API: apenas GoalPayments de metas do próprio usuário são retornados por `getGoals()`
+- GoalPayment não possui `userId` direto — `markPayment()` verifica ownership via `{ id, goal: { userId } }` antes de qualquer modificação
+- Todas as operações de deleção usam `deleteMany({ where: { id, userId } })` — o `delete()` singular do Prisma ignora campos não-PK no `where`, tornando o `userId` ineficaz como guarda
 
 **Resultado**: múltiplos usuários podem usar o mesmo banco com isolamento completo. Criação e gestão de usuários via Studio.
 
@@ -1147,6 +1218,10 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **Fase 5** | ✅ v0.9.0 | Passivos (`Liability`): CRUD completo, modo recuperação avalanche com calculadora de pagamento extra, alerta contextual nas Metas para dívidas com taxa ≥ 5% a.m. |
 | **Fase 6** | ✅ v1.0.0 | Reembolso com tracking (`reimbursedAt`, página `/reimbursements`, toggle no formulário), provisão sazonal automática em `/fixed-expenses`, modo "Avulsa" renomeado no formulário. Importação OFX/CSV adiada para fase futura. |
 | **Fase 7** | ✅ v1.1.0 | Isolamento multi-usuário completo: `userId` em todas as tabelas de dados, `requireAuth()` em todos os Server Actions, constraints únicas compostas em Tag e Budget. Studio aprimorado: criar usuário, deletar com cascade, filtro por usuário com combobox digitável, cards de sistema (usuários/registros/tamanho DB). Navegação: acesso ao Studio via `/login`, logout sempre redireciona para `/`, back buttons em ambas as telas de login. |
+| **Fase C** | ✅ v1.2.0 | Instituições (`/institutions`): cadastro de bancos/fintechs/corretoras com contas vinculadas, saldo e limite por conta, vínculo de passivos e transações por conta. |
+| **Fase D** | ✅ v1.2.0 | Alertas (`/alerts`): central proativa com 4 tipos de alerta (orçamento, metas, projeção negativa, sazonal), agrupados por severidade. Correções de UI: seta de select via CSS, MonthPicker custom, correção de foco em ProfileForm, remoção de spinners em number input. Perfil de endereço estruturado em 5 campos com auto-fill ViaCEP e CountrySelect com ~195 países. |
+| **Fase E** | ✅ v1.3.0 | Bens e Imóveis (`/assets`): cadastro de imóveis, veículos e outros bens com despesas associadas (IPTU, IPVA, ITR, seguro, licenciamento, manutenção), toggle de pago/pendente, alerta de vencidos, widget no dashboard. |
+| **Auditoria** | ✅ v1.3.1 | Revisão completa de segurança e bugs: IDOR em `markPayment` corrigido, tipos `"income"/"expense"` → `"credit"/"debit"` em `getMonthlyBalance`, `requireAdmin()` interno em todas as actions do Studio, `delete()` → `deleteMany()` em goals/liabilities/institutions/transactions, parsing `parseBR()` para valores em formato brasileiro, `useEffect` substituindo `useState` como efeito colateral, verificação de ownership em `createAssetExpense`. |
 
 ### Próximas evoluções sugeridas
 
@@ -1156,4 +1231,4 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 
 ---
 
-*Última atualização: 20/05/2026. Versão atual: 1.1.0.*
+*Última atualização: 20/05/2026. Versão atual: 1.3.1.*

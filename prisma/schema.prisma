@@ -118,6 +118,44 @@ model Budget {
   @@unique([userId, category])
 }
 
+model Asset {
+  id            String         @id @default(cuid())
+  userId        String
+  name          String
+  type          String         @default("real_estate") // real_estate | vehicle | other
+  // Imóvel
+  propertyAddress String?
+  // Veículo
+  make          String?
+  model         String?
+  year          Int?
+  plate         String?
+  // Comum
+  purchaseValue Float?
+  currentValue  Float?
+  purchaseDate  DateTime?
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  expenses      AssetExpense[]
+}
+
+model AssetExpense {
+  id        String    @id @default(cuid())
+  userId    String
+  assetId   String
+  asset     Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  name      String
+  type      String    @default("other") // iptu | ipva | itr | dpvat | seguro | licenciamento | manutencao | other
+  amount    Float
+  dueDate   DateTime?
+  paid      Boolean   @default(false)
+  paidAt    DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
