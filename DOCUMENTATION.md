@@ -541,7 +541,7 @@ Edição dos dados pessoais e credenciais.
   - **Auto-fill ViaCEP**: ao clicar na lupa (ou pressionar Enter) no campo CEP, consulta `viacep.com.br` e preenche automaticamente logradouro, cidade e estado
   - **País**: combobox digitável (`CountrySelect`) com todos os países do mundo em português; filtra por digitação, aceita texto livre
 - **Alteração de senha**: exige senha atual (verificada com bcrypt.compare), nova senha (mínimo 6 chars)
-- **Sidebar**: usa o nome e avatar do perfil via prop injetada pelo `AppLayout`
+- **Acesso via UserMenu**: o link "Editar perfil" fica no menu flutuante do canto superior direito, não na sidebar
 
 ### 6.11 Saúde Financeira (`/health`)
 
@@ -852,7 +852,7 @@ Usuário define nome + valor + prazo
    ├── Sem userId no cookie → redirect /login
    ├── userId não encontrado no banco → redirect /api/clear-session
    │     └── Route Handler deleta cookie + redirect /login (evita loop)
-   └── Usuário encontrado → renderiza Sidebar + children
+   └── Usuário encontrado → renderiza Sidebar + UserMenu (flutuante) + children
 
 4. Login bem-sucedido:
    └── setSession(user.id) → cookie httpOnly, 30 dias
@@ -888,7 +888,7 @@ Usuário define nome + valor + prazo
 lyfx/
 ├── app/
 │   ├── (app)/                    # Rotas protegidas (requerem sessão)
-│   │   ├── layout.tsx            # AppLayout: verifica sessão + injeta Sidebar
+│   │   ├── layout.tsx            # AppLayout: verifica sessão + injeta Sidebar e UserMenu
 │   │   ├── dashboard/page.tsx
 │   │   ├── transactions/page.tsx
 │   │   ├── budget/page.tsx
@@ -938,6 +938,7 @@ lyfx/
 ├── components/
 │   ├── landing/LandingPage.tsx
 │   ├── layout/Sidebar.tsx
+│   ├── layout/UserMenu.tsx
 │   ├── transactions/
 │   │   ├── TransactionForm.tsx
 │   │   ├── EditTransactionModal.tsx
@@ -1012,7 +1013,7 @@ lyfx/
 
 | Arquivo | O que faz |
 |---|---|
-| `layout.tsx` | `AppLayout` — Server Component que valida a sessão em cada request: lê o cookie, busca o usuário no banco, redireciona para `/api/clear-session` se o usuário não existir mais. Injeta a `Sidebar` com nome e avatar. |
+| `layout.tsx` | `AppLayout` — Server Component que valida a sessão em cada request: lê o cookie, busca o usuário no banco, redireciona para `/api/clear-session` se o usuário não existir mais. Injeta a `Sidebar` (navegação) e o `UserMenu` (perfil/logout flutuante). |
 | `dashboard/page.tsx` | Busca dados do dashboard via `getDashboardData()` e renderiza `DashboardView`. |
 | `transactions/page.tsx` | Busca transações e tags do mês e renderiza `TransactionList` + `TransactionForm`. |
 | `budget/page.tsx` | Busca orçamentos, configurações e transações do mês; renderiza `BudgetView`. |
@@ -1080,7 +1081,8 @@ lyfx/
 
 | Arquivo | O que faz |
 |---|---|
-| `Sidebar.tsx` | Barra lateral de navegação: links para todas as rotas protegidas com ícones Tabler, highlight da rota ativa via `usePathname`, avatar + nome do usuário no rodapé, botão de logout com `useTransition`. Colapsa/expande via estado. |
+| `Sidebar.tsx` | Barra lateral de navegação: links para todas as rotas protegidas com ícones Tabler, highlight da rota ativa via `usePathname`. Colapsa/expande via estado (clique no logo). Sem perfil ou logout — essas funções foram movidas para o `UserMenu`. |
+| `UserMenu.tsx` | Menu flutuante fixo no canto superior direito: pill com avatar + primeiro nome + chevron. Dropdown com nome completo, link "Editar perfil" e botão "Sair" (logout com `useTransition`). Fecha ao clicar fora via `useRef`. |
 
 #### `components/dashboard/`
 
