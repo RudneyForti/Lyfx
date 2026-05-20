@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useState } from "react";
 import {
   IconLayoutDashboard,
   IconArrowsExchange,
@@ -15,55 +15,47 @@ import {
   IconTags,
   IconCalendarMonth,
   IconHeartRateMonitor,
-  IconUser,
-  IconLogout,
   IconTrendingDown,
   IconReceipt2,
   IconBuildingBank,
   IconBell,
   IconHome2,
 } from "@tabler/icons-react";
-import { logout } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
 
-interface SidebarUser {
-  name: string;
-  avatar: string | null;
-}
-
 interface Props {
-  user: SidebarUser;
+  collapsed?: boolean;
 }
 
 const navGroups = [
   {
     label: "Principal",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: IconLayoutDashboard },
-      { href: "/transactions", label: "Transações", icon: IconArrowsExchange },
+      { href: "/dashboard",    label: "Dashboard",   icon: IconLayoutDashboard },
+      { href: "/transactions", label: "Transações",  icon: IconArrowsExchange },
     ],
   },
   {
     label: "Planejamento",
     items: [
-      { href: "/planning",      label: "Plano Mensal",   icon: IconCalendarMonth },
-      { href: "/budget",        label: "Orçamento",      icon: IconWallet },
-      { href: "/goals",         label: "Metas",          icon: IconTarget },
-      { href: "/liabilities",   label: "Passivos",       icon: IconTrendingDown },
-      { href: "/projections",   label: "Projeções",      icon: IconChartLine },
-      { href: "/fixed-expenses",label: "Contas fixas",   icon: IconCalendarDue },
-      { href: "/institutions",  label: "Instituições",   icon: IconBuildingBank },
-      { href: "/assets",        label: "Bens e Imóveis", icon: IconHome2 },
+      { href: "/planning",       label: "Plano Mensal",   icon: IconCalendarMonth },
+      { href: "/budget",         label: "Orçamento",      icon: IconWallet },
+      { href: "/goals",          label: "Metas",          icon: IconTarget },
+      { href: "/liabilities",    label: "Passivos",       icon: IconTrendingDown },
+      { href: "/projections",    label: "Projeções",      icon: IconChartLine },
+      { href: "/fixed-expenses", label: "Contas fixas",   icon: IconCalendarDue },
+      { href: "/institutions",   label: "Instituições",   icon: IconBuildingBank },
+      { href: "/assets",         label: "Bens e Imóveis", icon: IconHome2 },
     ],
   },
   {
     label: "Análise",
     items: [
-      { href: "/alerts",         label: "Alertas",            icon: IconBell },
-      { href: "/reports",        label: "Relatórios",         icon: IconReportAnalytics },
-      { href: "/health",         label: "Saúde financeira",   icon: IconHeartRateMonitor },
-      { href: "/reimbursements", label: "Reembolsos",         icon: IconReceipt2 },
-      { href: "/tags",           label: "Minhas tags",        icon: IconTags },
+      { href: "/alerts",         label: "Alertas",          icon: IconBell },
+      { href: "/reports",        label: "Relatórios",       icon: IconReportAnalytics },
+      { href: "/health",         label: "Saúde financeira", icon: IconHeartRateMonitor },
+      { href: "/reimbursements", label: "Reembolsos",       icon: IconReceipt2 },
+      { href: "/tags",           label: "Minhas tags",      icon: IconTags },
     ],
   },
   {
@@ -74,32 +66,9 @@ const navGroups = [
   },
 ];
 
-function getInitials(name: string) {
-  return name.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
-}
-
-export function Sidebar({ user }: Props) {
+export function Sidebar(_props: Props) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const footerRef = useRef<HTMLDivElement>(null);
-
-  // Close menu on outside click
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handle(e: MouseEvent) {
-      if (footerRef.current && !footerRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [menuOpen]);
-
-  function handleLogout() {
-    startTransition(() => logout());
-  }
 
   return (
     <nav
@@ -179,76 +148,6 @@ export function Sidebar({ user }: Props) {
             })}
           </div>
         ))}
-      </div>
-
-      {/* Footer — profile + menu */}
-      <div ref={footerRef} className="relative border-t border-[var(--color-border)] flex-shrink-0">
-
-        {/* Floating menu */}
-        {menuOpen && (
-          <div className={cn(
-            "absolute bottom-[calc(100%+8px)] bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] shadow-[0_8px_24px_rgba(0,0,0,0.5)] overflow-hidden z-50",
-            collapsed ? "left-[calc(100%+8px)] bottom-auto top-0 w-[200px]" : "left-3 right-3"
-          )}>
-            {/* User info */}
-            <div className="px-4 py-3 border-b border-[var(--color-border)]">
-              <div className="text-[13px] font-semibold text-[var(--color-f1)]">{user.name}</div>
-              <div className="text-[10px] text-[var(--color-f4)] mt-0.5">Conta pessoal</div>
-            </div>
-
-            {/* Actions */}
-            <div className="py-1">
-              <Link
-                href="/profile"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-[12px] text-[var(--color-f2)] hover:bg-white/[0.05] hover:text-[var(--color-f1)] transition-colors no-underline cursor-pointer"
-              >
-                <IconUser size={14} className="text-[var(--color-f4)]" />
-                Editar perfil
-              </Link>
-              <button
-                onClick={handleLogout}
-                disabled={isPending}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] text-[var(--color-red)] hover:bg-[var(--color-red-dim)] transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <IconLogout size={14} />
-                {isPending ? "Saindo..." : "Sair"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Footer button */}
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className={cn(
-            "w-full flex items-center gap-2 overflow-hidden transition-colors duration-150",
-            "hover:bg-[rgba(255,255,255,0.04)] cursor-pointer",
-            collapsed ? "justify-center px-0 py-4" : "px-3.5 py-3",
-            menuOpen && "bg-[rgba(255,255,255,0.04)]"
-          )}
-        >
-          {/* Avatar */}
-          <div className="w-7 h-7 min-w-[28px] rounded-full overflow-hidden border border-[var(--color-cyan-border)] flex items-center justify-center flex-shrink-0">
-            {user.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-[var(--color-cyan-dim)] flex items-center justify-center text-[10px] font-semibold text-[var(--color-cyan)]">
-                {getInitials(user.name)}
-              </div>
-            )}
-          </div>
-
-          <div
-            className={cn(
-              "overflow-hidden transition-all duration-200 text-left",
-              collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[160px]"
-            )}
-          >
-            <div className="text-[11px] font-medium text-[var(--color-f2)] truncate">{user.name}</div>
-            <div className="text-[9px] text-[var(--color-f4)]">Pessoal</div>
-          </div>
-        </button>
       </div>
     </nav>
   );

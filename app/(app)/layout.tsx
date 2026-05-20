@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { UserMenu } from "@/components/layout/UserMenu";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const jar = await cookies();
@@ -14,7 +15,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar user={{ name: user.name, avatar: user.avatar ?? null }} />
+      <Sidebar />
+      <UserMenu name={user.name} avatar={user.avatar ?? null} />
       <main
         className="flex-1 min-h-screen transition-all duration-200"
         style={{ marginLeft: "var(--sidebar-width)" }}
