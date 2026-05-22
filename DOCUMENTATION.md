@@ -1055,7 +1055,12 @@ lyfx/
 │
 ├── proxy.ts                      # Proteção de rotas (Edge Runtime)
 ├── .env                          # DATABASE_URL + ADMIN_SECRET
-└── dev.db                        # Banco SQLite (não versionar)
+├── dev.db                        # Banco SQLite (não versionar)
+└── .claude/
+    ├── CLAUDE.md                 # Instruções globais para o Claude Code
+    ├── AGENTS.md                 # Diretrizes de agentes (@AGENTS.md referenciado por CLAUDE.md)
+    └── agents/
+        └── agent-smith.md        # Agente QA especialista (Agent Smith v8.0)
 ```
 
 ### 9.1 Descrição dos arquivos
@@ -1214,6 +1219,25 @@ lyfx/
 | Arquivo | O que faz |
 |---|---|
 | `schema.prisma` | Fonte de verdade do banco: define todos os modelos (User, Transaction, Tag, TransactionTag, Budget, Goal, GoalPayment, Settings, Liability, Institution, Account, Asset, AssetExpense) com campos, tipos, defaults, constraints únicas compostas e relações. |
+
+#### `.claude/`
+
+Diretório de configuração do **Claude Code** (CLI de IA). Versionado no repositório para que o contexto do assistente seja compartilhado entre sessões e colaboradores.
+
+| Arquivo | O que faz |
+|---|---|
+| `CLAUDE.md` | Ponto de entrada do Claude Code. Referencia `@AGENTS.md` com `@`. |
+| `AGENTS.md` | Diretivas globais do projeto para o Claude Code: stack, convenções, avisos de breaking changes do Next.js. |
+| `agents/agent-smith.md` | **Agent Smith v8.0** — agente QA especialista. Persona cirúrgica baseada em 19 obras técnicas (Myers, Beck, Feathers, Fowler, Nygard, WAHH e outros). Invocado com `@agent-smith` ou linguagem natural. Ferramentas: `Read`, `Grep`, `Glob`, `Bash` (somente leitura/análise — sem edição de arquivos). Modelo: `sonnet`. |
+
+**Como invocar o Agent Smith:**
+```
+@agent-smith revisa o componente PillReader antes de commitar
+```
+ou
+```
+Usa o Agent Smith para auditar a action completePill
+```
 
 ---
 
