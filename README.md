@@ -7,7 +7,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-local-003B57?style=flat-square&logo=sqlite)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
-![Version](https://img.shields.io/badge/version-1.3.1-22D3EE?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.5.0-22D3EE?style=flat-square)
 
 ---
 
@@ -35,6 +35,7 @@ O Lyfx aplica o conceito do **DRE (Demonstrativo de Resultado do Exercício)** �
 | **Reembolsos** | Rastreamento de despesas reembolsáveis e seu recebimento |
 | **Tags** | Etiquetas personalizadas por transação |
 | **Perfil** | Dados pessoais, endereço com auto-fill por CEP e troca de senha |
+| **Educação** | 85 pílulas pedagógicas por perfil de saúde financeira, quiz de fixação e streak semanal |
 | **Studio** | Painel de administração protegido por senha separada |
 
 ## Stack
@@ -71,4 +72,4 @@ Para detalhes completos sobre arquitetura, schema do banco, relacionamentos, cat
 
 ---
 
-*Projeto pessoal em desenvolvimento ativo.*
+*v1.5.0 · Maio 2026 · Projeto pessoal em desenvolvimento ativo.*
