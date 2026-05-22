@@ -12,6 +12,7 @@ import {
   IconTarget,
   IconChartLine,
   IconCalendarDue,
+  IconCreditCard,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,12 @@ const TYPE_CONFIG = {
     Icon: IconCalendarDue,
     color: "var(--color-amber)",
     dimColor: "rgba(251,191,36,0.08)",
+  },
+  liability: {
+    label: "Passivos",
+    Icon: IconCreditCard,
+    color: "var(--color-red)",
+    dimColor: "rgba(248,113,113,0.08)",
   },
 } as const;
 
@@ -163,6 +170,7 @@ export function AlertsView({ alerts }: Props) {
     goal: alerts.filter((a) => a.type === "goal").length,
     projection: alerts.filter((a) => a.type === "projection").length,
     seasonal: alerts.filter((a) => a.type === "seasonal").length,
+    liability: alerts.filter((a) => a.type === "liability").length,
   };
 
   return (
@@ -175,7 +183,7 @@ export function AlertsView({ alerts }: Props) {
         Aler<span className="text-[var(--color-cyan)]">tas</span>
       </h1>
       <p className="text-[var(--color-f3)] text-sm mb-8">
-        Tudo que merece a sua atenção agora: orçamentos, metas, projeções e despesas sazonais.
+        Tudo que merece a sua atenção agora: orçamentos, metas, projeções, passivos críticos e despesas sazonais.
       </p>
 
       {alerts.length === 0 ? (

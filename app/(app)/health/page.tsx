@@ -6,7 +6,7 @@ export default async function HealthPage() {
   const month = now.getMonth() + 1;
   const year  = now.getFullYear();
 
-  const { healthScore } = await getHealthData(month, year);
+  const { healthScore, reserveBalance } = await getHealthData(month, year);
 
   const monthLabel = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
@@ -22,7 +22,7 @@ export default async function HealthPage() {
         Score composto de 4 dimensões: comprometimento, poupança, resultado e reserva.
       </p>
 
-      <HealthView healthScore={healthScore} monthLabel={monthLabel} />
+      <HealthView healthScore={healthScore} monthLabel={monthLabel} reserveBalance={reserveBalance} />
     </div>
   );
 }

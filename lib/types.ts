@@ -41,6 +41,7 @@ export interface Transaction {
   installmentTotal?: number | null;
   context?: string | null;
   reimbursable?: boolean;
+  reimbursedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   tags?: Tag[];

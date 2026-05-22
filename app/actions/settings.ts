@@ -25,3 +25,14 @@ export async function updateExpectedIncome(amount: number) {
   revalidatePath("/budget");
   return updated;
 }
+
+export async function updateReserveBalance(amount: number) {
+  const userId = await requireAuth();
+  const settings = await getOrCreate(userId);
+  const updated = await db.settings.update({
+    where: { id: settings.id },
+    data: { reserveBalance: amount },
+  });
+  revalidatePath("/health");
+  return updated;
+}

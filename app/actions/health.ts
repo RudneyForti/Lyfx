@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { getDRESummary } from "./transactions";
+import { getSettings } from "./settings";
 import { computeHealthScore } from "@/lib/health";
 
 export async function getHealthData(month: number, year: number) {
@@ -11,12 +12,8 @@ export async function getHealthData(month: number, year: number) {
   // DRE do mês atual
   const summary = await getDRESummary(month, year);
 
-  // Total acumulado em longo prazo (all-time proxy de reserva)
-  const agg = await db.transaction.aggregate({
-    where: { userId, category: "debit_longterm" },
-    _sum: { amount: true },
-  });
-  const totalLongterm = agg._sum.amount ?? 0;
+  // Configurações do usuário (inclui reserveBalance declarado)
+  const settings = await getSettings();
 
   // Média de despesas dos últimos 3 meses completos (base para calcular meses de reserva)
   let totalExpenses = 0;
@@ -31,11 +28,28 @@ export async function getHealthData(month: number, year: number) {
   }
   const avgMonthlyExpenses = monthsWithData > 0 ? totalExpenses / monthsWithData : 0;
 
-  // Meses de reserva = acumulado / despesa média mensal
+  // Saldo de reserva: usa o valor declarado nas Settings.
+  // Fallback para proxy (soma de debit_longterm) se o usuário ainda não declarou.
+  let reserveAmount = settings.reserveBalance;
+  if (reserveAmount === 0) {
+    const agg = await db.transaction.aggregate({
+      where: { userId, category: "debit_longterm" },
+      _sum: { amount: true },
+    });
+    reserveAmount = agg._sum.amount ?? 0;
+  }
+
+  // Meses de reserva = saldo de reserva / despesa média mensal
   const reserveMonths =
-    avgMonthlyExpenses > 0 ? totalLongterm / avgMonthlyExpenses : 0;
+    avgMonthlyExpenses > 0 ? reserveAmount / avgMonthlyExpenses : 0;
 
   const healthScore = computeHealthScore(summary, reserveMonths);
 
-  return { summary, healthScore, reserveMonths, totalLongterm, avgMonthlyExpenses };
+  return {
+    summary,
+    healthScore,
+    reserveMonths,
+    reserveBalance: settings.reserveBalance,
+    avgMonthlyExpenses,
+  };
 }

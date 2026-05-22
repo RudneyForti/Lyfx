@@ -15,7 +15,7 @@ export function TagsManager({ initialTags }: Props) {
   const [tags, setTags] = useState<Tag[]>(initialTags);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState(TAG_COLORS[0]);
+  const [newColor, setNewColor] = useState<string>(TAG_COLORS[0]);
   const [newIcon, setNewIcon] = useState<TagIconKey>("tag");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");

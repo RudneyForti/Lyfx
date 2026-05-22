@@ -194,6 +194,7 @@ model Settings {
   id                    String   @id @default(cuid())
   userId                String   @default("") @unique
   expectedMonthlyIncome Float    @default(0)
+  reserveBalance        Float    @default(0)  // saldo real do fundo de reserva declarado pelo usuário
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }

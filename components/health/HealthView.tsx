@@ -1,13 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { IconArrowRight, IconBulb } from "@tabler/icons-react";
+import { useState, useTransition } from "react";
+import { IconBulb, IconPencil, IconCheck, IconX, IconLoader2 } from "@tabler/icons-react";
 import type { HealthScore, HealthDimension } from "@/lib/health";
+import { updateReserveBalance } from "@/app/actions/settings";
 import { cn } from "@/lib/utils";
 
 interface Props {
   healthScore: HealthScore;
   monthLabel: string;
+  reserveBalance: number;
 }
 
 // ── Gauge SVG (semicírculo) ─────────────────────────────────────────────────
@@ -78,7 +80,7 @@ const statusLabels: Record<HealthDimension["status"], string> = {
   critical: "Crítico",
 };
 
-function DimensionCard({ dim }: { dim: HealthDimension }) {
+function DimensionCard({ dim, extra }: { dim: HealthDimension; extra?: React.ReactNode }) {
   const color = statusColors[dim.status];
   const label = statusLabels[dim.status];
   const scorePct = (dim.score / dim.maxScore) * 100;
@@ -114,12 +116,84 @@ function DimensionCard({ dim }: { dim: HealthDimension }) {
         <span className="text-[10px] text-[var(--color-f3)]">{dim.valueLabel}</span>
         <span className="text-[9px] text-[var(--color-f4)]">{dim.idealLabel}</span>
       </div>
+
+      {/* Conteúdo extra (ex: editor de reserva) */}
+      {extra}
     </div>
   );
 }
 
+// ── Editor inline do saldo de reserva ──────────────────────────────────────
+function ReserveBalanceEditor({ current }: { current: number }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(
+    current > 0 ? current.toFixed(2).replace(".", ",") : ""
+  );
+  const [isPending, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+
+  function handleSave() {
+    const parsed = parseFloat(value.replace(/\./g, "").replace(",", "."));
+    if (isNaN(parsed) || parsed < 0) return;
+    startTransition(async () => {
+      await updateReserveBalance(parsed);
+      setEditing(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    });
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2 mt-2">
+        <div className="flex items-center gap-1 bg-[var(--color-bg3)] border border-[var(--color-cyan-border)] rounded-[7px] px-2 py-1">
+          <span className="text-[11px] text-[var(--color-f4)]">R$</span>
+          <input
+            autoFocus
+            type="text"
+            inputMode="decimal"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
+            placeholder="0,00"
+            className="w-28 bg-transparent text-[12px] text-[var(--color-f1)] outline-none placeholder:text-[var(--color-f4)]"
+          />
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={isPending}
+          className="w-6 h-6 flex items-center justify-center rounded-[5px] bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-colors cursor-pointer disabled:opacity-50"
+        >
+          {isPending ? <IconLoader2 size={11} className="animate-spin" /> : <IconCheck size={11} />}
+        </button>
+        <button
+          onClick={() => setEditing(false)}
+          className="w-6 h-6 flex items-center justify-center rounded-[5px] border border-[var(--color-border2)] text-[var(--color-f4)] hover:text-[var(--color-f2)] transition-colors cursor-pointer"
+        >
+          <IconX size={11} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="flex items-center gap-1.5 mt-2 text-[10px] text-[var(--color-f4)] hover:text-[var(--color-cyan)] transition-colors cursor-pointer group"
+    >
+      <IconPencil size={10} className="group-hover:text-[var(--color-cyan)]" />
+      {saved
+        ? <span className="text-[var(--color-green)]">Salvo ✓</span>
+        : current > 0
+          ? `Saldo declarado: R$ ${current.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+          : "Declarar saldo de reserva"
+      }
+    </button>
+  );
+}
+
 // ── Componente principal ────────────────────────────────────────────────────
-export function HealthView({ healthScore, monthLabel }: Props) {
+export function HealthView({ healthScore, monthLabel, reserveBalance }: Props) {
   const { total, profileLabel, profileColor, dimensions, nextThreshold, nextProfileLabel, tip } = healthScore;
 
   const profileBg  = `${profileColor}14`;
@@ -174,7 +248,11 @@ export function HealthView({ healthScore, monthLabel }: Props) {
       {dimensions.length > 0 ? (
         <div className="grid grid-cols-2 gap-3">
           {dimensions.map((dim) => (
-            <DimensionCard key={dim.key} dim={dim} />
+            <DimensionCard
+              key={dim.key}
+              dim={dim}
+              extra={dim.key === "reserve" ? <ReserveBalanceEditor current={reserveBalance} /> : undefined}
+            />
           ))}
         </div>
       ) : (

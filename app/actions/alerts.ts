@@ -6,7 +6,7 @@ import { CATEGORIES } from "@/lib/categories";
 
 export interface Alert {
   id: string;
-  type: "budget" | "goal" | "projection" | "seasonal";
+  type: "budget" | "goal" | "projection" | "seasonal" | "liability";
   severity: "danger" | "warning" | "info";
   title: string;
   description: string;
@@ -174,6 +174,35 @@ export async function getAlerts(): Promise<Alert[]> {
         link: "/fixed-expenses",
       });
     }
+  }
+
+  // ── 5. Passivos críticos (cheque especial / rotativo) ────────────────
+  const criticalLiabilities = await db.liability.findMany({
+    where: {
+      userId,
+      status: "active",
+      type: { in: ["cheque_especial", "rotativo"] },
+    },
+    orderBy: { interestRate: "desc" },
+  });
+
+  const liabilityTypeLabel: Record<string, string> = {
+    cheque_especial: "Cheque Especial",
+    rotativo: "Rotativo do Cartão",
+  };
+
+  for (const liability of criticalLiabilities) {
+    const typeLabel = liabilityTypeLabel[liability.type] ?? liability.type;
+    const rate = liability.interestRate;
+    const balance = liability.currentBalance;
+    alerts.push({
+      id: `liability-${liability.id}`,
+      type: "liability",
+      severity: "danger",
+      title: `Passivo crítico — ${liability.name}`,
+      description: `${typeLabel} com saldo de ${fmt(balance)} a ${rate.toFixed(1)}% a.m. (~${(Math.pow(1 + rate / 100, 12) - 1).toFixed(0)}% a.a.). Quitar essa dívida é a maior rentabilidade possível.`,
+      link: "/liabilities",
+    });
   }
 
   // Sort: danger → warning → info

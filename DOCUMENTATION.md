@@ -210,6 +210,8 @@ Arquitetura multi-usuário com isolamento completo por `userId`. Cada usuário v
 │ id              │ String (PK)  │ cuid()                         │
 │ userId          │ String       │ FK lógica → User.id (único)    │
 │ expectedMonthlyIncome│ Float   │ Receita mensal esperada        │
+│ reserveBalance  │ Float        │ Saldo declarado do fundo de    │
+│                 │              │ reserva (0 = usar proxy)       │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
@@ -574,9 +576,11 @@ Score diagnóstico com 4 dimensões e perfil evolutivo.
 #### Fonte de dados (`app/actions/health.ts`)
 
 - `getDRESummary(month, year)` — DRE do mês atual
-- `db.transaction.aggregate` — acumulado all-time de `debit_longterm` como proxy de reserva
-- Média de despesas dos últimos 3 meses completos → `reserveMonths = totalLongterm / avgMonthlyExpenses`
+- `getSettings()` — lê `reserveBalance` declarado pelo usuário
+- **Lógica de reserva**: se `settings.reserveBalance > 0`, usa o valor declarado diretamente; caso contrário, usa proxy (acumulado all-time de `debit_longterm`) para retrocompatibilidade
+- Média de despesas dos últimos 3 meses completos → `reserveMonths = reserveAmount / avgMonthlyExpenses`
 - Cálculo puro em `lib/health.ts` (`computeHealthScore`) — sem acesso ao banco
+- **Editor inline de reserva**: campo editável no `DimensionCard` de "Fundo de reserva" — salva via `updateReserveBalance()` e revalida `/health` sem reload de página
 
 ### 6.12 Passivos (`/liabilities`)
 
@@ -616,7 +620,7 @@ Cadastro de bancos, fintechs e corretoras com suas contas vinculadas.
 
 Central de alertas proativos gerados automaticamente com base nos dados do usuário.
 
-Quatro tipos de alerta calculados on-the-fly em `app/actions/alerts.ts`:
+Cinco tipos de alerta calculados on-the-fly em `app/actions/alerts.ts`:
 
 | Tipo | Severidade | Critério |
 |---|---|---|
@@ -624,12 +628,13 @@ Quatro tipos de alerta calculados on-the-fly em `app/actions/alerts.ts`:
 | Orçamento | 🔴 danger | Categoria ≥ 100% do limite (estouro) |
 | Meta | ⚠ warning | GoalPayment não pago com vencimento até o fim do mês |
 | Meta | 🔴 danger | GoalPayment não pago com vencimento já vencido |
-| Projeção | 🔴 danger | Algum dos próximos 12 meses com saldo livre negativo |
+| Projeção | ⚠ warning | Algum dos próximos 12 meses com saldo livre negativo |
 | Sazonal | ⚠ warning | Despesa anual com vencimento nos próximos 2 meses |
+| Passivo | 🔴 danger | Passivo ativo do tipo `cheque_especial` ou `rotativo` — exibe taxa a.m. e equivalente anual |
 
 - **Agrupamento por severidade**: danger → warning → info
 - **AlertCard**: ícone de severidade, badge de tipo, título, descrição e botão de link para a seção relevante
-- **Chips de resumo**: contagem de alertas por tipo no topo
+- **Chips de resumo**: contagem de alertas por tipo no topo (inclui "Passivos")
 - **Estado vazio**: ícone de sino verde e mensagem "Tudo em ordem!" quando não há alertas
 
 ### 6.14 Reembolsos (`/reimbursements`)
@@ -1224,13 +1229,15 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **Fase D** | ✅ v1.2.0 | Alertas (`/alerts`): central proativa com 4 tipos de alerta (orçamento, metas, projeção negativa, sazonal), agrupados por severidade. Correções de UI: seta de select via CSS, MonthPicker custom, correção de foco em ProfileForm, remoção de spinners em number input. Perfil de endereço estruturado em 5 campos com auto-fill ViaCEP e CountrySelect com ~195 países. |
 | **Fase E** | ✅ v1.3.0 | Bens e Imóveis (`/assets`): cadastro de imóveis, veículos e outros bens com despesas associadas (IPTU, IPVA, ITR, seguro, licenciamento, manutenção), toggle de pago/pendente, alerta de vencidos, widget no dashboard. |
 | **Auditoria** | ✅ v1.3.1 | Revisão completa de segurança e bugs: IDOR em `markPayment` corrigido, tipos `"income"/"expense"` → `"credit"/"debit"` em `getMonthlyBalance`, `requireAdmin()` interno em todas as actions do Studio, `delete()` → `deleteMany()` em goals/liabilities/institutions/transactions, parsing `parseBR()` para valores em formato brasileiro, `useEffect` substituindo `useState` como efeito colateral, verificação de ownership em `createAssetExpense`. |
+| **Fase F** | ✅ v1.4.0 | Correções críticas (análise de consultor financeiro): (1) `reserveBalance` adicionado ao modelo `Settings` — usuário declara o saldo real do fundo de reserva via editor inline no card de Saúde Financeira; fallback automático para proxy (`debit_longterm`) se o campo não foi preenchido; (2) Alerta proativo de passivo crítico — `cheque_especial` e `rotativo` ativos geram alerta `danger` com taxa a.m. + equivalente a.a. calculado; novo tipo `"liability"` em `AlertsView`. Correções TypeScript pré-existentes: `reimbursedAt` adicionado à interface `Transaction`, `AnyTransaction` corrigido em `MonthlyCalendar`, `useState<string>` em `TagPicker` e `TagsManager`. |
 
 ### Próximas evoluções sugeridas
 
+- **Fase G — Educação financeira**: módulo `/education` com 68 pílulas pedagógicas por perfil de saúde financeira (conteúdo revisado disponível em `docs/EDUCATIONAL_CONTENT_REV.json`)
 - **Importação OFX/CSV**: leitura de extratos bancários para lançamento semi-automático
 - **Relatórios avançados**: comparativo mês a mês, evolução de categorias ao longo do tempo
 - **Deploy em produção**: migração de SQLite para PostgreSQL (apenas troca do adapter Prisma + datasource URL)
 
 ---
 
-*Última atualização: 20/05/2026. Versão atual: 1.3.1.*
+*Última atualização: 22/05/2026. Versão atual: 1.4.0.*

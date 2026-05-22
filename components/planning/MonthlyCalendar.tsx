@@ -9,7 +9,7 @@ import {
   IconX,
   IconRepeat,
 } from "@tabler/icons-react";
-import { Transaction, TransactionCategory } from "@/lib/types";
+import { Transaction, TransactionCategory, ProjectedTransaction } from "@/lib/types";
 import { getProjectedTransactions } from "@/lib/projections";
 import { getCategoryDef } from "@/lib/categories";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,7 @@ function fmtShort(value: number) {
   return value.toFixed(0);
 }
 
-type AnyTransaction = Transaction & { isProjected?: boolean };
+type AnyTransaction = Transaction | ProjectedTransaction;
 
 interface DayData {
   date: Date;
