@@ -1,6 +1,6 @@
 # Lyfx — Guia Completo de Funcionalidades
 > Documento de referência para análise financeira, QA e material instrucional
-> Versão 1.3.1 · Maio 2026
+> Versão 1.5.0 · Maio 2026
 
 ---
 
@@ -173,15 +173,15 @@ A página apresenta o produto em seções progressivas:
 
 **Marquee**: faixa animada contínua com termos-chave do produto (DRE, Score de Saúde, Metas, Projeções, etc.), criando vocabulário antes da explicação.
 
-**Cards de Features**: quatro cards com mini-mockups interativos ilustrando as principais capacidades (DRE, Score de Saúde, Metas, Projeções).
+**Cards de Features**: seis cards com mini-mockups interativos ilustrando as principais capacidades: DRE Pessoal, Score de Saúde Financeira, Educação Financeira, Alertas Proativos, Passivos & Dívidas, Bens & Imóveis.
 
-**Como Funciona**: seção em três passos que explica o fluxo básico: registrar transações → classificar por tipo → ler o diagnóstico.
+**Como Funciona**: seção em quatro passos que explica o fluxo completo: registrar transações → ver score de saúde → evoluir com pílulas educacionais.
 
-**FAQ**: seis perguntas frequentes em formato accordion (abre/fecha ao clicar), respondendo dúvidas sobre o produto, sua gratuidade, privacidade dos dados e diferenciais.
+**FAQ**: sete perguntas frequentes em formato accordion, cobrindo score de saúde financeira, educação, gratuidade, privacidade, método avalanche, importação e conceito de DRE.
 
 **CTA Final**: chamada para ação com botão de acesso.
 
-**Footer**: rodapé com informações gerais do produto.
+**Footer**: rodapé com versão atual e informações gerais do produto.
 
 ---
 
@@ -611,6 +611,8 @@ Central de alertas proativos gerados automaticamente pelo sistema com base na an
 
 **Alerta Sazonal — Aviso** (⚠): existe uma despesa anual com vencimento nos próximos 2 meses. Lembrete para garantir que os recursos estão reservados.
 
+**Alerta de Passivo Crítico — Perigo** (🔴): um passivo do tipo "Cheque especial" ou "Crédito rotativo" está ativo (saldo devedor > 0). Esses tipos de dívida têm taxas predatórias. O alerta exibe a taxa ao mês, o equivalente ao ano calculado pela fórmula de juros compostos e orienta a quitação imediata.
+
 #### Interface
 
 Os alertas são agrupados por severidade (crítico primeiro, aviso depois) e cada card exibe:
@@ -658,7 +660,7 @@ Mede a taxa de poupança: quanto da receita está sendo direcionado para constru
 Avalia se o período fechou positivo. Pontuação proporcional ao resultado líquido — quanto mais positivo, mais pontos. Resultado negativo implica zero pontos nesta dimensão.
 
 **Reserva (máximo 20 pontos)**  
-Estima a reserva de emergência acumulada usando os lançamentos de "Alocação de Longo Prazo" como proxy do total acumulado. Compara esse total com a média de despesas dos últimos 3 meses para calcular quantos meses de autonomia o usuário tem. Pontuação máxima quando a reserva cobre 6 meses ou mais.
+Estima a reserva de emergência acumulada. O usuário pode declarar o saldo real do fundo de reserva via editor inline na página de Saúde Financeira (`reserveBalance` em Settings). Se não preenchido, o sistema usa como proxy a soma histórica dos lançamentos de "Alocação de Longo Prazo". O valor é comparado com a média de despesas dos últimos 3 meses para calcular quantos meses de autonomia o usuário tem. Pontuação máxima quando a reserva cobre 6 meses ou mais.
 
 #### Dimension Cards
 
@@ -674,6 +676,10 @@ Exibe o perfil atual (nome + faixa de pontos) e indica quantos pontos faltam par
 #### Tip Prioritizado
 
 Banner com a dica mais relevante baseada na dimensão de menor pontuação. Se o usuário tem score baixo em Reserva, a dica aborda como construir a reserva. Se a dimensão mais fraca é Comprometimento, aborda estratégias de quitação.
+
+#### Declaração do Fundo de Reserva
+
+Campo editor inline no card da dimensão Reserva. O usuário pode informar diretamente o saldo atual do seu fundo de emergência (ex: R$ 12.400 guardados na poupança). Este valor substitui o cálculo proxy e torna o diagnóstico da dimensão Reserva mais preciso.
 
 ---
 
@@ -877,14 +883,65 @@ Calendário visual dos lançamentos do mês corrente. Exibe todas as transaçõe
 
 ### 4.18 Educação
 
-**Rota**: `/education`  
+**Rota**: `/education`, `/education/[pillId]`  
 **Acesso**: requer login
 
-Seção de conteúdo educacional financeiro. Estruturada em duas frentes:
+Módulo de educação financeira gamificado com conteúdo adaptado ao perfil de saúde financeira do usuário. Combina leitura estruturada, quiz de fixação e acompanhamento de consistência semanal.
 
-**Apoio à aplicação**: material instrucional que explica como usar cada módulo do Lyfx, para que o usuário extraia o máximo da plataforma.
+#### Perfis de Conteúdo
 
-**Conceitos financeiros**: conteúdo sobre educação financeira pessoal — princípios de orçamento, gestão de dívidas, construção de reserva, planejamento de longo prazo — apoiado em literatura e fundamentos teóricos.
+O conteúdo é organizado em 5 perfis que espelham os perfis do score de saúde financeira:
+
+| Perfil | Faixa Score | Foco |
+|---|---|---|
+| **critical** | 0–19 | Sobrevivência financeira, dívidas urgentes, cheque especial |
+| **serious** | 20–39 | Estabilização, corte de gastos, fundo mínimo |
+| **unstable** | 40–59 | Orçamento, reserva de emergência, primeiros investimentos |
+| **stable** | 60–79 | Otimização, metas, diversificação |
+| **healthy** | 80–100 | Crescimento patrimonial, estratégia avançada, proteção |
+
+Ao entrar em `/education`, o sistema identifica o perfil atual do usuário e destaca automaticamente a trilha recomendada.
+
+#### Hub de Educação (`/education`)
+
+Tela principal com visão geral de todas as trilhas:
+
+- **Barra de progresso por perfil**: percentual de pílulas concluídas em cada trilha
+- **Grid de pílulas**: cada pílula exibida como card com título, status (concluída / pendente) e ícone
+- **Filtro de perfil**: permite navegar entre as 5 trilhas
+- **Contador de streak**: exibido no topo com chama e número de semanas consecutivas
+- **Perfil recomendado em destaque**: a trilha correspondente ao score atual fica destacada
+
+#### Leitura de Pílula (`/education/[pillId]`)
+
+Ao clicar em uma pílula, o usuário acessa a página de leitura:
+
+**Timer silencioso**: registrado com `useRef` no momento do primeiro render. O tempo decorrido é calculado no momento do envio do quiz, sem exibição ao usuário — apenas armazenado no banco junto com o progresso.
+
+**Seções tipadas de conteúdo**: cada pílula tem até 3 seções com tipos visuais distintos:
+- `concept`: fundo neutro, descrição do conceito
+- `why`: fundo âmbar suave, por que isso importa
+- `how`: fundo verde suave, como aplicar na prática
+
+**Quiz de Fixação**: ao final da leitura, uma pergunta de múltipla escolha com 4 opções. O usuário clica em uma opção e:
+- A opção correta fica verde com ícone de confirmação
+- Opções incorretas ficam vermelhas com ícone de erro
+- As opções ficam bloqueadas após a primeira escolha
+
+**Conclusão**: após responder o quiz, o botão "Concluir pílula" envia o progresso (pillId, perfil, tempo gasto, acerto do quiz) via Server Action `completePill()`. O progresso é salvo em `PillProgress`.
+
+**Pílula já concluída**: se o usuário já completou a pílula em sessão anterior, um banner informativo aparece no topo indicando a data de conclusão. O conteúdo permanece acessível para releitura, mas o quiz fica bloqueado e o progresso não é reescrito.
+
+**Próxima pílula**: após concluir, um card sugere automaticamente a próxima pílula não concluída da mesma trilha.
+
+#### Streak Semanal
+
+O sistema de streak mede **consistência semanal** — não diária — para ser mais alcançável:
+
+- Uma semana com pelo menos 1 pílula concluída conta como semana ativa
+- O histórico exibe as últimas **12 semanas** como blocos coloridos (ativo/inativo)
+- A semana corrente sem atividade **não quebra** o streak (aguarda ação até o fim da semana)
+- O streak cresce contando semanas consecutivas com atividade a partir da semana mais recente
 
 ---
 
@@ -1048,6 +1105,16 @@ Uma dívida (passivo) pode ser vinculada a uma instituição, tornando o ecossis
 - A instituição mostra o passivo vinculado em seu card expandido
 - A transação de pagamento do passivo pode ser vinculada à conta da mesma instituição
 - Ao excluir a instituição, o vínculo é removido mas o passivo permanece intacto
+
+### Fluxo H — Educação e perfil de saúde
+
+Ao acessar `/education`:
+1. O sistema busca o score de saúde do mês atual via `getHealthData()`
+2. O perfil do score (`critical` / `serious` / `unstable` / `stable` / `healthy`) é mapeado para o perfil de pílulas
+3. A trilha correspondente é destacada no hub como "Recomendada"
+4. Ao concluir uma pílula em `/education/[pillId]`, o progresso é salvo em `PillProgress` via `completePill()`
+5. O streak semanal é recalculado na próxima renderização do hub
+6. A próxima pílula não concluída da mesma trilha é sugerida automaticamente
 
 ---
 
@@ -1218,6 +1285,9 @@ Esta seção lista todas as ações possíveis na plataforma, organizadas por m�
 | AL-08 | Clicar no link de um alerta | Alertas | Navega para o módulo relevante |
 | AL-09 | Verificar agrupamento por severidade (crítico antes de aviso) | Alertas | — |
 | AL-10 | Verificar chips de contagem por tipo | Alertas | — |
+| AL-11 | Verificar alerta de passivo crítico para cheque especial | Alertas | Requer passivo tipo cheque especial com saldo > 0 |
+| AL-12 | Verificar alerta de passivo crítico para crédito rotativo | Alertas | Requer passivo tipo rotativo com saldo > 0 |
+| AL-13 | Verificar que taxa a.m. e equivalente a.a. são exibidos no alerta | Alertas | Fórmula de juros compostos |
 
 ---
 
@@ -1234,6 +1304,9 @@ Esta seção lista todas as ações possíveis na plataforma, organizadas por m�
 | S-07 | Verificar badge com pontos até próximo perfil | Saúde | — |
 | S-08 | Verificar tip prioritizado pela dimensão mais fraca | Saúde | — |
 | S-09 | Verificar widget de saúde no dashboard | Saúde | HealthScoreCard |
+| S-10 | Editar reserveBalance inline na página de Saúde | Saúde | Campo editor inline |
+| S-11 | Verificar que reserveBalance altera pontuação da dimensão Reserva | Saúde | Score muda imediatamente |
+| S-12 | Verificar que sem reserveBalance o proxy debit_longterm é usado | Saúde | Fallback automático |
 
 ---
 
@@ -1319,6 +1392,31 @@ Esta seção lista todas as ações possíveis na plataforma, organizadas por m�
 
 ---
 
+### Educação
+
+| # | Ação | Módulo | Observações |
+|---|---|---|---|
+| ED-01 | Acessar /education | Educação | Hub carrega com perfil do usuário |
+| ED-02 | Verificar trilha recomendada destacada | Educação | Baseada no perfil do score atual |
+| ED-03 | Verificar barra de progresso por perfil | Educação | % pílulas concluídas / total |
+| ED-04 | Filtrar pílulas por perfil | Educação | Chips de navegação |
+| ED-05 | Clicar em pílula e abrir PillReader | Educação | Navega para /education/[pillId] |
+| ED-06 | Verificar seções tipadas (concept / why / how) | Educação | Estilos visuais distintos por tipo |
+| ED-07 | Responder quiz — opção correta | Educação | Opção fica verde |
+| ED-08 | Responder quiz — opção incorreta | Educação | Opção fica vermelha, correta revelada em verde |
+| ED-09 | Verificar bloqueio de opções após resposta | Educação | Não permite trocar resposta |
+| ED-10 | Concluir pílula pela primeira vez | Educação | Progress salvo em PillProgress |
+| ED-11 | Verificar banner de "já concluída" em visita subsequente | Educação | Conteúdo legível, quiz bloqueado |
+| ED-12 | Tentar concluir pílula já concluída | Educação | alreadyCompleted: true — sem duplicata |
+| ED-13 | Verificar sugestão de próxima pílula após conclusão | Educação | Próxima não concluída da mesma trilha |
+| ED-14 | Navegar para próxima pílula via card de sugestão | Educação | — |
+| ED-15 | Verificar streak semanal | Educação | Número de semanas consecutivas |
+| ED-16 | Verificar histórico de 12 semanas | Educação | Blocos coloridos ativos/inativos |
+| ED-17 | Verificar que semana corrente sem atividade não quebra streak | Educação | Lógica isCurrent no cálculo |
+| ED-18 | Verificar que pílula concluída aparece marcada no hub | Educação | Ícone de check no card |
+
+---
+
 ### Perfil
 
 | # | Ação | Módulo | Observações |
@@ -1400,5 +1498,5 @@ Esta seção lista todas as ações possíveis na plataforma, organizadas por m�
 
 ---
 
-*Documento gerado em 20/05/2026 · Versão da plataforma: 1.3.1*  
+*Documento gerado em 22/05/2026 · Versão da plataforma: 1.5.0*  
 *Para referência técnica detalhada (schema, arquitetura, decisões), consultar DOCUMENTATION.md*
