@@ -1,0 +1,94 @@
+# Lyfx — Política de Versionamento
+
+> Regra consolidada. Seguida por todos os contribuidores — humanos e agentes.
+
+---
+
+## Formato: `MAJOR.MINOR.PATCH`
+
+### MAJOR — mudança de era do produto
+
+Incrementa quando o produto atravessa uma fronteira irreversível:
+
+| Gatilho | Exemplo |
+|---|---|
+| Deploy em produção (PostgreSQL + domínio próprio) | `1.x.x` → `2.0.0` |
+| Mudança estrutural no banco que exige migração de dados dos usuários | `2.x.x` → `3.0.0` |
+| Redesenho completo de arquitetura (ex: troca de framework) | qualquer `x.x.x` → `N.0.0` |
+
+Regra prática: se o usuário precisar fazer algo além de atualizar a aplicação, é MAJOR.
+
+---
+
+### MINOR — nova capacidade
+
+Incrementa quando a aplicação passa a fazer algo que antes não fazia:
+
+| Gatilho | Exemplo |
+|---|---|
+| Nova página ou módulo | `/education`, `/reports` |
+| Nova funcionalidade significativa em módulo existente | editor de reserva, alerta de passivo |
+| Nova integração com sistema externo | importação OFX, autenticação OAuth |
+| Novo campo com impacto direto em cálculo ou lógica de negócio | `reserveBalance` em Settings |
+
+Regra prática: se o usuário ganhou algo que antes não existia, é MINOR.
+
+---
+
+### PATCH — manutenção
+
+Incrementa quando o comportamento observado pelo usuário não muda, mas o código melhora:
+
+| Gatilho | Exemplo |
+|---|---|
+| Correção de bug (lógica, TypeScript, UI) | `reimbursedAt` na interface, tipo literal em `useState` |
+| Ajuste de segurança sem nova funcionalidade | IDOR, validação de ownership |
+| Melhoria de performance sem alteração de API | otimização de query |
+| Atualização de dependência sem impacto no comportamento | bump de pacote |
+| Correção de documentação | atualizar descrição errada |
+
+Regra prática: se o usuário não perceberia a diferença, é PATCH.
+
+---
+
+## Regra de independência de nomenclatura externa
+
+Documentos externos — relatórios de consultores, feedbacks de analistas, arquivos de revisão pedagógica — chegam com seus próprios nomes ("Fase F", "Revisão 2", "v3 do conteúdo"). Esses nomes **não determinam** a versão do software.
+
+A versão é definida pelo que foi **efetivamente construído**, seguindo os critérios acima.
+
+Exemplo:
+- Um documento chamado "Fase F" entregou: um campo novo com impacto em cálculo (MINOR) + correções de bug (PATCH). Resultado: MINOR vence → `1.3.1` → `1.4.0`.
+- Um documento chamado "Revisão Pedagógica" que só corrige texto de documentação: PATCH → `1.4.0` → `1.4.1`.
+
+---
+
+## Histórico resumido
+
+| Versão | Tipo | O que foi construído |
+|---|---|---|
+| `0.5.0` | MINOR | DRE com margens + Dashboard (KPI cards, Insight, trend chart) |
+| `0.6.0` | MINOR | Parcelamentos: `installmentGroupId`, modal de edição em 3 modos |
+| `0.7.0` | MINOR | Budget: `Settings.expectedMonthlyIncome`, alocações por categoria |
+| `0.8.0` | MINOR | Score de saúde financeira: 4 dimensões, 4 perfis, gauge SVG |
+| `0.9.0` | MINOR | Passivos: CRUD, método avalanche, calculadora de pagamento extra |
+| `1.0.0` | MAJOR | Marco de uso próprio em produção local. Reembolsos com tracking. |
+| `1.1.0` | MINOR | Isolamento multi-usuário completo. Studio aprimorado. |
+| `1.2.0` | MINOR | Instituições + Alertas (4 tipos) + Perfil de endereço com ViaCEP |
+| `1.3.0` | MINOR | Bens e Imóveis: imóveis, veículos, despesas associadas |
+| `1.3.1` | PATCH | Auditoria de segurança e bugs (IDOR, tipos, ownership) |
+| `1.4.0` | MINOR | `reserveBalance` em Settings + alerta de passivo crítico + 3 correções TS |
+
+---
+
+## Próximos marcos esperados
+
+| Versão | Tipo | Conteúdo previsto |
+|---|---|---|
+| `1.5.0` | MINOR | Módulo de Educação Financeira (`/education`) — pílulas por perfil |
+| `1.6.0` | MINOR | Onboarding wizard + importação OFX/CSV |
+| `2.0.0` | MAJOR | Deploy em produção: PostgreSQL, domínio próprio, HTTPS |
+
+---
+
+*Este documento é a fonte de verdade para decisões de versão. Em caso de dúvida, consulte-o antes de incrementar.*
