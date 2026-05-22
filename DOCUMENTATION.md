@@ -398,12 +398,13 @@ Esta distinção permite que a DRE mostre não apenas o saldo, mas a **qualidade
 
 ### 6.1 Landing Page (`/`)
 
-Página pública de apresentação do produto.
+Página pública de apresentação do produto. Atualizada em v1.5.0 para refletir a visão atual do sistema.
 
 - **Acesso**: qualquer visitante sem sessão
 - **Comportamento com sessão ativa**: redireciona para `/dashboard`
-- **Seções**: Navbar sticky, Hero com mockup do dashboard, Marquee com termos do produto, 4 cards de features com mini-mockups interativos, seção "Como funciona" em 3 passos, FAQ com accordion (6 perguntas), CTA final, Footer
-- **Marquee**: animação CSS contínua com termos do Lyfx
+- **Seções**: Navbar sticky, Hero com mockup do dashboard (inclui widget de saúde financeira), Marquee com termos do produto, 6 cards de features com mini-mockups interativos, seção "Como funciona" em 4 passos, FAQ accordion (7 perguntas), CTA final, Footer
+- **Features destacadas**: DRE Pessoal, Score de Saúde, Educação Financeira, Alertas Proativos, Passivos & Dívidas, Bens & Imóveis
+- **Marquee**: animação CSS contínua com termos do Lyfx (13 itens)
 - **Navegação**: âncoras para `#funcionalidades`, `#como-funciona`, `#faq`
 
 ### 6.2 Autenticação (`/login`)
@@ -1134,7 +1135,7 @@ lyfx/
 
 | Arquivo | O que faz |
 |---|---|
-| `LandingPage.tsx` | Página pública de marketing: navbar sticky com âncoras, hero com `DashboardMockup`, marquee de termos, 4 cards de features com mini-mockups, seção "Como funciona" em 3 passos, FAQ accordion com 6 itens, CTA final e footer. |
+| `LandingPage.tsx` | Página pública de marketing: navbar sticky com âncoras, hero com `DashboardMockup` (inclui widget de saúde financeira), marquee de termos, 6 cards de features com mini-mockups (DRE, Score de Saúde, Educação, Alertas, Passivos, Bens), seção "Como funciona" em 4 passos, FAQ accordion com 7 itens, CTA final e footer. |
 
 #### `components/layout/`
 
