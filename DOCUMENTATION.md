@@ -1,5 +1,5 @@
-# Lyfx — Documentação Técnica
-> Life Fixed · v1.4.0 · Maio 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+﻿# Lyfx — Documentação Técnica
+> Life Fixed · v1.5.0 · Maio 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -305,6 +305,21 @@ Tipos de account: "checking" | "savings" | "credit_card" | "investment" | "walle
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
 Tipos de AssetExpense: "iptu" | "ipva" | "itr" | "dpvat" | "seguro" | "licenciamento" | "manutencao" | "other"
+
+┌─────────────────────────────────────────────────────────────────┐
+│                       PILL_PROGRESS                             │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ pillId          │ String       │ ID estático da pílula          │
+│ profile         │ String       │ Perfil financeiro da pílula    │
+│ completedAt     │ DateTime     │ Auto: now()                    │
+│ timeSpentSeconds│ Int          │ Tempo de leitura em segundos   │
+│ quizCorrect     │ Boolean      │ Acertou o quiz?                │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│                 │ Unique       │ @@unique([userId, pillId])      │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Nota: pílulas são conteúdo estático (lib/pills-data.json). Apenas o progresso é persistido.
 ```
 
 ### Diagrama de relações
@@ -328,7 +343,9 @@ USER
  ├── LIABILITY  (userId presente — entidade isolada por usuário)
  │        └── status: active | paid_off
  │
- └── SETTINGS  (um registro por usuário — userId unique)
+ ├── SETTINGS  (um registro por usuário — userId unique)
+ │
+ └── PILL_PROGRESS  (progresso educacional por pílula — userId+pillId unique)
 ```
 
 ---
@@ -676,6 +693,40 @@ Cadastro e acompanhamento de bens físicos com seus impostos e despesas associad
 - **Widget no dashboard** (`AssetsMiniWidget`): exibe bens, valor total e custo anual; badge de pendentes se houver; oculto automaticamente se não há bens cadastrados
 - **`lib/assets.ts`**: tipos e constantes (`AssetType`, `AssetExpenseType`, labels, `EXPENSE_SUGGESTIONS`) — separados do arquivo `"use server"` por limitação do Turbopack
 
+### 6.19 Educação (`/education`)
+
+Módulo gamificado de educação financeira baseado em pílulas de conhecimento.
+
+**Hub da trilha (`/education`)**
+- 85 pílulas distribuídas em 4 perfis financeiros: Em Recuperação, Estabilizado, Em Construção e Livre
+- O perfil ativo é derivado automaticamente do score de saúde financeira do usuário
+- Abas de navegação permitem explorar as 4 trilhas livremente
+- Barra de progresso por trilha: X/Total pílulas concluídas
+- CTA de "Próxima Pílula" — destaca sempre a próxima não concluída
+- Lista ordenada da trilha: concluídas (check verde), próxima (ciano), pendentes (muted)
+- Streak semanal: badge clicável abre calendário de 12 semanas mostrando consistência
+
+**Leitura da pílula (`/education/[pillId]`)**
+- Hook destacado em citação lateral
+- Seções tipadas com identidade visual própria: `explanation` (neutro), `insight` (âmbar), `practical` (verde), `reframe` (roxo), `reflection` (ciano)
+- Timer silencioso: mede tempo de leitura sem exibir ao usuário
+- Re-leitura: banner de conclusão anterior (data, tempo, resultado do quiz) mas conteúdo sempre acessível
+- Quiz ao final: 3 opções, trava ao selecionar, mostra feedback por opção (verde=correto, vermelho=errado)
+- Botão "Concluir Pílula" aparece após responder o quiz
+- Pós-conclusão: banner de sucesso + card da próxima pílula (ou link para trilha se for a última)
+
+**Base de Conhecimento (`/education/platform`)**
+- Guias de uso de cada módulo da plataforma (EducationView existente)
+
+**Dados e persistência**
+- Pílulas: conteúdo estático em `lib/pills-data.json` (85 pílulas, sem banco)
+- Progresso: tabela `PillProgress` — uma linha por usuário/pílula; re-leituras não sobrescrevem o primeiro registro
+- Streak: calculado on-the-fly a partir das datas de conclusão (semanas com ≥ 1 pílula)
+
+**Nota técnica**: as queries de `PillProgress` usam `better-sqlite3` diretamente (`lib/db-pills.ts`) porque o Turbopack mantém cache compilado do client Prisma sem o modelo recém-adicionado. As operações CRUD de todos os outros modelos continuam via Prisma normalmente.
+
+---
+
 ### 6.16 Studio (`/studio`)
 
 Painel administrativo protegido por senha separada da sessão do usuário.
@@ -910,7 +961,9 @@ lyfx/
 │   │   ├── institutions/page.tsx # Cadastro de bancos/fintechs e contas
 │   │   ├── alerts/page.tsx       # Central de alertas proativos
 │   │   ├── assets/page.tsx       # Bens, imóveis, veículos e despesas associadas
-│   │   └── education/page.tsx    # (pendente)
+│   │   ├── education/page.tsx           # Hub da trilha (Server Component)
+│   │   ├── education/[pillId]/page.tsx  # Leitura da pílula (Server Component)
+│   │   └── education/platform/page.tsx # Base de conhecimento (wrapper)
 │   ├── actions/                  # Server Actions — mutações e queries
 │   │   ├── dashboard.ts          # getDashboardData() — busca tudo em paralelo
 │   │   ├── transactions.ts       # getDRESummary() retorna margins + saved
@@ -923,8 +976,9 @@ lyfx/
 │   │   ├── liabilities.ts        # CRUD de passivos
 │   │   ├── settings.ts           # getSettings / updateExpectedIncome
 │   │   ├── institutions.ts       # CRUD de instituições e contas
-│   │   ├── alerts.ts             # getAlerts() — 4 tipos de alertas on-the-fly
+│   │   ├── alerts.ts             # getAlerts() —  5 tipos de alertas on-the-fly
 │   │   ├── assets.ts             # CRUD de bens e despesas (AssetExpense)
+│   │   ├── education.ts          # getPillProgress / completePill / getStreakData
 │   │   └── user.ts
 │   ├── api/
 │   │   └── clear-session/route.ts  # Route Handler — limpa cookie órfão
@@ -1230,14 +1284,14 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **Fase E** | ✅ v1.3.0 | Bens e Imóveis (`/assets`): cadastro de imóveis, veículos e outros bens com despesas associadas (IPTU, IPVA, ITR, seguro, licenciamento, manutenção), toggle de pago/pendente, alerta de vencidos, widget no dashboard. |
 | **Auditoria** | ✅ v1.3.1 | Revisão completa de segurança e bugs: IDOR em `markPayment` corrigido, tipos `"income"/"expense"` → `"credit"/"debit"` em `getMonthlyBalance`, `requireAdmin()` interno em todas as actions do Studio, `delete()` → `deleteMany()` em goals/liabilities/institutions/transactions, parsing `parseBR()` para valores em formato brasileiro, `useEffect` substituindo `useState` como efeito colateral, verificação de ownership em `createAssetExpense`. |
 | **Fase F** | ✅ v1.4.0 | Correções críticas (análise de consultor financeiro): (1) `reserveBalance` adicionado ao modelo `Settings` — usuário declara o saldo real do fundo de reserva via editor inline no card de Saúde Financeira; fallback automático para proxy (`debit_longterm`) se o campo não foi preenchido; (2) Alerta proativo de passivo crítico — `cheque_especial` e `rotativo` ativos geram alerta `danger` com taxa a.m. + equivalente a.a. calculado; novo tipo `"liability"` em `AlertsView`. Correções TypeScript pré-existentes: `reimbursedAt` adicionado à interface `Transaction`, `AnyTransaction` corrigido em `MonthlyCalendar`, `useState<string>` em `TagPicker` e `TagsManager`. |
+| **Fase G** | ✅ v1.5.0 | Educação financeira (`/education`): 85 pílulas pedagógicas organizadas em 5 perfis de saúde financeira (`critical`, `serious`, `unstable`, `stable`, `healthy`), leitura com timer silencioso, quiz de fixação com feedback visual, streak semanal de 12 semanas, progresso persistido em `PillProgress` via `better-sqlite3` direto (contorno para cache persistente do Turbopack). |
 
 ### Próximas evoluções sugeridas
 
-- **Fase G — Educação financeira**: módulo `/education` com 68 pílulas pedagógicas por perfil de saúde financeira (conteúdo revisado disponível em `docs/EDUCATIONAL_CONTENT_REV.json`)
 - **Importação OFX/CSV**: leitura de extratos bancários para lançamento semi-automático
 - **Relatórios avançados**: comparativo mês a mês, evolução de categorias ao longo do tempo
 - **Deploy em produção**: migração de SQLite para PostgreSQL (apenas troca do adapter Prisma + datasource URL)
 
 ---
 
-*Última atualização: 22/05/2026. Versão atual: 1.4.0.*
+*Última atualização: 22/05/2026. Versão atual: 1.5.0.*

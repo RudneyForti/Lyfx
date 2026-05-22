@@ -190,6 +190,19 @@ model Liability {
   updatedAt      DateTime @updatedAt
 }
 
+model PillProgress {
+  id               String   @id @default(cuid())
+  userId           String
+  pillId           String
+  profile          String
+  completedAt      DateTime @default(now())
+  timeSpentSeconds Int      @default(0)
+  quizCorrect      Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@unique([userId, pillId])
+}
+
 model Settings {
   id                    String   @id @default(cuid())
   userId                String   @default("") @unique
