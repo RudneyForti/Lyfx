@@ -9,7 +9,7 @@
 - Marcar cada caso: ✅ PASSOU · ❌ FALHOU · ⏭ PULADO
 
 **Ambiente:** `http://localhost:3000` · SQLite `dev.db` · Next.js 16
-**Total de casos:** 220
+**Total de casos:** 222
 
 ---
 
@@ -270,11 +270,12 @@
 **Prioridade:** BAIXO
 **Pré-condições:** Usuário logado em qualquer página
 **Passos:**
-1. Verificar sidebar expandida com ícones e labels
-2. Clicar no logo do Lyfx na sidebar
-3. Verificar que sidebar colapsa para apenas ícones
-4. Clicar novamente no logo
-**Resultado esperado:** Sidebar alterna entre modo expandido (ícones + labels) e colapsado (só ícones). Conteúdo principal se expande/contrai conforme.
+1. Verificar sidebar expandida (220px) com ícones e labels visíveis
+2. Clicar no logo do Lyfx na sidebar para colapsar
+3. Verificar sidebar colapsada (60px) com apenas ícones
+4. Verificar posição do conteúdo principal
+5. Clicar novamente no logo para expandir
+**Resultado esperado:** Sidebar alterna entre 220px (expandida) e 60px (colapsada). O conteúdo principal desloca para a esquerda ao colapsar e para a direita ao expandir — acompanhando a variável CSS `--sidebar-width` — sem permanecer centralizado. Transição de 200ms sem salto visual.
 
 ---
 
@@ -1516,46 +1517,59 @@
 
 ### ED-05 — Responder quiz — opção correta
 **Prioridade:** ALTO
-**Pré-condições:** Pílula aberta, quiz visível
+**Pré-condições:** Pílula não concluída, aberta em `/education/[pillId]`
 **Passos:**
-1. Clicar na opção correta do quiz
-**Resultado esperado:** Opção fica verde com ícone de confirmação. As demais permanecem neutras. Botão "Concluir pílula" fica disponível.
+1. Rolar até o final da pílula
+2. Clicar no botão "Responder Quiz"
+3. Verificar abertura do modal com a pergunta e as opções
+4. Clicar na opção correta
+**Resultado esperado:** Modal avança automaticamente para etapa de correção. Header do modal fica verde com "Resposta correta!". A opção selecionada destaca em verde com ícone ✓. Botão "Continuar" disponível.
 
 ---
 
 ### ED-06 — Responder quiz — opção incorreta
 **Prioridade:** ALTO
-**Pré-condições:** Pílula aberta, quiz visível
+**Pré-condições:** Pílula não concluída, modal de quiz aberto (etapa "quiz")
 **Passos:**
-1. Clicar em uma opção incorreta
-**Resultado esperado:** Opção clicada fica vermelha. A opção correta fica verde. As outras ficam neutras. Todas as opções bloqueadas.
+1. Clicar em "Responder Quiz" para abrir o modal
+2. Clicar em uma opção incorreta
+**Resultado esperado:** Modal avança para etapa de correção. Header fica vermelho com "Resposta incorreta". Opção clicada destacada em vermelho com ícone ✗. Opção correta destacada em verde. Feedback textual de cada opção visível. Botão "Continuar" disponível.
 
 ---
 
-### ED-07 — Bloqueio de opções após resposta
+### ED-07 — Bloqueio de opções na etapa de correção
 **Prioridade:** MÉDIO
-**Pré-condições:** Quiz respondido (correta ou incorreta)
+**Pré-condições:** Modal de quiz na etapa de correção (resposta já selecionada)
 **Passos:**
-1. Tentar clicar em outra opção após já ter respondido
-**Resultado esperado:** Nenhuma ação. As opções estão desabilitadas. Resposta não muda.
+1. Tentar clicar em qualquer outra opção na etapa de correção
+**Resultado esperado:** Nenhuma ação. Todas as opções têm `disabled` e `cursor-default`. A seleção original não muda. Não há retorno à etapa de quiz.
 
 ---
 
 ### ED-08 — Concluir pílula pela primeira vez
 **Prioridade:** CRÍTICO
-**Pré-condições:** Pílula não concluída, quiz respondido
+**Pré-condições:** Pílula não concluída, modal de quiz na etapa de correção
 **Passos:**
-1. Clicar em "Concluir pílula"
-**Resultado esperado:** Progresso salvo em `PillProgress`. Banner de sucesso aparece. Sugestão de próxima pílula exibida. Barra de progresso da trilha no hub aumenta.
+1. Clicar em "Responder Quiz"
+2. Selecionar qualquer opção
+3. Na etapa de correção, clicar em "Continuar"
+4. Verificar etapa "Pílula concluída!" no modal
+5. Clicar em "Continuar" no modal de conclusão
+**Resultado esperado:** Etapa 3→4: action `completePill` é chamada, registro salvo em `PillProgress`. Etapa "Pílula concluída!" exibe tempo de leitura (≥ segundos reais) e resultado do quiz. Etapa 5: redirecionamento para `/education`. Barra de progresso da trilha no hub aumenta em 1 unidade.
 
 ---
 
-### ED-09 — Banner "já concluída" em visita subsequente
+### ED-09 — Pílula já concluída — modo releitura
 **Prioridade:** ALTO
 **Pré-condições:** Pílula já concluída anteriormente
 **Passos:**
-1. Acessar novamente a mesma pílula
-**Resultado esperado:** Banner informativo no topo indicando data de conclusão. Conteúdo permanece legível. Quiz bloqueado (não permite responder novamente).
+1. Acessar novamente a mesma pílula em `/education/[pillId]`
+2. Verificar banner no topo
+3. Verificar botão ao final da pílula
+4. Clicar em "Rever Quiz"
+5. Selecionar qualquer opção
+6. Na etapa de correção, clicar em "Continuar"
+**Resultado esperado:** Passo 2: banner verde com data de conclusão, tempo e resultado do quiz anterior. Passo 3: botão exibe "Rever Quiz" (tom neutro, sem cyan). Passo 4: modal abre normalmente. Passo 6: redirecionamento para `/education` sem criar novo registro em `PillProgress`.
 
 ---
 
@@ -1568,12 +1582,14 @@
 
 ---
 
-### ED-11 — Sugestão de próxima pílula
+### ED-11 — Sugestão de próxima pílula no hub
 **Prioridade:** MÉDIO
 **Pré-condições:** Pílula concluída com pílulas subsequentes na mesma trilha
 **Passos:**
-1. Após concluir uma pílula, verificar o card de sugestão
-**Resultado esperado:** Card exibe a próxima pílula não concluída da mesma trilha. Clique navega para ela.
+1. Concluir uma pílula (completar fluxo do modal até "Continuar" na etapa de conclusão)
+2. Verificar o `NextPillCard` no topo de `/education`
+3. Clicar em qualquer área do card (ícone, título, categoria, seta)
+**Resultado esperado:** Passo 2: card exibe título, categoria e tempo da próxima pílula não concluída. Passo 3: qualquer clique em qualquer ponto do card navega para a pílula correta (toda a área é clicável).
 
 ---
 
@@ -1611,8 +1627,42 @@
 **Passos:**
 1. Abrir pílula
 2. Aguardar 30 segundos
-3. Responder quiz e concluir
-**Resultado esperado:** O campo `timeSpentSeconds` salvo em `PillProgress` deve ser ≥ 30 segundos. Verificar no banco ou via Studio.
+3. Clicar em "Responder Quiz"
+4. Selecionar qualquer opção
+5. Na etapa de correção, clicar em "Continuar"
+6. Verificar `timeSpentSeconds` no `PillProgress` via Studio ou banco
+**Resultado esperado:** `timeSpentSeconds` salvo é ≥ 30 segundos. O tempo exibido na etapa "Pílula concluída!" do modal bate com o valor registrado no banco.
+
+---
+
+### ED-16 — Fluxo completo do modal de quiz
+**Prioridade:** CRÍTICO
+**Pré-condições:** Pílula não concluída, usuário logado
+**Passos:**
+1. Abrir pílula em `/education/[pillId]`
+2. Rolar até o final — verificar botão "Responder Quiz" (cyan, com ícone)
+3. Clicar em "Responder Quiz" — verificar abertura do modal
+4. Verificar etapa 1 do modal: pergunta + 4 opções desbloqueadas + botão X para fechar
+5. Selecionar uma opção — verificar avanço automático para etapa de correção
+6. Verificar etapa 2: header verde/vermelho, opções travadas com gabarito, botão "Continuar"
+7. Clicar em "Continuar" — verificar avanço para etapa de conclusão
+8. Verificar etapa 3: ícone ✅, "Pílula concluída!", tempo de leitura, resultado do quiz, botão "Continuar"
+9. Clicar em "Continuar" — verificar redirecionamento
+**Resultado esperado:** Cada etapa transita corretamente. Na etapa 7, a action `completePill` é chamada e o botão fica "Registrando..." durante o submit. Na etapa 9, redirecionamento para `/education`. Fechar o modal pelo X na etapa 1 fecha sem salvar.
+
+---
+
+### ED-17 — NextPillCard: área inteira clicável
+**Prioridade:** MÉDIO
+**Pré-condições:** Pelo menos 1 pílula concluída, com pílulas subsequentes na trilha
+**Passos:**
+1. Acessar `/education`
+2. Clicar no ícone de play (círculo cyan) do NextPillCard
+3. Voltar e clicar no título da pílula
+4. Voltar e clicar na área de categoria/tempo
+5. Voltar e clicar na seta (›)
+6. Voltar e clicar no espaço vazio entre os elementos
+**Resultado esperado:** Todos os cliques dos passos 2 a 6 navegam para a mesma pílula. Nenhuma área do card é inerte.
 
 ---
 
