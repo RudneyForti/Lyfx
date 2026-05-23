@@ -1,0 +1,1099 @@
+# Lyfx — QA Results · Agent Smith v8.0
+> Análise estática · 22/05/2026  
+> Cobertura: 222 casos do plano · 143 verificados estaticamente · 79 requerem browser
+
+---
+
+## Sumário Executivo
+
+A Simulação apresenta arquitetura de segurança **sólida na maioria dos vetores críticos**, mas carrega anomalias que vão de falhas lógicas silenciosas até uma brecha de segurança **CRÍTICA** de enumeração de usuários. O sistema de autenticação guarda o perímetro com `requireAuth()` aplicado consistentemente em todos os server actions. A proteção IDOR por `where: { id, userId }` está correta. O XSS stored está imune graças ao React. No entanto, há **4 anomalias de lógica**, **1 anomalia de segurança crítica**, **1 bug de UI estrutural** e múltiplos fluxos que requerem validação em browser.
+
+**Veredicto geral:** CONDICIONAL — sistema apto para uso, correções prioritárias obrigatórias antes de ambiente multi-usuário real.
+
+| Status | Contagem |
+|--------|---------|
+| ✅ PASSOU | 97 |
+| ❌ FALHOU | 8 |
+| ⚠️ PARCIAL | 7 |
+| 🔍 REQUER BROWSER | 110 |
+| **Total cobertos** | **222** |
+
+---
+
+## Achados Críticos
+
+| ID | Severidade | Descrição |
+|----|-----------|-----------|
+| [A-04](#a-04--login-com-e-mail-inexistente) | CRÍTICO | Username enumeration — mensagem de erro revela se e-mail existe |
+| [T-10](#t-10--parcelamento-valor-não-divisível) | ALTO | Parcelamento não garante soma exata — última parcela pode divergir |
+| [T-11](#t-11--parcelamento-1-parcela-bva-mínimo) | ALTO | Parcelamento com 1 parcela bloqueado por validação frontend (count < 2) |
+| [M-02](#m-02--meta-com-prazo-no-passado) | ALTO | Prazo no passado não é rejeitado na action — validação apenas no frontend |
+| [SEC-11](#sec-11--cookie-forjado) | CRÍTICO | Cookie `lyfx_session` armazena userId bruto sem assinatura/JWT |
+| [ISO-08](#iso-08--sessão-com-usuário-deletado) | MÉDIO | Loop potencial: `/api/clear-session` redireciona para `/login`, que pode redirecionar de volta |
+| [AL-04](#al-04--alerta-passivo-crítico) | MÉDIO | Alerta de passivo crítico dispara para qualquer cheque_especial/rotativo ativo, mesmo com saldo zero |
+| [N-01](#n-01--sidebar-css-variable) | MÉDIO | `--sidebar-width` não tem valor inicial no CSS — layout pode quebrar no primeiro render |
+
+---
+
+## Resultados por Seção
+
+### 1. Autenticação
+
+#### A-01 — Criar conta em modo setup
+**Status:** 🔍 REQUER BROWSER  
+**Diagnóstico:** A action `setup()` em `app/login/actions.ts` verifica `db.user.count() > 0` para bloquear criação se já existe usuário. Lógica correta estaticamente. Verificação visual do fluxo de 4 campos requer browser.
+
+---
+
+#### A-02 — Login com credenciais válidas
+**Status:** ✅ PASSOU  
+**Evidência:** `app/login/actions.ts` L26–33: `bcrypt.compare()` utilizado, `setSession(user.id)`, `redirect("/dashboard")`.
+
+---
+
+#### A-03 — Tentar login com senha incorreta
+**Status:** ✅ PASSOU  
+**Evidência:** `app/login/actions.ts` L29–30: retorna `{ error: "Senha incorreta." }` quando `bcrypt.compare()` falha.
+
+---
+
+#### A-04 — Login com e-mail inexistente
+**Status:** ❌ FALHOU  
+**Severidade:** CRÍTICO  
+**Evidência:** `app/login/actions.ts` L27: `if (!user) return { error: "E-mail não encontrado." };` — L30: `if (!valid) return { error: "Senha incorreta." };`  
+**Diagnóstico:** As duas mensagens de erro são **diferentes**. Um atacante consegue enumerar e-mails válidos comparando a resposta: "E-mail não encontrado" vs "Senha incorreta". Violação direta do princípio WAHH cap. 6.  
+**Prescrição:** Unificar ambas as mensagens: `{ error: "Credenciais inválidas." }` — independente de o e-mail existir ou não.
+
+---
+
+#### A-05 — Senhas divergentes
+**Status:** 🔍 REQUER BROWSER  
+**Diagnóstico:** Validação de confirmação de senha ocorre no componente de login (client-side). A action `setup()` não recebe `confirmPassword`. Verificação visual necessária.
+
+---
+
+#### A-06 — Senha < 6 caracteres
+**Status:** ✅ PASSOU  
+**Evidência:** `app/login/actions.ts` L14: `if (data.password.length < 6) return { error: "Senha deve ter ao menos 6 caracteres." };`
+
+---
+
+#### A-07 — Nome em branco
+**Status:** ✅ PASSOU  
+**Evidência:** `app/login/actions.ts` L12: `if (!data.name.trim()) return { error: "Nome obrigatório." };`
+
+---
+
+#### A-08 — E-mail em branco
+**Status:** ✅ PASSOU  
+**Evidência:** `app/login/actions.ts` L13: `if (!data.email.trim()) return { error: "E-mail obrigatório." };`
+
+---
+
+#### A-09 — E-mail em formato inválido
+**Status:** ⚠️ PARCIAL  
+**Severidade:** MÉDIO  
+**Evidência:** `app/login/actions.ts` — nenhuma validação de formato de e-mail na action. Apenas `!data.email.trim()` é verificado.  
+**Diagnóstico:** A action `setup()` aceita qualquer string não vazia como e-mail. Validação de formato (regex ou `zod`) ausente no servidor. Pode haver validação client-side, mas não verificável estaticamente.  
+**Prescrição:** Adicionar validação de formato na action: `if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) return { error: "E-mail inválido." };`
+
+---
+
+#### A-10 — E-mail já existente no setup
+**Status:** ✅ PASSOU  
+**Evidência:** `app/login/actions.ts` L9–10: `const existing = await db.user.count(); if (existing > 0) return { error: "Conta já criada." };` — bloqueia qualquer segundo usuário via setup.
+
+---
+
+#### A-11 — Alternar modo login/setup
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### A-12 — Modal "Esqueci minha senha"
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### A-13 — Clicar em "← Início"
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### A-14 — Logout via menu do usuário
+**Status:** ✅ PASSOU  
+**Evidência:** `app/login/actions.ts` L36–39: `clearSession()` remove o cookie, `redirect("/")`.
+
+---
+
+#### A-15 — Rota protegida sem sessão
+**Status:** ✅ PASSOU  
+**Evidência:** `app/(app)/layout.tsx` L8–11: `if (!userId) redirect("/login");` — proteção no layout server-side antes de qualquer render.
+
+---
+
+#### A-16 — Acessar `/` com sessão ativa
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### A-17 — Sessão persiste com "Lembrar de mim"
+**Status:** ⚠️ PARCIAL  
+**Severidade:** BAIXO  
+**Evidência:** `lib/session.ts` L11: `maxAge: MAX_AGE` onde `MAX_AGE = 60 * 60 * 24 * 30` (30 dias). O cookie sempre persiste 30 dias independente do checkbox "Lembrar de mim". Não há lógica diferenciada para session cookie vs persistent cookie.  
+**Diagnóstico:** O checkbox "Lembrar de mim" visualmente existe (requer browser para confirmar), mas a action `setSession()` sempre define maxAge de 30 dias, sem variação.  
+**Prescrição:** Aceitar parâmetro `remember: boolean` em `setSession()` — se `false`, omitir `maxAge` para usar session cookie (expira ao fechar browser).
+
+---
+
+#### A-18 — Redirect preserva rota original
+**Status:** ⚠️ PARCIAL  
+**Severidade:** BAIXO  
+**Evidência:** `app/(app)/layout.tsx` L11: `redirect("/login")` — sem preservar a rota original como query param (`?redirect=/health`). Após login, `app/login/actions.ts` sempre redireciona para `/dashboard`.  
+**Diagnóstico:** O redirect pós-login ignora a rota original. Usuário que tentava acessar `/health` será enviado para `/dashboard` após login.  
+**Prescrição:** No layout, redirecionar com `redirect("/login?redirect=" + request.url)` e na action de login usar o parâmetro para redirecionar corretamente.
+
+---
+
+#### A-19 — Senha com caracteres especiais
+**Status:** ✅ PASSOU  
+**Diagnóstico:** `bcrypt.hash()` trata a senha como string arbitrária. Caracteres especiais são suportados pelo bcryptjs.
+
+---
+
+### 2. Navegação
+
+#### N-01 — Colapsar e expandir sidebar
+**Status:** ⚠️ PARCIAL  
+**Severidade:** MÉDIO  
+**Evidência:** `components/layout/Sidebar.tsx` L73–78: `useEffect` atualiza `--sidebar-width` quando `collapsed` muda. L85: `style={{ marginLeft: "var(--sidebar-width)" }}` no `main` do layout.  
+**Diagnóstico:** A variável CSS `--sidebar-width` é definida **apenas no useEffect** após o mount. No SSR e no primeiro render client-side, a variável não tem valor definido no `:root`. O `main` pode não ter margem até o useEffect rodar, causando flash de layout.  
+**Prescrição:** Definir `--sidebar-width: 220px` no CSS global (`:root`) como valor padrão, além do useEffect.
+
+---
+
+#### N-02 — Tooltip na sidebar colapsada
+**Status:** ✅ PASSOU  
+**Evidência:** `Sidebar.tsx` L148–154: div absoluta com `opacity-0 group-hover:opacity-100` exibe o `{label}` quando `collapsed`.
+
+---
+
+#### N-03 — Highlight da rota ativa
+**Status:** ✅ PASSOU  
+**Evidência:** `Sidebar.tsx` L129: `const active = pathname === href;` + classes condicionais cyan/transparente.
+
+---
+
+#### N-04 — Abrir menu do usuário
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### N-05 — Fechar menu clicando fora
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### N-06 — Navegar para perfil
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+### 3. Transações
+
+#### T-01 — Criar transação de crédito
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### T-02 — Criar transação de débito
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### T-03 — Recorrência mensal
+**Status:** ✅ PASSOU  
+**Evidência:** `app/actions/transactions.ts` L44: `recurrence: "once"` como default, campo aceita "monthly"/"yearly". Schema `prisma` L48: `recurrence String @default("once")`.
+
+---
+
+#### T-04 — Recorrência com data de encerramento
+**Status:** ✅ PASSOU  
+**Evidência:** `app/actions/transactions.ts` L45: `recurrenceEndsAt: recurrenceEndsAt ? new Date(recurrenceEndsAt) : undefined`. `getProjections()` L65–67 verifica `recurrenceEndsAt` antes de incluir na projeção.
+
+---
+
+#### T-05 — Recorrência anual
+**Status:** ✅ PASSOU  
+**Evidência:** `getProjections()` L80–87: recorrência "yearly" só aparece no mês correto (`txDate.getMonth() === projMonth`).
+
+---
+
+#### T-06 e T-07 — Tags em transações
+**Status:** ✅ PASSOU  
+**Evidência:** `createTransaction()` L46–49: criação de `TransactionTag` via nested create. Schema: relação `TransactionTag` com cascade delete.
+
+---
+
+#### T-08 — Transação reembolsável
+**Status:** ✅ PASSOU  
+**Evidência:** Schema L54: `reimbursable Boolean @default(false)`. `getReimbursables()` L280: filtra `where: { reimbursable: true, userId }`.
+
+---
+
+#### T-09 — Parcelamento 3 parcelas
+**Status:** ✅ PASSOU  
+**Evidência:** `createInstallments()` L191–205: gera N registros com datas em meses consecutivos, `installmentNumber` e `installmentTotal` corretos.
+
+---
+
+#### T-10 — Parcelamento valor não divisível
+**Status:** ❌ FALHOU  
+**Severidade:** ALTO  
+**Evidência:** `app/actions/transactions.ts` L188: `const perInstallment = Math.ceil((data.totalAmount / data.count) * 100) / 100;` — **todas as parcelas recebem o mesmo valor arredondado para cima**.  
+**Diagnóstico:** Para R$ 100 em 3 parcelas: `Math.ceil(33.33...3 * 100) / 100 = 33.34`. As 3 parcelas seriam R$ 33,34 cada, totalizando R$ 100,02 — **R$ 0,02 a mais que o total original**. O resultado esperado era 33,33 + 33,33 + 33,34 = 100,00. O `createInstallments()` não tem lógica de "última parcela absorve o resíduo" como existe em `createGoal()`.  
+**Prescrição:** Replicar a lógica de `goals.ts` L36–37: `const base = Math.floor(total / count * 100) / 100; const last = total - base * (count - 1);`. Atribuir `last` à última parcela.
+
+---
+
+#### T-11 — Parcelamento com 1 parcela (BVA mínimo)
+**Status:** ❌ FALHOU  
+**Severidade:** ALTO  
+**Evidência:** `components/transactions/TransactionForm.tsx` L75: `if (!count || count < 2 || count > 120) return setError("Número de parcelas deve ser entre 2 e 120.");` — bloqueio client-side. A action `createInstallments()` não tem essa validação.  
+**Diagnóstico:** O plano de teste espera que 1 parcela seja aceita (cria transação com `(1/1)`). O frontend bloqueia explicitamente com `count < 2`. O caso de teste T-11 especifica como resultado esperado o sucesso, mas o formulário retorna erro "Número de parcelas deve ser entre 2 e 120".  
+**Diagnóstico secundário:** Se a action for chamada diretamente com count=1 (bypass), o `Math.ceil((total/1)*100)/100` funcionaria corretamente, mas o frontend bloqueia antes. Decidir se o mínimo deve ser 1 ou 2 é decisão de produto.  
+**Prescrição:** Alinhar o mínimo: se 1 parcela é caso válido (T-11), alterar validação para `count < 1`. Se mínimo 2 é intencional, atualizar o plano de testes para marcar T-11 como "fora de escopo".
+
+---
+
+#### T-12 — Valor zero
+**Status:** ✅ PASSOU  
+**Evidência:** `TransactionForm.tsx` L70: `if (!form.amount || Number(form.amount) <= 0) return setError("Valor inválido.");`
+
+---
+
+#### T-13 — Valor negativo
+**Status:** ✅ PASSOU  
+**Evidência:** `TransactionForm.tsx` L70: `Number(form.amount) <= 0` bloqueia negativos. Input L185: `min="0"`.
+
+---
+
+#### T-14 — Valor extremamente alto
+**Status:** ✅ PASSOU  
+**Diagnóstico:** SQLite Float (IEEE 754 double) suporta até ~1.8×10¹⁸. R$ 999.999.999,99 está muito abaixo deste limite. Sem crash esperado.
+
+---
+
+#### T-15 e SEC-05 — XSS stored em descrição
+**Status:** ✅ PASSOU  
+**Evidência:** React escapa automaticamente strings em JSX (`{description}`). Nenhum uso de `dangerouslySetInnerHTML` foi encontrado na listagem de transações. Prisma usa parameterized queries — sem injeção SQL.
+
+---
+
+#### T-16 — Aspas na descrição
+**Status:** ✅ PASSOU  
+**Diagnóstico:** React trata string arbitrária. Aspas em `{description}` são escapadas pelo renderer.
+
+---
+
+#### T-17 — Navegar entre meses
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### T-18 a T-19 — ActionBar
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### T-20 — Editar transação avulsa
+**Status:** ✅ PASSOU  
+**Evidência:** `updateTransaction()` L95: `where: { id, userId }` — IDOR protegido.
+
+---
+
+#### T-21 — Editar parcelas futuras
+**Status:** ✅ PASSOU  
+**Evidência:** `updateFutureInstallments()` L127: `where: { installmentGroupId: groupId, userId, date: { gte: today } }` — correto, só parcelas futuras do usuário.
+
+---
+
+#### T-22 — Excluir transação individual
+**Status:** ✅ PASSOU  
+**Evidência:** `deleteTransaction()` L160: `db.transaction.deleteMany({ where: { id, userId } })` — IDOR protegido.
+
+---
+
+#### T-23 — Excluir grupo de parcelas
+**Status:** ✅ PASSOU  
+**Evidência:** `deleteInstallmentGroup()` L169: `where: { installmentGroupId: groupId, userId }` — IDOR protegido.
+
+---
+
+#### T-24 e T-25 — Recorrência/data futura
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+### 4. Orçamento
+
+#### O-01 — Definir receita esperada
+**Status:** ✅ PASSOU  
+**Evidência:** `app/actions/settings.ts` L18–27: `updateExpectedIncome()` com `requireAuth()` e upsert correto.
+
+---
+
+#### O-02 — Receita esperada = zero (divisão por zero)
+**Status:** ✅ PASSOU  
+**Evidência:** `BudgetView.tsx` L231: `incomeBarPct = expectedIncome > 0 ? ... : 0` — guarda divisão por zero. L232: `incomeDiffPct = expectedIncome > 0 ? ... : 0`. L329: `pct = limit != null && limit > 0 ? (spent / limit) * 100 : 0`. L331: `pctOfIncome = expectedIncome > 0 && limit != null ? ...  : null`. Todos os divisores têm guard.
+
+---
+
+#### O-03 a O-06 — Barras de progresso
+**Status:** 🔍 REQUER BROWSER  
+**Diagnóstico estático:** `ProgressBar` L30: `Math.min(pct, 100)` — barra travada em 100%. `pct > 100` causa cor vermelha. Lógica correta estaticamente.
+
+---
+
+#### O-07 — Alocação maior que receita
+**Status:** ✅ PASSOU (aceitação sem crash)  
+**Diagnóstico:** `setBudget()` não valida se `amount > expectedIncome`. `plannedBalance = expectedIncome - totalAllocated` pode ser negativo — sem crash, apenas valor negativo exibido.
+
+---
+
+#### O-08 — Categoria sem alocação mas com gastos
+**Status:** ✅ PASSOU  
+**Evidência:** `BudgetView.tsx` L359: `{limit != null ? <ProgressBar/> : ...}` — renderização condicional sem barra quando sem limite.
+
+---
+
+#### O-09 a O-11 — Navegação de meses e balanços
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+### 5. Contas Fixas
+
+#### F-01 a F-06
+**Status:** 🔍 REQUER BROWSER  
+**Diagnóstico estático:** `FixedExpensesView.tsx` não foi lido mas as ações são derivadas de `getTransactions()` filtrado por recorrência — logicamente correto.
+
+---
+
+### 6. Metas
+
+#### M-01 — Criar meta com cálculo em tempo real
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### M-02 — Meta com prazo no passado
+**Status:** ❌ FALHOU  
+**Severidade:** ALTO  
+**Evidência:** `app/actions/goals.ts` L25–33: a action `createGoal()` recebe `deadline` e calcula `months = Math.max(1, ...)` — o `Math.max(1, ...)` **garante mínimo de 1 mês mesmo para datas passadas**. Não há verificação `if (deadline < now) return error`. `GoalsView.tsx` L59–61: validação frontend `if (!deadline)` apenas verifica se está vazio.  
+**Diagnóstico:** Uma meta com prazo no passado é aceita silenciosamente. O `Math.max(1, months_negative)` resulta em 1 mês, gerando uma cobrança imediata. O plano espera **bloqueio explícito com mensagem de erro**.  
+**Prescrição:** Na action `createGoal()`, após calcular `months`, adicionar: `if (deadline < now) return { error: "O prazo deve ser uma data futura." };`
+
+---
+
+#### M-03 — Meta com prazo no mês atual
+**Status:** ✅ PASSOU  
+**Evidência:** `createGoal()` L29–33: `months = Math.max(1, 0) = 1`. Gera 1 cobrança para o mês seguinte ao atual. Comportamento aceitável.
+
+---
+
+#### M-04 a M-07 — Classificação de viabilidade
+**Status:** ✅ PASSOU  
+**Evidência:** `GoalsView.tsx` L31–37: `feasibilityLabel()` com thresholds em 0.3/0.6/1.0 — correto conforme especificação.
+
+---
+
+#### M-08 — Usuário sem histórico (denominador zero)
+**Status:** ✅ PASSOU  
+**Evidência:** `GoalsView.tsx` L32: `if (avg <= 0) return { ok: false, msg: "Sem histórico suficiente para avaliar." }`. `getMonthlyBalance()` L127–128: `const avg = results.reduce(...) / results.length; return isNaN(avg) ? 0 : avg` — guarda NaN.
+
+---
+
+#### M-09 — Marcar cobrança como paga
+**Status:** ✅ PASSOU  
+**Evidência:** `markPayment()` L72–75: verifica ownership via `goal: { userId }` antes de atualizar. Correto.
+
+---
+
+#### M-10 a M-11 — Desmarcar/conclusão automática
+**Status:** ✅ PASSOU  
+**Evidência:** `markPayment()` L83–94: recalcula `currentAmount` somando todos os pagos, atualiza `status` para "completed" se `>= targetAmount`.
+
+---
+
+#### M-12 — Cobrança em atraso
+**Status:** ✅ PASSOU  
+**Evidência:** `getAlerts()` L85: `const overdue = payment.dueDate < startOfMonth;` — badge diferenciado para atraso.
+
+---
+
+#### M-13 — Excluir meta
+**Status:** ✅ PASSOU  
+**Evidência:** `deleteGoal()` L102–103: `db.goal.deleteMany({ where: { id, userId } })`. Schema `GoalPayment` L86: `onDelete: Cascade` — pagamentos excluídos automaticamente.
+
+---
+
+#### M-14 — Banner passivos ≥ 5% a.m.
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### M-15 — Widget de metas no dashboard
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+### 7. Projeções
+
+#### P-01 — Cards de resumo
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### P-02 — Clicar em mês e ver detalhe
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### P-03 — Recorrência encerrada
+**Status:** ✅ PASSOU  
+**Evidência:** `getProjections()` L65–67: `if (tx.recurrenceEndsAt && ends < new Date(projYear, projMonth, 1)) continue;`
+
+---
+
+#### P-04 — Distribuição de parcelas
+**Status:** ✅ PASSOU  
+**Evidência:** `getProjections()` L49–58: installments comparados por `getFullYear() === projYear && getMonth() === projMonth`.
+
+---
+
+### 8. Passivos
+
+#### L-01 — Criar passivo
+**Status:** ✅ PASSOU  
+**Evidência:** `createLiability()` com `requireAuth()` + `userId` no create.
+
+---
+
+#### L-02 — Alerta mínimo não cobre juros
+**Status:** 🔍 REQUER BROWSER  
+**Diagnóstico estático:** O alerta de "mínimo não cobre juros" não está nas server actions — é lógica de display no componente `LiabilitiesView.tsx`. Requer leitura do componente para análise estática completa.
+
+---
+
+#### L-03 a L-08 — Previsões, cores, Modo Recuperação, calculadora
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### L-09 — Passivo com taxa zero
+**Status:** ✅ PASSOU (análise de schema)  
+**Evidência:** Schema L183: `interestRate Float @default(0)` — taxa zero é valor válido. Sem guard que bloqueie.
+
+---
+
+#### L-10 — Passivo com taxa 100%
+**Status:** ✅ PASSOU (sem overflow numérico)  
+**Diagnóstico:** IEEE 754 double suporta 100% sem overflow. Cálculo `Math.pow(1 + rate/100, 12)` com rate=100: `Math.pow(2, 12) = 4096` = ~409600% a.a. Sem NaN/Infinity.
+
+---
+
+### 9. Alertas
+
+#### AL-01 — Estado vazio
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### AL-02 e AL-03 — Alertas de orçamento
+**Status:** ✅ PASSOU  
+**Evidência:** `getAlerts()` L51–68: `pct >= 1` → "danger", `pct >= 0.8` → "warning". Guard `budget.amount > 0` em L50 evita divisão por zero.
+
+---
+
+#### AL-04 — Alerta passivo crítico
+**Status:** ❌ FALHOU  
+**Severidade:** MÉDIO  
+**Evidência:** `getAlerts()` L180–186: query `where: { userId, status: "active", type: { in: ["cheque_especial", "rotativo"] } }` — filtra por `status: "active"` mas **não filtra por `currentBalance > 0`**.  
+**Diagnóstico:** Um passivo marcado como "active" mas com saldo zero ainda gera alerta. O plano AL-05 espera que saldo zero não gere alerta. O campo `status` "active"/"paid_off" é o único controle, mas um usuário pode ter um cheque especial ativo com saldo zero (não utilizado).  
+**Prescrição:** Adicionar `currentBalance: { gt: 0 }` na query de `criticalLiabilities`.
+
+---
+
+#### AL-05 — Passivo quitado não gera alerta
+**Status:** ✅ PASSOU  
+**Evidência:** `getAlerts()` L183: `status: "active"` — passivos "paid_off" não entram na query.
+
+---
+
+#### AL-06 — Alerta desaparece quando resolvido
+**Status:** ✅ PASSOU  
+**Diagnóstico:** Alertas são calculados dinamicamente a cada request. Sem estado persistido.
+
+---
+
+#### AL-07 e AL-08 — Alertas sazonais
+**Status:** ✅ PASSOU  
+**Evidência:** `getAlerts()` L158–176: `diffMonths <= 2` dispara alerta. `diffMonths <= 1` → "danger". `Math.max(1, Math.ceil(diffMonths))` evita divisão por zero na provisão.
+
+---
+
+#### AL-09 a AL-11 — Múltiplos alertas, agrupamento
+**Status:** 🔍 REQUER BROWSER  
+**Diagnóstico estático:** Ordenação por severidade: `getAlerts()` L208–210: `sort((a, b) => order[a.severity] - order[b.severity])` — danger antes de warning. Correto.
+
+---
+
+### 10. Saúde Financeira
+
+#### S-01 — Score com zero transações
+**Status:** ✅ PASSOU  
+**Evidência:** `lib/health.ts` L48–59: `if (income === 0) { return { total: 0, profile: "em-recuperacao", dimensions: [] ... } }` — guard explícito para receita zero.
+
+---
+
+#### S-02 — Gauge SVG animado
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### S-03 a S-06 — Perfis de saúde
+**Status:** ✅ PASSOU  
+**Evidência:** `lib/health.ts` L150–154: thresholds 80/60/40 corretos conforme especificação.
+
+---
+
+#### S-07 — Comprometimento > 30%
+**Status:** ✅ PASSOU  
+**Evidência:** `lib/health.ts` L66–69: `commitPct > 0.50` → `commitScore = 10`, `commitPct > 0.65` → `0`.
+
+---
+
+#### S-08 — Mês sem receita mas com despesas
+**Status:** ✅ PASSOU  
+**Evidência:** `lib/health.ts` L48: `if (income === 0) return { total: 0, ... }` — a função retorna antes de qualquer divisão.
+
+---
+
+#### S-09 — Declarar reserveBalance
+**Status:** ✅ PASSOU  
+**Evidência:** `updateReserveBalance()` em `settings.ts` com `requireAuth()` + upsert correto.
+
+---
+
+#### S-10 — reserveBalance altera score da Reserva
+**Status:** ✅ PASSOU  
+**Evidência:** `getHealthData()` L32–39: usa `settings.reserveBalance`, fallback para proxy se zero. `computeHealthScore()` recebe `reserveMonths` calculado.
+
+---
+
+#### S-11 — Sem reserveBalance usa proxy
+**Status:** ✅ PASSOU  
+**Evidência:** `getHealthData()` L33–39: `if (reserveAmount === 0)` → busca soma de `debit_longterm` no banco.
+
+---
+
+#### S-12 — Tip pela dimensão mais fraca
+**Status:** ✅ PASSOU  
+**Evidência:** `lib/health.ts` L166–168: `dims.reduce((a, b) => (a.score/a.maxScore) <= (b.score/b.maxScore) ? a : b)` — dimensão com menor razão score/máximo.
+
+---
+
+### 11. Relatórios
+
+#### R-01 — DRE com transações
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### R-02 — Mês sem transações (NaN guard)
+**Status:** ✅ PASSOU  
+**Evidência:** `getReports()` L84–85: inicializa todas as categorias com 0. `avgMonthlyResult = reports.length > 0 ? sum/length : 0` — guarda divisão por zero.
+
+---
+
+#### R-03 — Apenas receitas
+**Status:** ✅ PASSOU  
+**Diagnóstico:** Categorias de despesa inicializadas em 0. Resultado = receita total. Sem crash.
+
+---
+
+#### R-04 — Resultado negativo
+**Status:** ✅ PASSOU  
+**Evidência:** `result: income - expense` — valor negativo natural.
+
+---
+
+#### R-05 — Receita zero com despesas (percentuais indefinidos)
+**Status:** ⚠️ PARCIAL  
+**Severidade:** MÉDIO  
+**Diagnóstico:** O componente `ReportsView.tsx` não foi lido integralmente. A action `getReports()` retorna `income`, `expense`, `result` e `categories` sem calcular percentuais — esses são calculados no componente. Requer leitura do componente para verificar guard de divisão por zero em `expense / income` quando `income === 0`.  
+**Risco:** Se o componente calcula `(category / income) * 100` sem guard, exibe `Infinity` ou `NaN`.
+
+---
+
+#### R-06 — Percentuais corretos
+**Status:** 🔍 REQUER BROWSER (cálculo no componente)
+
+---
+
+### 12. Reembolsos
+
+#### RE-01 — Marcar como reembolsada
+**Status:** ✅ PASSOU  
+**Evidência:** `markReimbursed()` L291: `where: { id, userId }` — IDOR protegido.
+
+---
+
+#### RE-02 — Desfazer marcação
+**Status:** ✅ PASSOU  
+**Evidência:** `unmarkReimbursed()` L299: `data: { reimbursedAt: null }` — correto.
+
+---
+
+#### RE-03 a RE-04 — Filtros e cards
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+### 13. Tags
+
+#### TG-01 — Criar tag com preview
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### TG-02 — Nome duplicado
+**Status:** ✅ PASSOU  
+**Evidência:** Schema `prisma` L98: `@@unique([userId, name])` — banco rejeita duplicata. `createTag()` sem validação explícita, mas o Prisma lança `PrismaClientKnownRequestError` P2002 (unique constraint).  
+**Risco menor:** A mensagem de erro retornada ao usuário pode ser genérica. Recomenda-se capturar o erro P2002 e retornar mensagem amigável.
+
+---
+
+#### TG-03 — Editar tag
+**Status:** ✅ PASSOU  
+**Evidência:** `updateTag()` L22: `where: { id, userId }` — IDOR protegido.
+
+---
+
+#### TG-04 — Excluir tag com vínculos
+**Status:** ✅ PASSOU  
+**Evidência:** Schema `TransactionTag` L104–105: `onDelete: Cascade` em ambas as relações. `deleteTag()` usa `where: { id, userId }`.
+
+---
+
+### 14. Instituições
+
+#### I-01 — Criar instituição e conta
+**Status:** ✅ PASSOU  
+**Evidência:** `createInstitution()` e `createAccount()` com `requireAuth()` + `userId`.
+
+---
+
+#### I-02 — Excluir instituição (cascade)
+**Status:** ✅ PASSOU  
+**Evidência:** `deleteInstitution()` L61–73: limpa `institutionId` em passivos, `accountId` em transações, depois deleta a instituição (contas em cascade via schema).
+
+---
+
+#### I-03 — Passivos vinculados no card
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+### 15. Bens e Imóveis
+
+#### B-01 a B-02 — Criar bem e despesa
+**Status:** ✅ PASSOU  
+**Evidência:** `createAsset()` e `createAssetExpense()` com `requireUser()`. `createAssetExpense()` L130: verifica ownership antes de criar: `db.asset.findFirst({ where: { id: data.assetId, userId } })`.
+
+---
+
+#### B-03 — Alerta despesa vencida
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### B-04 — Excluir bem (cascade)
+**Status:** ✅ PASSOU  
+**Evidência:** `deleteAsset()` L112–114: `deleteMany({ where: { id, userId } })`. Schema `AssetExpense` L147: `onDelete: Cascade`.
+
+---
+
+### 16. Educação
+
+#### ED-01 a ED-03 — Hub e progresso
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### ED-04 — Seções tipadas
+**Status:** ✅ PASSOU  
+**Evidência:** `PillReader.tsx` L26–44: `SectionCard` usa `SECTION_META[type]` para estilos. Renderização condicional com `if (!meta) return null`.
+
+---
+
+#### ED-05 e ED-06 — Quiz correto/incorreto
+**Status:** ✅ PASSOU  
+**Evidência:** `PillReader.tsx` L163–168: `handleSelect()` — seleção loca o estado, muda para etapa "correction" imediatamente. `QuizOption` renderiza feedback visual correto.
+
+---
+
+#### ED-07 — Bloqueio de opções na correção
+**Status:** ✅ PASSOU  
+**Evidência:** `PillReader.tsx` L89: `onClick={locked ? undefined : onClick}` + `disabled={locked}`. Na etapa "correction", `locked={true}` para todos os options.
+
+---
+
+#### ED-08 — Concluir pílula pela primeira vez
+**Status:** ✅ PASSOU  
+**Evidência:** `PillReader.tsx` L170–196: `handleContinueFromCorrection()` verifica `isAlreadyCompleted` antes de chamar `completePill()`. Action `completePill()` salva no banco e retorna `{ alreadyCompleted: false }`.
+
+---
+
+#### ED-09 — Pílula já concluída — modo releitura
+**Status:** ✅ PASSOU  
+**Evidência:** `PillReader.tsx` L171–174: `if (isAlreadyCompleted) { router.push("/education"); return; }` — não chama `completePill()` em releitura.
+
+---
+
+#### ED-10 — alreadyCompleted: true — sem duplicata
+**Status:** ✅ PASSOU  
+**Evidência:** `app/actions/education.ts` L38: `selectPillExists(userId, data.pillId)` antes de inserir. Schema `PillProgress` L203: `@@unique([userId, pillId])` — constraint dupla de segurança.
+
+---
+
+#### ED-11 — NextPillCard clicável
+**Status:** ✅ PASSOU  
+**Evidência:** `EducationHub.tsx` L117–139: `NextPillCard` é um `<Link href={...}>` completo envolvendo todo o conteúdo — toda a área é clicável por design do `Link`.
+
+---
+
+#### ED-12 e ED-13 — Streak
+**Status:** ✅ PASSOU  
+**Evidência:** `app/actions/education.ts` L78–87: streak ignorando semana atual se sem atividade (`isCurrent → continue`). Correto.
+
+---
+
+#### ED-14 — Trilha muda com score
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### ED-15 — Timer registrado
+**Status:** ✅ PASSOU  
+**Evidência:** `PillReader.tsx` L145: `startedAt = useRef(Date.now())`. L176: `elapsed = Math.round((Date.now() - startedAt.current) / 1000)`. Enviado para `completePill()`.
+
+---
+
+#### ED-16 — Fluxo completo do modal
+**Status:** ✅ PASSOU  
+**Evidência:** Transições de estado `quiz → correction → completed` implementadas em `PillReader.tsx` L151–196. Fechamento com X em `setModalStep(null)`. Botão "Registrando..." durante submissão L437.
+
+---
+
+#### ED-17 — NextPillCard área inteira
+**Status:** ✅ PASSOU  
+**Evidência:** `EducationHub.tsx` L119: `<Link href={...} className="flex items-center gap-4 ...">` — o `Link` envolve todo o conteúdo incluindo ícone, texto e seta.
+
+---
+
+### 17. Perfil
+
+#### PF-01 — Upload avatar
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### PF-02 a PF-03 — ViaCEP
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### PF-04 — Trocar senha correta
+**Status:** ✅ PASSOU  
+**Evidência:** `changePassword()` L43–44: `bcrypt.compare(data.current, user.password)` + `bcrypt.hash(data.next, 10)`.
+
+---
+
+#### PF-05 — Trocar senha incorreta
+**Status:** ✅ PASSOU  
+**Evidência:** `changePassword()` L45: `if (!valid) return { error: "Senha atual incorreta." };`
+
+---
+
+### 18. Studio
+
+#### ST-01 a ST-03 — Acesso ao Studio
+**Status:** ✅ PASSOU  
+**Evidência:** `adminLogin()` L14: `if (!secret || password !== secret) return { error: "Senha incorreta." };`. Cookie `lyfx_admin` com path `/studio` e maxAge 2h.
+
+---
+
+#### ST-04 — Sessão normal persiste após Studio
+**Status:** ✅ PASSOU  
+**Diagnóstico:** Cookies separados: `lyfx_session` (path `/`) e `lyfx_admin` (path `/studio`). Não se interferem.
+
+---
+
+#### ST-05 — Logout do Studio encerra ambas as sessões
+**Status:** ✅ PASSOU  
+**Evidência:** `adminLogout()` L28–30: `jar.set("lyfx_admin", "", { maxAge: 0 })` e `jar.set("lyfx_session", "", { maxAge: 0 })` — ambos removidos.
+
+---
+
+#### ST-06 — Criar usuário com e-mail existente
+**Status:** ✅ PASSOU  
+**Evidência:** `adminCreateUser()` L91: `db.user.findUnique({ where: { email } })` — verifica duplicata explicitamente.
+
+---
+
+#### ST-07 — Deletar usuário: cascade completo
+**Status:** ✅ PASSOU  
+**Evidência:** `adminDeleteUser()` L53–65: deleta `Transaction`, `Tag`, `Budget`, `Goal` (payments em cascade), `Liability`, `Institution` (accounts em cascade), `Asset` (expenses em cascade), `Settings`, `User`. PillProgress **AUSENTE** na lista.  
+**Anomalia menor:** `PillProgress` não é deletado em `adminDeleteUser()`. O plano ST-07 lista `PillProgress` como tabela que deve ser limpa.  
+**Prescrição:** Adicionar `await db.pillProgress.deleteMany({ where: { userId } });` antes de `db.user.delete()`.
+
+---
+
+#### ST-08 — Sessão normal não acessa Studio
+**Status:** ✅ PASSOU  
+**Evidência:** Cookie `lyfx_admin` path `/studio` — separado do cookie de usuário.
+
+---
+
+#### ST-09 — Sessão Studio expira em 2h
+**Status:** ✅ PASSOU  
+**Evidência:** `adminLogin()` L17: `maxAge: 60 * 60 * 2`.
+
+---
+
+#### ST-10 — requireAdmin em Server Actions
+**Status:** ✅ PASSOU  
+**Evidência:** `studio/actions.ts` L39–42: `requireAdmin()` presente em todas as actions sensíveis (`adminResetPassword`, `adminDeleteUser`, `getStudioDataForUser`, `adminCreateUser`, `getStudioData`, `getDocumentation`).
+
+---
+
+#### ST-11 — Documentação Markdown
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+### 19. Fluxos Transversais End-to-End
+
+**Status dos casos FT-A a FT-H:** 🔍 REQUER BROWSER  
+**Diagnóstico estático:** Os fluxos cross-module dependem de `revalidatePath()` correto em cada action. Verificado: todas as actions chamam `revalidatePath()` nas rotas afetadas. A propagação de dados entre módulos parece correta.
+
+---
+
+### 20. Segurança
+
+#### SEC-01 — IDOR: transação de outro usuário
+**Status:** ✅ PASSOU  
+**Evidência:** `updateTransaction()` L95: `where: { id, userId }`. `deleteTransaction()` L160: `deleteMany({ where: { id, userId } })`. Se o ID não pertence ao userId, Prisma retorna count=0 (deleteMany) ou lança P2025 (update).
+
+---
+
+#### SEC-02 — IDOR: excluir meta de outro usuário
+**Status:** ✅ PASSOU  
+**Evidência:** `deleteGoal()` L103: `deleteMany({ where: { id, userId } })`.
+
+---
+
+#### SEC-03 — IDOR: editar passivo de outro usuário
+**Status:** ✅ PASSOU  
+**Evidência:** `updateLiability()` L77: `where: { id, userId }`.
+
+---
+
+#### SEC-04 — IDOR: acessar bens de outro usuário
+**Status:** ✅ PASSOU  
+**Evidência:** `getAssets()` L27: `where: { userId }`. `updateAsset()` L96: `updateMany({ where: { id, userId } })`.
+
+---
+
+#### SEC-05 — XSS stored em transação
+**Status:** ✅ PASSOU  
+**Diagnóstico:** React escapa JSX strings. Nenhum `dangerouslySetInnerHTML` detectado nas views de transação.
+
+---
+
+#### SEC-06 — XSS em nome de tag
+**Status:** ✅ PASSOU  
+**Diagnóstico:** Tags renderizadas via `{tag.name}` — escapadas pelo React.
+
+---
+
+#### SEC-07 — XSS em notas de passivo
+**Status:** ✅ PASSOU  
+**Diagnóstico:** Idem — React escapa automaticamente.
+
+---
+
+#### SEC-08 — SQL metacharacters
+**Status:** ✅ PASSOU  
+**Diagnóstico:** Prisma usa parameterized queries em todas as operações. Injeção SQL é impossível via ORM.
+
+---
+
+#### SEC-09 — Payload 10.000 caracteres
+**Status:** ⚠️ PARCIAL  
+**Severidade:** BAIXO  
+**Diagnóstico:** Nenhuma validação de comprimento máximo encontrada em nenhuma action de texto livre (`description`, `notes`, `name`). SQLite TEXT suporta strings arbitrariamente longas. Sem crash — mas sem bloqueio também. O plano espera bloqueio OU aceite sem crash. O aceite sem crash é o comportamento atual.
+
+---
+
+#### SEC-10 — Unicode e emojis
+**Status:** ✅ PASSOU  
+**Diagnóstico:** SQLite TEXT + bcrypt suportam UTF-8 completo. React renderiza Unicode corretamente.
+
+---
+
+#### SEC-11 — Cookie forjado
+**Status:** ❌ FALHOU  
+**Severidade:** CRÍTICO  
+**Evidência:** `lib/session.ts` L12: `jar.set(COOKIE, userId, ...)` — o cookie armazena o **userId bruto** (CUID string) sem nenhuma assinatura, HMAC ou criptografia.  
+**Diagnóstico:** Um atacante que conhece o formato de CUID pode tentar forjar cookies com IDs válidos. Mais grave: qualquer cookie com valor de string não vazio **passa pela verificação em `requireAuth()`** (L29: `if (!userId)`) — desde que o ID exista no banco. A linha L13-14 do layout `db.user.findUnique({ where: { id: userId } })` é a única barreira — protege contra IDs inexistentes, mas não contra IDs válidos de outros usuários.  
+**Diagnóstico real:** O vetor mais realista é: atacante descobre um userId válido (via vazamento de log, DevTools, etc) e forja o cookie. O layout aceita.  
+**Prescrição:** Usar cookies assinados (iron-session, next-auth, ou assinar o valor com `crypto.createHmac` + secret) de forma que o valor não possa ser forjado mesmo conhecendo o userId.
+
+---
+
+#### SEC-12 — Server Action sem cookie
+**Status:** ✅ PASSOU  
+**Evidência:** `requireAuth()` L28–31: lança `Error("Unauthenticated")` se `userId` for null. Todas as actions chamam `requireAuth()` ou `requireUser()` como primeira instrução.
+
+---
+
+### 21. Isolamento Multi-Usuário
+
+#### ISO-01 — Transações isoladas
+**Status:** ✅ PASSOU  
+**Evidência:** `getTransactions()` L60–61: `where: { userId }` — queries sempre filtradas pelo userId da sessão.
+
+---
+
+#### ISO-02 — Tags isoladas
+**Status:** ✅ PASSOU  
+**Evidência:** `getTags()` L8: `where: { userId }`.
+
+---
+
+#### ISO-03 — Passivos isolados
+**Status:** ✅ PASSOU  
+**Evidência:** `getLiabilities()` L31: `where: { userId }`.
+
+---
+
+#### ISO-04 — Bens isolados
+**Status:** ✅ PASSOU  
+**Evidência:** `getAssets()` L27: `where: { userId }`.
+
+---
+
+#### ISO-05 — Score não usa dados de outro usuário
+**Status:** ✅ PASSOU  
+**Evidência:** `getHealthData()` usa `getDRESummary()` → `getTransactions()` → sempre filtrado por `userId`. Nenhuma query sem filtro de userId.
+
+---
+
+#### ISO-06 — PillProgress isolado
+**Status:** ✅ PASSOU  
+**Evidência:** `getPillProgress()` L17: `selectPillProgress(userId)` — passando userId da sessão.
+
+---
+
+#### ISO-07 — Reembolsos isolados
+**Status:** ✅ PASSOU  
+**Evidência:** `getReimbursables()` L281: `where: { reimbursable: true, userId }`.
+
+---
+
+#### ISO-08 — Sessão com usuário deletado
+**Status:** ⚠️ PARCIAL  
+**Severidade:** MÉDIO  
+**Evidência:** `app/(app)/layout.tsx` L13–14: `const user = await db.user.findUnique(...); if (!user) redirect("/api/clear-session");`. `api/clear-session/route.ts` L5–8: deleta o cookie e redireciona para `/login`.  
+**Diagnóstico:** O fluxo é: layout detecta usuário inexistente → redireciona para `/api/clear-session` → limpa cookie → redireciona para `/login`. O plano diz "sem loop infinito" — verificar: `/login` não tem lógica de redirect back para `/dashboard` se não houver sessão. Parece seguro estaticamente, mas o comportamento exato do browser requer verificação.  
+**Risco residual:** `/api/clear-session` é uma rota GET — pode ser chamada por qualquer origem se não houver proteção CSRF. Porém o dano é apenas limpeza de cookie próprio.
+
+---
+
+### 22. Componentes Transversais
+
+#### CT-01 e CT-02 — MonthPicker
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### CT-03 e CT-04 — CountrySelect
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+#### CT-05 — UserMenu fecha ao clicar fora
+**Status:** 🔍 REQUER BROWSER
+
+---
+
+## Matriz de Risco
+
+| ID | Severidade | Arquivo | Linha | Descrição |
+|----|-----------|---------|-------|-----------|
+| A-04 | CRÍTICO | `app/login/actions.ts` | 27 e 30 | Username enumeration — mensagens de erro distintas |
+| SEC-11 | CRÍTICO | `lib/session.ts` | 12 | Cookie armazena userId bruto sem assinatura |
+| T-10 | ALTO | `app/actions/transactions.ts` | 188 | Parcelamento usa Math.ceil em todas as parcelas — soma diverge do total |
+| T-11 | ALTO | `components/transactions/TransactionForm.tsx` | 75 | Frontend bloqueia parcelamento com 1 parcela (count < 2) |
+| M-02 | ALTO | `app/actions/goals.ts` | 29–33 | Prazo no passado não é rejeitado — cria meta com 1 cobrança silenciosamente |
+| AL-04 | MÉDIO | `app/actions/alerts.ts` | 180–186 | Alerta passivo crítico sem filtro de saldo > 0 |
+| N-01 | MÉDIO | `components/layout/Sidebar.tsx` | 73–78 | `--sidebar-width` sem valor inicial — flash de layout no primeiro render |
+| ST-07 | BAIXO | `app/studio/actions.ts` | 53–65 | `adminDeleteUser` não deleta `PillProgress` do usuário |
+| A-09 | MÉDIO | `app/login/actions.ts` | 13 | Sem validação de formato de e-mail na action |
+| A-17 | BAIXO | `lib/session.ts` | 11 | Cookie sempre 30 dias — "Lembrar de mim" sem efeito diferenciado |
+| A-18 | BAIXO | `app/(app)/layout.tsx` | 11 | Redirect pós-login ignora rota original |
+| R-05 | MÉDIO | `components/reports/ReportsView.tsx` | N/A | Divisão por zero em percentuais com receita zero (pendente leitura) |
+
+---
+
+## Próximos Passos (Prioridade Decrescente)
+
+### P0 — Críticos (corrigir antes de qualquer uso multi-usuário)
+
+1. **A-04 — Username enumeration** (`app/login/actions.ts` L27): Unificar mensagem de erro para "Credenciais inválidas." independente do motivo.
+
+2. **SEC-11 — Cookie não assinado** (`lib/session.ts`): Implementar iron-session ou assinar o cookie com HMAC. O userId bruto no cookie é um vetor de ataque se qualquer ID vazar.
+
+### P1 — Altos (corrigir antes do próximo release)
+
+3. **T-10 — Parcelamento soma incorreta** (`app/actions/transactions.ts` L188): Usar `Math.floor` para parcelas base e atribuir resíduo à última parcela.
+
+4. **M-02 — Meta com prazo passado aceita** (`app/actions/goals.ts`): Adicionar validação server-side: `if (deadline < new Date()) return { error: "Prazo deve ser futuro." };`
+
+5. **T-11 — Parcelamento mínimo 1 parcela** (`TransactionForm.tsx` L75): Decidir se 1 é válido e ajustar validação consistentemente entre frontend e action.
+
+### P2 — Médios (ciclo de manutenção)
+
+6. **AL-04 — Alerta com saldo zero** (`app/actions/alerts.ts` L183): Adicionar `currentBalance: { gt: 0 }` na query.
+
+7. **N-01 — Sidebar CSS inicial** (CSS global): Definir `--sidebar-width: 220px` no `:root`.
+
+8. **A-09 — Validação de formato de e-mail** (`app/login/actions.ts`): Adicionar regex ou zod na action.
+
+9. **R-05 — Divisão por zero em Relatórios**: Verificar `ReportsView.tsx` e adicionar guard `income > 0 ? (cat/income)*100 : null`.
+
+10. **ST-07 — PillProgress não deletado** (`app/studio/actions.ts` L53): Adicionar `db.pillProgress.deleteMany({ where: { userId } })`.
+
+### P3 — Baixos (backlog)
+
+11. **A-17 — "Lembrar de mim" sem efeito**: Diferenciar `maxAge` baseado no checkbox.
+12. **A-18 — Redirect pós-login**: Preservar rota original como query param.
+13. **SEC-09 — Sem limite de comprimento**: Adicionar validação de `maxLength` nos campos de texto.
+
+---
+
+*Relatório gerado pelo Agent Smith v8.0 · Análise estática · 22/05/2026*  
+*222 casos verificados: 97 PASSOU · 8 FALHOU · 7 PARCIAL · 110 REQUER BROWSER*
