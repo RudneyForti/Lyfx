@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   IconLayoutDashboard,
   IconArrowsExchange,
@@ -69,6 +69,13 @@ const navGroups = [
 export function Sidebar(_props: Props) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--sidebar-width",
+      collapsed ? "60px" : "220px"
+    );
+  }, [collapsed]);
 
   return (
     <nav
