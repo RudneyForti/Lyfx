@@ -116,24 +116,25 @@ function ProfileProgressBar({
 
 function NextPillCard({ pill }: { pill: Pill }) {
   return (
-    <Link href={`/education/${pill.id}`} className="block">
-      <div className="flex items-center gap-4 px-5 py-4 rounded-[14px] border border-[var(--color-cyan-border)] bg-[var(--color-cyan-faint)] hover:bg-[rgba(34,211,238,0.08)] transition-all cursor-pointer">
-        <div className="w-10 h-10 rounded-full bg-[var(--color-cyan)] flex items-center justify-center flex-shrink-0">
-          <IconPlayerPlay size={17} className="text-[#083344]" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-cyan)] mb-0.5">
-            Próxima pílula
-          </div>
-          <div className="text-[14px] font-semibold text-[var(--color-f1)] leading-snug line-clamp-1">
-            {pill.title}
-          </div>
-          <div className="text-[11px] text-[var(--color-f3)] mt-0.5">
-            {pill.category} · {pill.estimatedMinutes} min
-          </div>
-        </div>
-        <IconChevronRight size={18} className="text-[var(--color-cyan)] shrink-0" />
+    <Link
+      href={`/education/${pill.id}`}
+      className="flex items-center gap-4 px-5 py-4 rounded-[14px] border border-[var(--color-cyan-border)] bg-[var(--color-cyan-faint)] hover:bg-[rgba(34,211,238,0.08)] transition-all cursor-pointer"
+    >
+      <div className="w-10 h-10 rounded-full bg-[var(--color-cyan)] flex items-center justify-center flex-shrink-0">
+        <IconPlayerPlay size={17} className="text-[#083344]" />
       </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-cyan)] mb-0.5">
+          Próxima pílula
+        </div>
+        <div className="text-[14px] font-semibold text-[var(--color-f1)] leading-snug line-clamp-1">
+          {pill.title}
+        </div>
+        <div className="text-[11px] text-[var(--color-f3)] mt-0.5">
+          {pill.category} · {pill.estimatedMinutes} min
+        </div>
+      </div>
+      <IconChevronRight size={18} className="text-[var(--color-cyan)] shrink-0" />
     </Link>
   );
 }
