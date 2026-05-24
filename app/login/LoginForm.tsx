@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { IconLogin, IconX, IconEye, IconEyeOff, IconBrain, IconSend, IconLoader2 } from "@tabler/icons-react";
 import { setup, login } from "./actions";
@@ -62,6 +63,9 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
   const [mode, setMode] = useState<"login" | "setup">(hasUser ? "login" : "setup");
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(true);
+  // CS-13: ler rota original para redirecionar após login
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") ?? undefined;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -109,7 +113,8 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
       if (!email.trim()) { setError("E-mail obrigatório."); shake(); return; }
       if (!password) { setError("Senha obrigatória."); shake(); return; }
       startTransition(async () => {
-        const result = await login({ email, password });
+        // CS-13: passa remember e redirectTo para a action
+        const result = await login({ email, password, remember, redirectTo });
         if (result?.error) { setError(result.error); shake(); }
         else setSuccess(true);
       });

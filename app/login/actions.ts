@@ -27,7 +27,7 @@ export async function setup(data: { name: string; email: string; password: strin
   redirect("/dashboard");
 }
 
-export async function login(data: { email: string; password: string }) {
+export async function login(data: { email: string; password: string; remember?: boolean; redirectTo?: string }) {
   const user = await db.user.findFirst({ where: { email: data.email.trim().toLowerCase() } });
 
   // Timing side-channel defense: bcrypt roda sempre, mesmo quando o usuário não existe,
@@ -38,8 +38,12 @@ export async function login(data: { email: string; password: string }) {
 
   if (!user || !valid) return { error: "E-mail ou senha inválidos." };
 
-  await setSession(user.id);
-  redirect("/dashboard");
+  // CS-13: passar remember para controlar maxAge do cookie
+  await setSession(user.id, { remember: data.remember ?? true });
+
+  // CS-13: preservar rota original após login
+  const target = data.redirectTo && data.redirectTo.startsWith("/") ? data.redirectTo : "/dashboard";
+  redirect(target);
 }
 
 export async function logout() {

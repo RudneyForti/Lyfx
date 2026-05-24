@@ -8,13 +8,15 @@ export async function getSessionUserId(): Promise<string | null> {
   return jar.get(COOKIE)?.value ?? null;
 }
 
-export async function setSession(userId: string) {
+// CS-13: remember=false → session cookie (expira ao fechar browser); default = 30 dias
+export async function setSession(userId: string, options?: { remember?: boolean }) {
   const jar = await cookies();
   jar.set(COOKIE, userId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: MAX_AGE,
+    // omit maxAge when remember=false → browser session cookie
+    ...(options?.remember === false ? {} : { maxAge: MAX_AGE }),
     path: "/",
   });
 }
