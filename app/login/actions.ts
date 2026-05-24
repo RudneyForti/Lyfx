@@ -11,6 +11,11 @@ export async function setup(data: { name: string; email: string; password: strin
 
   if (!data.name.trim()) return { error: "Nome obrigatório." };
   if (!data.email.trim()) return { error: "E-mail obrigatório." };
+
+  // CS-09: validação de formato de e-mail server-side
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(data.email.trim())) return { error: "E-mail inválido." };
+
   if (data.password.length < 6) return { error: "Senha deve ter ao menos 6 caracteres." };
 
   const hashed = await bcrypt.hash(data.password, 10);
