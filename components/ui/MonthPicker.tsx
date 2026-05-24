@@ -110,6 +110,9 @@ export function MonthPicker({ value, onChange, placeholder = "Selecione o mês",
           <div className="grid grid-cols-4 gap-1">
             {MONTHS_SHORT.map((label, i) => {
               const isSelected = selYear === year && selMonth === i;
+              // CS-14: destacar o mês atual com borda cyan quando não está selecionado
+              const now = new Date();
+              const isCurrentMonth = year === now.getFullYear() && i === now.getMonth();
               return (
                 <button
                   key={i}
@@ -118,7 +121,8 @@ export function MonthPicker({ value, onChange, placeholder = "Selecione o mês",
                   className="py-[7px] rounded-[7px] text-[11px] font-medium transition-all cursor-pointer"
                   style={{
                     background: isSelected ? "var(--color-cyan)" : "transparent",
-                    color: isSelected ? "#083344" : "var(--color-f2)",
+                    color: isSelected ? "#083344" : isCurrentMonth ? "var(--color-cyan)" : "var(--color-f2)",
+                    border: isCurrentMonth && !isSelected ? "1px solid var(--color-cyan-border)" : "1px solid transparent",
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.07)";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import {
   IconArrowUpRight, IconArrowDownRight, IconRepeat,
   IconPencil, IconStack2, IconTrash, IconX,
@@ -36,7 +36,42 @@ function ActionBar({
   onClose: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
+  // CS-14: confirmação antes de excluir — "single" | "group" | null
+  const [confirmMode, setConfirmMode] = useState<"single" | "group" | null>(null);
   const isInstallment = !!tx.installmentGroupId;
+
+  if (confirmMode) {
+    const isGroup = confirmMode === "group";
+    const label = isGroup
+      ? `Excluir todas as ${tx.installmentTotal}x parcelas? Esta ação não pode ser desfeita.`
+      : "Deletar esta transação? Esta ação não pode ser desfeita.";
+
+    return (
+      <div className="flex items-center gap-1.5 px-3 py-2 bg-[rgba(248,113,113,0.07)] border-b border-[var(--color-red-border)]">
+        <span className="text-[10px] text-[var(--color-red)] flex-1 min-w-0 truncate">{label}</span>
+        <button
+          onClick={() => setConfirmMode(null)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-[5px] text-[10px] font-medium whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity"
+          style={{ background: "rgba(255,255,255,0.05)", color: "var(--color-f2)", border: "1px solid var(--color-border2)" }}
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={() => {
+            startTransition(() => {
+              if (isGroup) { deleteInstallmentGroup(tx.installmentGroupId!); }
+              else { deleteTransaction(tx.id); }
+              onClose();
+            });
+          }}
+          disabled={isPending}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-[5px] text-[10px] font-medium whitespace-nowrap bg-[var(--color-red-dim)] text-[var(--color-red)] border border-[var(--color-red-border)] cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-40"
+        >
+          <IconTrash size={10} /> Confirmar exclusão
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-1.5 px-3 py-2 bg-[rgba(248,113,113,0.07)] border-b border-[var(--color-red-border)]">
@@ -49,7 +84,7 @@ function ActionBar({
       </button>
 
       <button
-        onClick={() => startTransition(() => { deleteTransaction(tx.id); onClose(); })}
+        onClick={() => setConfirmMode("single")}
         disabled={isPending}
         className="flex items-center gap-1 px-2.5 py-1 rounded-[5px] text-[10px] font-medium whitespace-nowrap bg-[var(--color-red-dim)] text-[var(--color-red)] border border-[var(--color-red-border)] cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-40"
       >
@@ -58,7 +93,7 @@ function ActionBar({
 
       {isInstallment && tx.installmentGroupId && tx.installmentTotal != null && (
         <button
-          onClick={() => startTransition(() => { deleteInstallmentGroup(tx.installmentGroupId!); onClose(); })}
+          onClick={() => setConfirmMode("group")}
           disabled={isPending}
           className="flex items-center gap-1 px-2.5 py-1 rounded-[5px] text-[10px] font-medium whitespace-nowrap bg-[var(--color-red-dim)] text-[var(--color-red)] border border-[var(--color-red-border)] cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-40"
         >
@@ -91,6 +126,19 @@ export function TransactionList({ transactions, allTags }: Props) {
   const [editing, setEditing]   = useState<Transaction | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [ctxFilter, setCtxFilter] = useState<ContextFilter>("all");
+  // CS-14: ref para o container do item expandido (click-outside fecha o ActionBar)
+  const expandedRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const handler = (e: MouseEvent) => {
+      if (expandedRef.current && !expandedRef.current.contains(e.target as Node)) {
+        setExpanded(null);
+      }
+    };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [expanded]);
 
   const hasContext = transactions.some(t => t.context);
 
@@ -158,6 +206,7 @@ export function TransactionList({ transactions, allTags }: Props) {
           return (
             <div
               key={tx.id}
+              ref={isExpanded ? expandedRef : undefined}
               className={cn(
                 "rounded-[10px] border overflow-hidden transition-all duration-200",
                 isExpanded

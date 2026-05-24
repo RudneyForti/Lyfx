@@ -185,7 +185,11 @@ export async function createInstallments(data: {
 }) {
   const userId = await requireAuth();
   const groupId = randomUUID();
-  const perInstallment = Math.ceil((data.totalAmount / data.count) * 100) / 100;
+  // CS-03: Math.floor nas n-1 parcelas; última parcela absorve o resíduo
+  // (garante que a soma exata seja sempre igual a totalAmount)
+  const baseAmount = Math.floor((data.totalAmount / data.count) * 100) / 100;
+  const lastAmount = Math.round((data.totalAmount - baseAmount * (data.count - 1)) * 100) / 100;
+
   const firstDate = new Date(data.firstDate);
 
   const records = Array.from({ length: data.count }, (_, i) => {
@@ -194,7 +198,7 @@ export async function createInstallments(data: {
       userId,
       date,
       description: `${data.description} (${i + 1}/${data.count})`,
-      amount: perInstallment,
+      amount: i === data.count - 1 ? lastAmount : baseAmount,
       type: data.type,
       category: data.category,
       notes: data.notes,
