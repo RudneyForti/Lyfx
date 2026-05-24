@@ -992,6 +992,180 @@
     }
   },
   {
+    "id": "rec_new01",
+    "profile": "em_recuperacao",
+    "order": 19,
+    "title": "A matemática que os bancos esperam que você nunca faça",
+    "subtitle": "O que acontece com uma dívida de R$ 5.000 sem pagamento por um ano",
+    "category": "dívidas",
+    "estimatedMinutes": 7,
+    "sourceRef": "Ramit Sethi — Como Ficar Rico; Thiago Nigro — Do Mil ao Milhão",
+    "content": {
+      "hook": "R$ 5.000 no rotativo do cartão a 12% ao mês. Sem nenhum pagamento. Após 12 meses: R$ 17.449. Após 24 meses: R$ 60.879. Você jamais pagaria R$ 60.000 por algo que custou R$ 5.000 — mas é exatamente o que acontece se você só paga o mínimo.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "A matemática dos juros compostos nas dívidas é implacável. Uma dívida de R$ 5.000 no rotativo do cartão a 12% ao mês (taxa comum no Brasil) cresce da seguinte forma: em 6 meses vira R$ 9.869; em 12 meses R$ 17.449; em 18 meses R$ 30.817; em 24 meses R$ 54.449. O valor original foi R$ 5.000. Os juros acumulados em 2 anos: R$ 49.449. Esse é o motivo pelo qual a eliminação das dívidas de alto custo precisa ser a prioridade absoluta antes de qualquer investimento."
+        },
+        {
+          "type": "insight",
+          "text": "O pagamento mínimo do cartão foi projetado pelos bancos para maximizar o tempo que você permanece devedor — e portanto o total de juros que você paga. Um pagamento mínimo de 5% do saldo sobre R$ 5.000 cobre R$ 250 por mês. Os juros de 12% ao mês sobre R$ 5.000 são R$ 600. Isso significa que mesmo pagando o mínimo, sua dívida cresce R$ 350 por mês. Você paga e a dívida aumenta — indefinidamente, até você pagar mais do que os juros gerados."
+        },
+        {
+          "type": "practical",
+          "text": "Ação imediata: para cada dívida rotativa que você tem, calcule o juro mensal (saldo × taxa/100). Compare com o pagamento mínimo. Se o mínimo for menor que o juro, essa dívida está crescendo mesmo com pagamento. Ela é prioridade absoluta — qualquer recurso extra disponível vai direto para ela. Não existe investimento de baixo risco que compense pagar essa dívida mais devagar."
+        },
+        {
+          "type": "reframe",
+          "text": "Quitar uma dívida de 12% ao mês não é 'perder dinheiro que poderia estar investido'. É o investimento com maior retorno garantido disponível — 12% ao mês, sem risco, imediatamente. Nenhum produto financeiro acessível ao público geral chega perto disso."
+        },
+        {
+          "type": "reflection",
+          "text": "Você sabe o juro mensal exato que está pagando em cada dívida — não a parcela, mas a taxa percentual ao mês? Se não sabe, esse é o número que você precisa descobrir hoje."
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Uma dívida de R$ 3.000 no rotativo do cartão tem taxa de 10% ao mês. O pagamento mínimo é R$ 150 (5% do saldo). O que acontece com o saldo devedor?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Diminui lentamente, porque você está pagando o mínimo todo mês.",
+          "correct": false,
+          "feedback": "Os juros mensais são R$ 300 (10% de R$ 3.000). O pagamento mínimo é R$ 150. O saldo aumenta R$ 150 por mês — mesmo você pagando. Para parar de crescer, o pagamento mínimo precisaria ser de pelo menos R$ 300."
+        },
+        {
+          "id": "b",
+          "text": "Aumenta todo mês, porque os juros (R$ 300) são maiores do que o pagamento mínimo (R$ 150).",
+          "correct": true,
+          "feedback": "Exato. Essa é a situação mais crítica em gestão de dívidas: quando o mínimo não cobre os juros gerados, a dívida cresce indefinidamente mesmo com pagamentos regulares. É matematicamente impossível quitá-la nesse ritmo sem aumentar os aportes."
+        },
+        {
+          "id": "c",
+          "text": "Fica estável, porque o pagamento equilibra os juros cobrados.",
+          "correct": false,
+          "feedback": "Para estabilizar a dívida, o pagamento precisaria cobrir exatamente os juros gerados — R$ 300 neste caso. O mínimo de R$ 150 cobre apenas metade dos juros, fazendo o saldo crescer R$ 150 por mês."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_rec_01",
+    "profile": "em_recuperacao",
+    "order": 20,
+    "title": "Cartão de crédito: vilão ou ferramenta?",
+    "subtitle": "Como usar o cartão sem cair no rotativo — a distinção que muda tudo",
+    "category": "crédito",
+    "estimatedMinutes": 7,
+    "sourceRef": "Ramit Sethi — Como Ficar Rico; Dan Ariely — A Psicologia do Dinheiro",
+    "content": {
+      "hook": "O cartão de crédito não é o problema. O rotativo do cartão é o problema. Essa distinção de uma palavra muda completamente como você deve se relacionar com o produto mais ubíquo das finanças brasileiras.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "A base deste módulo educacional ensinou por que o crédito rotativo é destrutivo. Mas esse ensinamento pode gerar um equívoco perigoso: que o cartão de crédito em si é ruim e deve ser evitado. Não é verdade. O cartão de crédito usado corretamente é uma das melhores ferramentas financeiras disponíveis: oferece crédito gratuito de 30 a 40 dias (o período entre a compra e o vencimento da fatura), proteção contra fraudes, cashback, milhas, e rastreabilidade de todos os gastos para controle financeiro."
+        },
+        {
+          "type": "insight",
+          "text": "A única regra que separa o cartão como ferramenta do cartão como armadilha é uma, simples e absoluta: pagar o valor total da fatura todo mês, sem exceção. Quem paga o total nunca paga um centavo de juros — usa crédito do banco gratuitamente por até 40 dias, acumula cashback ou milhas, e tem todos os gastos registrados automaticamente. Quem paga qualquer valor abaixo do total entra no rotativo e imediatamente começa a pagar taxas que superam 10% ao mês."
+        },
+        {
+          "type": "practical",
+          "text": "Regra de ouro para quem está em recuperação: use o cartão apenas para gastos que você já tem o dinheiro na conta para pagar. O cartão é um instrumento de pagamento com vantagens — não uma extensão de renda. Configure o débito automático da fatura no valor total todo mês. Nunca no mínimo. Nunca em valor parcial. Se não consegue configurar o total, configure o débito automático apenas quando souber que o saldo cobre tudo — e prefira o débito direto para os meses de incerteza."
+        },
+        {
+          "type": "reframe",
+          "text": "Cortar o cartão não resolve o problema — resolve apenas o sintoma. O problema é gastar mais do que se ganha. Quem aprende a usar o cartão pagando 100% da fatura tem acesso a um produto que trabalha a seu favor: rastreabilidade automática, cashback real, proteção contra fraude e crédito gratuito por 30 dias."
+        },
+        {
+          "type": "reflection",
+          "text": "Nos últimos 3 meses, você pagou o total da fatura do cartão — ou apenas o mínimo ou um valor parcial? A resposta define se o cartão está trabalhando para você ou contra você."
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Qual é a única condição para que o cartão de crédito funcione como ferramenta e não como armadilha?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Usar o cartão apenas em estabelecimentos que oferecem parcelamento sem juros.",
+          "correct": false,
+          "feedback": "Parcelamento sem juros é uma vantagem real quando o produto custaria o mesmo à vista — mas não é a condição central. O que define se o cartão é ferramenta ou armadilha é o pagamento da fatura, não o tipo de estabelecimento."
+        },
+        {
+          "id": "b",
+          "text": "Pagar o valor total da fatura todo mês, sem exceção — nunca entrando no crédito rotativo.",
+          "correct": true,
+          "feedback": "Exato. Quem paga o total nunca paga juros — usa crédito gratuito por até 40 dias, acumula cashback e tem os gastos registrados automaticamente. Quem paga qualquer valor abaixo do total entra no rotativo e começa a pagar taxas acima de 10% ao mês."
+        },
+        {
+          "id": "c",
+          "text": "Ter um limite baixo, para não poder gastar mais do que consegue pagar.",
+          "correct": false,
+          "feedback": "Limite baixo reduz o risco, mas não muda o mecanismo fundamental: se você pagar abaixo do total, entra no rotativo independente do limite. O controle precisa vir do comportamento de pagamento, não da restrição de limite."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_rec_02",
+    "profile": "em_recuperacao",
+    "order": 21,
+    "title": "Quando pedir emprestado faz sentido — e de onde",
+    "subtitle": "Consignado e empréstimo pessoal como alternativas ao rotativo de 12% ao mês",
+    "category": "crédito",
+    "estimatedMinutes": 7,
+    "sourceRef": "Ramit Sethi — Como Ficar Rico; Nathalia Arcuri — Me Poupe!",
+    "content": {
+      "hook": "Às vezes a situação é real e o dinheiro precisa vir de algum lugar. A questão não é 'devo pedir emprestado?' — é 'de onde vem esse dinheiro ao menor custo possível?'. Existem abismos de diferença entre as opções disponíveis.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "Nem toda situação de crédito é igual. Existe uma hierarquia clara de custo que determina em qual produto você deve buscar dinheiro em caso de necessidade real. Do mais barato ao mais caro: crédito consignado (desconto em folha para CLT e aposentados do INSS, taxa de 1,5% a 3% ao mês), empréstimo pessoal em fintechs e bancos digitais (3% a 6% ao mês), empréstimo em banco tradicional (4% a 8% ao mês), cheque especial (8% a 12% ao mês), e rotativo do cartão (10% a 15% ao mês). A diferença entre usar consignado e usar o rotativo pode ser de 10 pontos percentuais ao mês."
+        },
+        {
+          "type": "insight",
+          "text": "O crédito consignado é o produto mais barato disponível para trabalhadores CLT e aposentados do INSS justamente porque o risco para o banco é mínimo — o pagamento é descontado diretamente da folha antes de chegar à sua conta. Isso elimina o risco de inadimplência do ponto de vista do banco, e ele repassa parte dessa segurança em taxa menor. Se você é CLT e está usando cheque especial ou rotativo, quase certamente existe uma opção de consignado mais barata disponível no seu banco ou em bancos digitais."
+        },
+        {
+          "type": "practical",
+          "text": "Antes de usar qualquer crédito de emergência, percorra esta sequência em ordem: (1) existe algum ativo que pode ser liquidado sem custo excessivo? (2) existe possibilidade de consignado em folha? (3) o banco digital oferece empréstimo pessoal com taxa abaixo de 4% ao mês? (4) apenas depois de esgotar as anteriores considere cheque especial ou rotativo. E sempre com a pergunta: qual o custo total dessa operação? Quanto pagarei no final?"
+        },
+        {
+          "type": "reframe",
+          "text": "Crédito não é tabu — é uma ferramenta. A questão é sempre o custo: crédito caro financia o banco; crédito barato pode resolver um problema pontual sem criar um maior. Saber a diferença entre produtos é tão importante quanto saber quando usar cada um."
+        },
+        {
+          "type": "reflection",
+          "text": "Você sabia que como trabalhador CLT provavelmente tem acesso a crédito consignado com taxa entre 3 e 5 vezes menor do que o cheque especial do seu banco? Já pesquisou quanto custaria uma operação consignada para cobrir o que você hoje paga no rotativo?"
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Você precisa de R$ 3.000 urgente. Tem acesso a crédito consignado (2% ao mês) e ao cheque especial (10% ao mês). Qual é a diferença real de custo em 6 meses?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Pouca diferença — ambos são empréstimos e têm custo parecido.",
+          "correct": false,
+          "feedback": "A diferença é enorme. Consignado a 2% ao mês em 6 meses gera aproximadamente R$ 375 de juros. Cheque especial a 10% ao mês gera mais de R$ 1.900 de juros no mesmo período — sobre o mesmo valor. São R$ 1.500 de diferença por uma única decisão de qual produto usar."
+        },
+        {
+          "id": "b",
+          "text": "O consignado gera ~R$ 375 de juros; o cheque especial gera ~R$ 1.900 — diferença de mais de R$ 1.500 no mesmo período.",
+          "correct": true,
+          "feedback": "Exato. Essa diferença é real e representa o custo de não conhecer as opções disponíveis. Para quem está em recuperação financeira, escolher o produto de menor custo em momentos de necessidade pode ser a diferença entre resolver o problema e aprofundá-lo."
+        },
+        {
+          "id": "c",
+          "text": "O consignado é mais caro porque desconta na folha e reduz o salário disponível.",
+          "correct": false,
+          "feedback": "O desconto em folha é o mecanismo de pagamento — não o custo. A taxa do consignado é menor exatamente porque esse mecanismo reduz o risco de inadimplência para o banco. Descontar na folha é conveniente, não punitivo."
+        }
+      ]
+    }
+  },
+  {
     "id": "est_01",
     "profile": "estabilizado",
     "order": 1,
@@ -1867,6 +2041,296 @@
           "text": "O rendimento que sobra após descontar a inflação e os impostos.",
           "correct": true,
           "feedback": "Sim! É o aumento real do seu poder de compra."
+        }
+      ]
+    }
+  },
+  {
+    "id": "est_new01",
+    "profile": "estabilizado",
+    "order": 17,
+    "title": "O DRE pessoal: onde o seu dinheiro realmente desaparece",
+    "subtitle": "Como organizar as finanças em camadas para ver em qual etapa o problema acontece",
+    "category": "análise",
+    "estimatedMinutes": 8,
+    "sourceRef": "Lyfx — Metodologia DRE Pessoal; Ramit Sethi — Como Ficar Rico",
+    "content": {
+      "hook": "Empresas lucrativas usam um demonstrativo chamado DRE para saber, camada por camada, onde o dinheiro desaparece. Aplicar essa lógica às finanças pessoais revela algo que extrato bancário e planilha simples não mostram: em qual etapa da sua vida financeira o problema acontece.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "O DRE pessoal organiza o fluxo financeiro em margens progressivas. Primeiro: sua Receita Total — tudo que entrou. Segundo: subtraia as despesas fixas (aluguel, condomínio, assinaturas, seguros) — o que sobra é a Margem após Fixos. Terceiro: subtraia as despesas variáveis essenciais (alimentação, transporte, farmácia) — o que sobra é a Margem Operacional. Quarto: subtraia os comprometimentos com dívidas (parcelas, rotativo, financiamentos) — o que sobra é o Resultado Operacional. Quinto: subtraia alocações intencionais e imprevistos — esse é o Resultado Líquido real do mês."
+        },
+        {
+          "type": "insight",
+          "text": "A revelação mais poderosa do DRE pessoal é a localização do problema. Uma pessoa com Margem após Fixos positiva mas Resultado Operacional negativo tem o problema no consumo variável — gastos do dia a dia. Outra com Margem Operacional positiva mas Resultado Operacional negativo tem o problema no comprometimento com dívidas — é aí que o dinheiro some. Sem essa análise em camadas, você gasta energia tentando economizar na categoria errada."
+        },
+        {
+          "type": "practical",
+          "text": "Monte seu DRE deste mês: pegue o extrato completo e categorize cada lançamento em fixo, variável essencial, comprometimento com dívida ou alocação intencional. Some cada grupo. Calcule as margens progressivas. Onde o resultado fica negativo pela primeira vez — essa é a camada onde o problema está. Essa informação direciona completamente a estratégia do próximo mês."
+        },
+        {
+          "type": "reframe",
+          "text": "Controlar finanças sem o DRE pessoal é como dirigir olhando só para o velocímetro e ignorando o nível de combustível, a temperatura do motor e o GPS. Você tem dados, mas não os dados que importam."
+        },
+        {
+          "type": "reflection",
+          "text": "Se você fosse fazer o DRE deste mês agora, em qual camada você acredita que a margem vai a zero ou fica negativa? A hipótese diz muito sobre onde você percebe o problema — e comparar com o dado real revela se a percepção está correta."
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Uma pessoa tem R$ 5.000 de receita. Após fixos, restam R$ 2.800. Após variáveis, restam R$ 1.400. Após comprometimentos com dívidas, restam -R$ 200 (resultado negativo). Qual é o diagnóstico?",
+      "options": [
+        {
+          "id": "a",
+          "text": "O problema está nos gastos fixos — aluguel e assinaturas estão altos demais.",
+          "correct": false,
+          "feedback": "Os fixos consumiram R$ 2.200 de R$ 5.000 (44%) — relevante, mas não é onde o resultado ficou negativo. A Margem após Fixos ainda era positiva em R$ 2.800."
+        },
+        {
+          "id": "b",
+          "text": "O problema está no comprometimento com dívidas — que consome mais do que a margem operacional disponível.",
+          "correct": true,
+          "feedback": "Correto. O resultado ficou negativo na camada de dívidas: havia R$ 1.400 disponíveis e os comprometimentos somaram mais de R$ 1.600. A prioridade clara é reduzir o total de parcelas — o consumo variável já está dentro da capacidade, mas as dívidas superam a margem que sobra."
+        },
+        {
+          "id": "c",
+          "text": "O problema está nos gastos variáveis — alimentação e transporte estão consumindo demais.",
+          "correct": false,
+          "feedback": "Os variáveis consumiram R$ 1.400 de R$ 2.800 (50% da margem após fixos) — relevante para análise futura, mas não é onde o resultado ficou negativo. A Margem Operacional ainda estava positiva antes dos comprometimentos com dívidas."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_est_01",
+    "profile": "estabilizado",
+    "order": 18,
+    "title": "CDB, LCI e LCA: seus primeiros investimentos reais",
+    "subtitle": "O que são, como funcionam e por onde sair da poupança agora",
+    "category": "investimentos",
+    "estimatedMinutes": 9,
+    "sourceRef": "Thiago Nigro — Do Mil ao Milhão; Nathalia Arcuri — Me Poupe!; Ramit Sethi — Como Ficar Rico",
+    "content": {
+      "hook": "Você já sabe que a poupança perde para a inflação. Mas para onde vai o dinheiro agora? CDB, LCI e LCA são os três produtos mais simples, seguros e acessíveis — e a maioria das pessoas nunca os usou porque achou que eram 'coisa de rico'.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "CDB (Certificado de Depósito Bancário): você empresta dinheiro para um banco e recebe de volta com juros. É garantido pelo FGC (Fundo Garantidor de Créditos) até R$ 250.000 por instituição — ou seja, se o banco quebrar, o governo devolve o seu dinheiro. Rende em torno de 100% do CDI (a taxa interbancária, próxima à Selic), podendo render mais em bancos menores que precisam captar mais. Tem incidência de Imposto de Renda, com alíquota regressiva: quanto mais tempo deixar aplicado, menos IR paga — chegando a 15% após 2 anos."
+        },
+        {
+          "type": "explanation",
+          "text": "LCI (Letra de Crédito Imobiliário) e LCA (Letra de Crédito do Agronegócio): funcionam de forma similar ao CDB — você empresta para uma instituição financeira e recebe com juros, com garantia do FGC até R$ 250.000. A diferença crucial: são isentas de Imposto de Renda para pessoas físicas. Isso significa que uma LCI rendendo 90% do CDI pode ser mais vantajosa do que um CDB rendendo 100% do CDI — porque sobre a LCI você não paga IR, e sobre o CDB paga. O cálculo de equivalência depende do prazo e da alíquota de IR aplicável."
+        },
+        {
+          "type": "practical",
+          "text": "Por onde começar: (1) abra conta em uma corretora ou banco digital (Nubank, Inter, XP, Rico, entre outros) — a maioria oferece CDB, LCI e LCA com taxas superiores às da poupança; (2) para a reserva de emergência, priorize CDB com liquidez diária — o resgate é imediato; (3) para objetivos de médio prazo (12 a 24 meses), compare CDB vs. LCI/LCA com prazo definido — calcule o retorno líquido de IR; (4) diversifique entre duas ou três instituições para não superar R$ 250.000 por banco (limite do FGC). Regra de bolso: LCI/LCA de 90% do CDI com IR zero rende mais do que CDB de 100% do CDI com IR de 17,5% (1 a 2 anos)."
+        },
+        {
+          "type": "reframe",
+          "text": "Esses produtos não são exclusivos para quem tem muito dinheiro. Muitas plataformas digitais permitem aplicação a partir de R$ 1. O que mudou nos últimos anos é o acesso: antes, você precisava ir ao gerente do banco. Hoje, você aplica pelo celular em 2 minutos."
+        },
+        {
+          "type": "reflection",
+          "text": "Você tem hoje dinheiro na poupança que poderia estar em CDB de liquidez diária rendendo o dobro, com a mesma segurança e acesso imediato? Quanto rende sua poupança ao mês — e quanto renderia 100% do CDI no mesmo período?"
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Por que uma LCI rendendo 90% do CDI pode ser mais vantajosa do que um CDB rendendo 100% do CDI?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Porque LCI tem garantia do FGC e CDB não tem.",
+          "correct": false,
+          "feedback": "Ambos têm garantia do FGC até R$ 250.000 por instituição. A diferença não é de segurança — é tributária."
+        },
+        {
+          "id": "b",
+          "text": "Porque LCI é isenta de Imposto de Renda para pessoas físicas, então o rendimento líquido pode superar o do CDB mesmo com taxa nominal menor.",
+          "correct": true,
+          "feedback": "Exato. Um CDB de 100% do CDI com IR de 17,5% (prazo de 1 a 2 anos) rende efetivamente 82,5% do CDI líquido. Uma LCI de 90% do CDI rende 90% do CDI líquido — porque não há IR. A comparação sempre deve ser feita em termos de retorno líquido, não da taxa bruta."
+        },
+        {
+          "id": "c",
+          "text": "Porque LCI só pode ser contratada por investidores qualificados com patrimônio acima de R$ 1 milhão.",
+          "correct": false,
+          "feedback": "LCI está disponível para qualquer pessoa física em bancos e corretoras, frequentemente com aplicação mínima abaixo de R$ 1.000 em plataformas digitais. Não há exigência de qualificação ou patrimônio mínimo elevado."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_est_02",
+    "profile": "estabilizado",
+    "order": 19,
+    "title": "FGTS: o investimento compulsório que você provavelmente ignora",
+    "subtitle": "Como funciona, quando usar e o que fazer com ele de forma estratégica",
+    "category": "planejamento",
+    "estimatedMinutes": 8,
+    "sourceRef": "Nathalia Arcuri — Me Poupe!; contexto regulatório brasileiro",
+    "content": {
+      "hook": "Todo trabalhador CLT tem 8% do salário depositado pelo empregador todo mês em uma conta que não aparece no extrato bancário, rende pouco e a maioria esquece que existe — até precisar. O FGTS pode ser um dos maiores ativos que você tem, ou uma oportunidade desperdiçada. Depende de como você o usa.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "O FGTS (Fundo de Garantia do Tempo de Serviço) é um depósito obrigatório de 8% do salário bruto que o empregador faz em seu nome mensalmente na Caixa Econômica Federal. O saldo cresce com correção de 3% ao ano mais TR (Taxa Referencial, frequentemente próxima de zero) — rendimento inferior à inflação na maioria dos anos. Você não controla esse rendimento, mas controla quando e como usa o saldo."
+        },
+        {
+          "type": "practical",
+          "text": "Quando você pode sacar: demissão sem justa causa (saque total), aposentadoria, doenças graves especificadas em lei, necessidade pessoal (saque aniversário, saque emergencial em períodos específicos), financiamento imobiliário (entrada ou amortização), e desastres naturais. O uso mais estratégico para quem está construindo estabilidade: amortização de financiamento imobiliário — especialmente se a taxa do financiamento supera o rendimento do FGTS, o que acontece em praticamente todos os financiamentos habitacionais do Brasil."
+        },
+        {
+          "type": "insight",
+          "text": "O saque-aniversário (modalidade optativa) permite retirar parte do FGTS anualmente no mês do seu aniversário — mas ao optar por ele, você perde o direito ao saque total em caso de demissão sem justa causa. Essa troca precisa ser calculada: quem tem alta estabilidade no emprego pode se beneficiar do saque anual; quem tem risco de demissão ou trabalha por projetos deve pensar duas vezes antes de optar."
+        },
+        {
+          "type": "practical",
+          "text": "Ação imediata: acesse o aplicativo FGTS (Caixa) e verifique seu saldo atual. Muitas pessoas ficam surpresas com o valor acumulado ao longo de anos de trabalho — e com a possibilidade de usar esse recurso estrategicamente. Se você tem financiamento imobiliário, calcule se vale usar o FGTS para amortização: cada real usado para reduzir o saldo devedor de um financiamento de 9% ao ano 'rende' 9% — muito mais que os 3% do FGTS."
+        },
+        {
+          "type": "reflection",
+          "text": "Você sabe qual é o saldo atual do seu FGTS? Você tem financiamento imobiliário ativo — e já calculou quanto economizaria em juros usando o FGTS para amortização?"
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Por que usar o FGTS para amortizar um financiamento imobiliário de 9% ao ano pode ser uma decisão financeiramente inteligente?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Porque o FGTS tem rendimento muito alto — acima de 10% ao ano — e resgatá-lo para amortizar gera lucro imediato.",
+          "correct": false,
+          "feedback": "O FGTS rende apenas 3% ao ano + TR, que frequentemente resulta em rendimento real abaixo da inflação. O argumento para usá-lo na amortização não é que ele rende muito — é exatamente o oposto."
+        },
+        {
+          "id": "b",
+          "text": "Porque cada real do FGTS usado para reduzir a dívida do financiamento 'rende' 9% ao ano (equivalente à taxa do financiamento) — muito mais do que os 3% que renderia no fundo.",
+          "correct": true,
+          "feedback": "Correto. Amortizar uma dívida é equivalente a um investimento com retorno garantido igual à taxa dessa dívida. Tirar dinheiro do FGTS (rendendo 3% ao ano) para abater um financiamento de 9% ao ano é uma troca com retorno líquido de 6 pontos percentuais ao ano — garantidos e sem risco."
+        },
+        {
+          "id": "c",
+          "text": "Porque ao usar o FGTS para amortizar o financiamento, o banco é obrigado a reduzir a taxa de juros restante.",
+          "correct": false,
+          "feedback": "A amortização via FGTS reduz o saldo devedor — o que reduz os juros cobrados sobre esse saldo. Mas a taxa contratual em si não muda. O benefício é a redução do montante sobre o qual os juros incidem, não da taxa aplicada."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_est_03",
+    "profile": "estabilizado",
+    "order": 20,
+    "title": "13° salário: como não desperdiçar o maior extra do ano",
+    "subtitle": "Três estratégias para usar o 13° antes que a contabilidade mental o consuma",
+    "category": "planejamento",
+    "estimatedMinutes": 7,
+    "sourceRef": "Richard Thaler — Misbehaving; Dan Ariely — Previsivelmente Irracional; Nathalia Arcuri — Me Poupe!",
+    "content": {
+      "hook": "O 13° salário é o maior 'bônus' anual da maioria dos trabalhadores brasileiros. É também o dinheiro mais desperdiçado do ano — porque chega em dezembro, quando o consumo está no pico, e é tratado como 'dinheiro extra' em vez do que realmente é: um mês de trabalho que você já fez.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "O 13° não é dinheiro extra — é remuneração diferida. Você trabalhou para ganhá-lo ao longo de 12 meses; ele simplesmente foi retido e liberado no final do ano. A contabilidade mental faz o cérebro processar o 13° como 'brinde inesperado' em vez de 'salário que estava guardado' — e isso muda completamente o comportamento. Dinheiro percebido como extra tem, comprovadamente, uma taxa de poupança menor e uma taxa de gasto em itens supérfluos maior do que a mesma quantia do salário regular."
+        },
+        {
+          "type": "insight",
+          "text": "O contexto de dezembro amplifica o problema: festas, presentes, viagens, promoções de fim de ano. O ambiente inteiro está calibrado para ativar o Sistema 1 e converter o 13° em consumo antes que o Sistema 2 faça qualquer avaliação. A soma da contabilidade mental ('é dinheiro extra') com o contexto sazonal ('é época de gastar') cria a condição perfeita para que o maior extra do ano desapareça sem deixar rastro no patrimônio."
+        },
+        {
+          "type": "practical",
+          "text": "Três estratégias para usar o 13° antes de recebê-lo — literalmente planejar em outubro o que você vai fazer em dezembro: (1) Quitação de dívida — prioridade máxima se houver qualquer dívida de custo acima de 3% ao mês; (2) Provisão anual — calcule o total dos gastos sazonais do próximo ano (IPVA, IPTU, material escolar, seguro) e separe esse valor imediatamente; (3) Reserva ou investimento — qualquer valor restante vai direto para a reserva de emergência ou para o investimento recorrente, no dia do recebimento, antes de qualquer gasto de dezembro. A regra é simples: o dinheiro que sai da conta no dia em que entra não pode ser 'consumido pela euforia de dezembro'."
+        },
+        {
+          "type": "reframe",
+          "text": "Tratar o 13° como salário — e não como bônus — é o antídoto para a contabilidade mental. Pergunte-se: 'Se esse fosse o meu salário de fevereiro, o que eu faria com ele?' A resposta honesta é o que você deveria fazer com o 13°."
+        },
+        {
+          "type": "reflection",
+          "text": "O que você fez com o último 13° que recebeu? Se fizer o exercício honesto de listar os gastos, quanto foi para dívidas ou investimentos — e quanto foi para consumo que já não lembra mais?"
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Por que o 13° salário costuma ser mais desperdiçado do que o salário regular — mesmo sendo a mesma quantia de dinheiro?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Porque o governo desconta mais imposto do 13° do que do salário regular.",
+          "correct": false,
+          "feedback": "O 13° tem incidência de IR como qualquer outra remuneração — não é proporcionalmente mais tributado. O problema não é fiscal, é comportamental."
+        },
+        {
+          "id": "b",
+          "text": "Porque a contabilidade mental o classifica como 'dinheiro extra', reduzindo a percepção de custo ao gastá-lo — combinada com o contexto de alto consumo de dezembro.",
+          "correct": true,
+          "feedback": "Exato. A mesma quantia de dinheiro é gerenciada de forma diferente dependendo de como o cérebro a classifica. 'Salário' ativa mais critério; 'bônus' ou 'extra' ativa menos. Thaler documentou esse padrão repetidamente: dinheiro de origem percebida como 'extra' tem taxa de poupança sistematicamente menor."
+        },
+        {
+          "id": "c",
+          "text": "Porque dezembro tem mais dias úteis para fazer compras.",
+          "correct": false,
+          "feedback": "O número de dias úteis não é o fator relevante. O que importa é o contexto emocional e social de dezembro — festas, presentes, promoções — que amplifica o efeito da contabilidade mental."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_est_04",
+    "profile": "estabilizado",
+    "order": 21,
+    "title": "Cartão de crédito consciente: cashback, milhas e o ciclo que trabalha para você",
+    "subtitle": "Como quem pagou o rotativo pode agora usar o cartão a seu favor",
+    "category": "crédito",
+    "estimatedMinutes": 7,
+    "sourceRef": "Ramit Sethi — Como Ficar Rico",
+    "content": {
+      "hook": "Existe um grupo de pessoas que usa cartão de crédito todos os meses, nunca paga um centavo de juros, acumula milhas para viagens, recebe cashback por compras que faria de qualquer forma — e o banco paga a conta. Esse grupo faz exatamente uma coisa diferente: paga 100% da fatura sem exceção.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "Para quem está estabilizado e paga o total da fatura todo mês, o cartão de crédito pode gerar retorno real. Existem três principais modalidades de benefício: cashback (percentual do valor gasto devolvido em dinheiro — tipicamente 0,5% a 1,5% das compras), milhas (pontos convertíveis em passagens aéreas e upgrades — valor variável conforme o programa), e proteção ao consumidor (contestação de cobranças indevidas, seguro de compra, garantia estendida). O critério de escolha do cartão deve ser baseado nesses benefícios — e nunca na anuidade não negociada."
+        },
+        {
+          "type": "insight",
+          "text": "O modelo de negócio funciona porque os bancos ganham muito de quem paga juros — e podem subsidiar quem não paga. As taxas de intercâmbio cobradas dos estabelecimentos comerciais em cada transação (entre 1% e 3%) financiam os programas de cashback e milhas. Quem paga o total da fatura usa esse sistema a seu favor; quem paga juros financia o benefício dos outros."
+        },
+        {
+          "type": "practical",
+          "text": "Como escolher e usar: (1) compare as opções de cartão com base no retorno de cashback ou na geração de milhas para destinos que você realmente usa — não na promessa de benefícios que nunca vai utilizar; (2) concentre os gastos em um ou dois cartões para maximizar o acúmulo; (3) negocie ou cancele a anuidade anualmente (pílula est_10 mostrou como); (4) configure o pagamento automático do total da fatura; (5) nunca parcele nada no cartão com juros — parcelamento sem juros real é útil; parcelamento com juros embutidos anula qualquer benefício acumulado. Uma regra de ouro: se em algum mês você não tiver o total na conta, use débito em vez de crédito — sem exceções."
+        },
+        {
+          "type": "reframe",
+          "text": "O cartão não é problema nem solução — é um espelho do seu comportamento financeiro. Na mão de quem tem disciplina de pagamento, é uma ferramenta de retorno. Na mão de quem não tem, é o produto mais caro do mercado."
+        },
+        {
+          "type": "reflection",
+          "text": "Você tem hoje algum benefício de cashback ou milhas acumulado sem usar? Sabe qual é o retorno efetivo do seu cartão atual em percentual sobre os gastos? Se não, você pode estar deixando dinheiro na mesa — ou usando o cartão errado."
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Como o sistema de cashback e milhas dos cartões de crédito é financiado pelos bancos?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Pelos juros pagos por quem usa o crédito rotativo e não paga o total da fatura.",
+          "correct": true,
+          "feedback": "Exato. Os bancos ganham muito com quem paga juros — e usam parte desse lucro para subsidiar os benefícios de quem paga o total. Quem paga juros está essencialmente financiando o cashback e as milhas de quem não paga. É um sistema de redistribuição involuntário que vai na direção de quem tem disciplina financeira."
+        },
+        {
+          "id": "b",
+          "text": "Pelo governo, como incentivo ao uso de meios de pagamento eletrônicos.",
+          "correct": false,
+          "feedback": "Não há subsídio governamental para programas de cashback e milhas de cartões privados. O financiamento vem das taxas de intercâmbio cobradas dos estabelecimentos e dos juros pagos pelos usuários do rotativo."
+        },
+        {
+          "id": "c",
+          "text": "Pelos estabelecimentos comerciais que pagam taxas por aceitar o cartão, mas sem relação com quem paga juros.",
+          "correct": false,
+          "feedback": "As taxas dos estabelecimentos (intercâmbio) contribuem para o financiamento, mas não são a fonte principal dos programas premium. Os maiores lucros dos emissores de cartão vêm dos juros do rotativo — e é esse lucro que permite benefícios generosos para quem paga em dia."
         }
       ]
     }
@@ -2926,6 +3390,296 @@
     }
   },
   {
+    "id": "con_new01",
+    "profile": "em_construcao",
+    "order": 20,
+    "title": "Previdência privada: quando vale — e quando é armadilha",
+    "subtitle": "Como avaliar PGBL e VGBL sem depender do que o banco te diz",
+    "category": "produto",
+    "estimatedMinutes": 9,
+    "sourceRef": "Ramit Sethi — Como Ficar Rico; Thiago Nigro — Do Mil ao Milhão",
+    "content": {
+      "hook": "Previdência privada é frequentemente vendida como 'o investimento certo para o futuro'. A verdade é mais nuançada: pode ser excelente ou péssima dependendo de três variáveis que o gerente raramente menciona.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "Existem dois tipos principais de previdência privada no Brasil. O PGBL (Plano Gerador de Benefício Livre) permite deduzir os aportes do Imposto de Renda até 12% da renda bruta anual — mas o imposto incide sobre o total resgatado (principal + rendimentos) no futuro. É indicado para quem declara IR no modelo completo. O VGBL (Vida Gerador de Benefício Livre) não permite dedução de IR na entrada, mas no resgate o imposto incide apenas sobre os rendimentos — não sobre o principal. É indicado para quem declara pelo simplificado ou como complemento após o limite do PGBL."
+        },
+        {
+          "type": "insight",
+          "text": "O problema não está no produto — está nas taxas. Há dois custos que precisam ser avaliados: a taxa de carregamento (cobrada em cada aporte, podendo chegar a 3-5%) e a taxa de administração anual (cobrada sobre o saldo total). Uma previdência com 1% de carregamento + 2,5% de administração ao ano tem custo total que pode superar 3,5% ao ano — comparando com um ETF de 0,2% ao ano, a diferença em 20 anos pode representar 40-50% do patrimônio final. Bancos tradicionais frequentemente oferecem produtos com taxas muito acima do razoável."
+        },
+        {
+          "type": "practical",
+          "text": "Como avaliar se a previdência privada faz sentido para você: (1) Você declara IR no modelo completo? Se não, o PGBL não tem vantagem fiscal. (2) Qual é a taxa de administração? Acima de 1% ao ano para produtos conservadores, questione. (3) Há taxa de carregamento? Se sim, negocie zero ou procure outro produto. (4) Qual o prazo de carência para resgate? Se for longo, considere o custo de liquidez. (5) Compare com alternativas: Tesouro IPCA+, CDB de longo prazo ou ETFs de baixo custo. A previdência só faz sentido quando a vantagem fiscal supera a desvantagem das taxas."
+        },
+        {
+          "type": "reframe",
+          "text": "Previdência privada não é investimento de aposentadoria por natureza — é um veículo com tratamento tributário específico. A qualidade do investimento dentro dela depende inteiramente das taxas e do gestor. Um bom produto existe; o problema é que raramente é o que o gerente do banco empurra primeiro."
+        },
+        {
+          "type": "reflection",
+          "text": "Se você tem previdência privada hoje, você sabe a taxa de administração anual e se há taxa de carregamento? Esses dois números determinam se o produto está trabalhando para você ou para o banco."
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Para quem o PGBL é especialmente vantajoso — e por quê?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Para qualquer pessoa que queira guardar dinheiro para a aposentadoria, independentemente da situação tributária.",
+          "correct": false,
+          "feedback": "A vantagem exclusiva do PGBL é fiscal: a dedução de até 12% da renda bruta anual no IR. Quem declara pelo modelo simplificado não tem essa vantagem — e paga IR sobre o total resgatado (principal + rendimentos). Para esse perfil, o VGBL é mais adequado."
+        },
+        {
+          "id": "b",
+          "text": "Para quem declara IR no modelo completo e paga alíquotas mais altas — a dedução anual gera economia real de imposto que compensa o produto.",
+          "correct": true,
+          "feedback": "Correto. O PGBL reduz a base de cálculo do IR no presente em até 12% da renda bruta. Para alguém com alíquota de 27,5%, cada R$ 1.000 aportado no PGBL gera R$ 275 de imposto economizado agora — que fica investido gerando rendimento até o resgate."
+        },
+        {
+          "id": "c",
+          "text": "Para quem quer garantir um rendimento fixo e previsível para a aposentadoria.",
+          "correct": false,
+          "feedback": "A previdência privada não garante rendimento fixo — isso depende do portfólio dentro do plano. Alguns planos são conservadores (renda fixa), outros são arrojados (ações). A vantagem do PGBL é tributária, não de rendimento garantido."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_con_01",
+    "profile": "em_construcao",
+    "order": 21,
+    "title": "O número da independência financeira: quanto você realmente precisa?",
+    "subtitle": "A regra dos 4% e como calcular o seu ponto de cruzamento",
+    "category": "planejamento",
+    "estimatedMinutes": 9,
+    "sourceRef": "Vicki Robin & Joe Dominguez — Your Money or Your Life; Morgan Housel — A Psicologia Financeira",
+    "content": {
+      "hook": "Você está construindo patrimônio há meses ou anos. Mas sabe qual é o número final? Não um número redondo qualquer — o número específico que, uma vez atingido, significa que você nunca mais precisa trabalhar por necessidade financeira se não quiser?",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "A regra dos 4% (também chamada de regra de retirada segura) é o resultado de um estudo clássico de finanças pessoais chamado Trinity Study. A conclusão: um portfólio diversificado historicamente sustenta uma retirada anual de 4% do valor total por décadas sem se esgotar — mesmo considerando inflação e anos ruins de mercado. Isso significa: para saber quanto você precisa acumular, multiplique suas despesas anuais por 25. Se você precisa de R$ 5.000 por mês (R$ 60.000 por ano), o número da independência financeira é R$ 1.500.000."
+        },
+        {
+          "type": "insight",
+          "text": "Vicki Robin e Joe Dominguez chamam de 'Ponto de Cruzamento' o momento em que a renda dos seus investimentos supera as suas despesas mensais. Antes do ponto de cruzamento, você depende do trabalho para sobreviver. Após o ponto de cruzamento, o trabalho vira escolha. O mais revelador da metodologia deles: reduzir as despesas mensais tem duplo efeito — você precisa de menos renda passiva (numerador menor) e chega ao ponto de cruzamento mais rápido porque sobra mais para investir (acumulação mais rápida)."
+        },
+        {
+          "type": "practical",
+          "text": "Calcule seu número agora: (1) some todas as suas despesas mensais atuais; (2) multiplique por 12 para ter o valor anual; (3) multiplique por 25 — esse é o patrimônio necessário pela regra dos 4%. Exemplo: R$ 6.000/mês × 12 = R$ 72.000/ano × 25 = R$ 1.800.000. (4) divida esse número pelo quanto você consegue investir por mês — o resultado é o número de meses para chegar lá em ritmo de acumulação pura, sem contar os rendimentos. Com os rendimentos compostos, o tempo real é menor. Use uma calculadora de independência financeira online para a simulação completa."
+        },
+        {
+          "type": "reframe",
+          "text": "A independência financeira não é um sonho vago — é um problema de matemática com uma solução calculável. Saber o número transforma 'quero ser rico algum dia' em 'preciso de R$ X e estou a Y anos de lá'. Esse é o momento em que o patrimônio deixa de ser abstrato e vira um projeto com prazo."
+        },
+        {
+          "type": "reflection",
+          "text": "Qual é o seu número? Calcule agora. E qual é a distância entre onde você está hoje e esse número — em anos, ao seu ritmo atual de investimento?"
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Pela regra dos 4%, qual o patrimônio necessário para uma pessoa com despesas de R$ 8.000 por mês atingir independência financeira?",
+      "options": [
+        {
+          "id": "a",
+          "text": "R$ 1.200.000 — R$ 8.000 × 150 meses (12,5 anos de despesas).",
+          "correct": false,
+          "feedback": "O multiplicador da regra dos 4% é 25 vezes as despesas anuais — não mensais. R$ 8.000/mês = R$ 96.000/ano × 25 = R$ 2.400.000. O número de R$ 1.200.000 seria insuficiente para sustentar as retiradas necessárias no longo prazo."
+        },
+        {
+          "id": "b",
+          "text": "R$ 2.400.000 — R$ 8.000 × 12 meses = R$ 96.000/ano × 25 = R$ 2.400.000.",
+          "correct": true,
+          "feedback": "Correto. A regra dos 4% diz que um portfólio suporta retirada anual de 4% do total — o que é equivalente a ter 25 vezes as despesas anuais investidas. Com R$ 2.400.000, os 4% de retirada anual cobrem exatamente os R$ 96.000 de despesas — com histórico de sustentabilidade por décadas."
+        },
+        {
+          "id": "c",
+          "text": "R$ 960.000 — R$ 8.000 × 120 meses (10 anos de despesas guardadas).",
+          "correct": false,
+          "feedback": "10 anos de despesas é uma reserva robusta, mas não garante independência financeira permanente — porque não considera que o patrimônio precisa gerar renda enquanto você vive por mais décadas. A regra dos 4% garante que o portfólio se sustente indefinidamente, não apenas por 10 anos."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_con_02",
+    "profile": "em_construcao",
+    "order": 22,
+    "title": "FIIs: sua introdução à renda passiva mensal",
+    "subtitle": "Como se tornar 'dono' de shoppings e galpões com R$ 100",
+    "category": "produto",
+    "estimatedMinutes": 8,
+    "sourceRef": "Thiago Nigro — Do Mil ao Milhão; Robert Kiyosaki — Pai Rico Pai Pobre",
+    "content": {
+      "hook": "Imagina receber aluguel todo mês sem ter comprado um imóvel, sem lidar com inquilino, sem pagar IPTU e sem risco de vacância total — investindo a partir de R$ 100. Isso existe no Brasil e chama FII.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "Fundos de Investimento Imobiliário (FIIs) são fundos que possuem imóveis reais — shoppings, galpões logísticos, lajes corporativas, hospitais, agências bancárias — e distribuem mensalmente a renda dos aluguéis para os cotistas. Ao comprar uma cota de FII na bolsa, você se torna proprietário de uma fração desses imóveis e passa a receber sua parte proporcional dos aluguéis todos os meses, direto na conta da corretora. Rendimentos de FIIs são isentos de Imposto de Renda para pessoas físicas — desde que o fundo tenha mais de 50 cotistas e as cotas sejam negociadas em bolsa."
+        },
+        {
+          "type": "insight",
+          "text": "A vantagem dos FIIs em relação ao imóvel físico é a acessibilidade e a liquidez. Um imóvel residencial de R$ 400.000 gera talvez R$ 1.600 de aluguel por mês (0,4% ao mês), exige gestão ativa, tem risco de vacância, custa IPTU e manutenção, e leva meses para ser vendido se necessário. Um FII com R$ 10.000 investidos pode gerar R$ 60 a R$ 80 de rendimento por mês (0,6% a 0,8%), pode ser vendido em segundos na bolsa, e não exige nenhuma gestão. A liquidez e o rendimento relativo frequentemente favorecem os FIIs."
+        },
+        {
+          "type": "practical",
+          "text": "Por onde começar: (1) na sua corretora, pesquise FIIs de alta liquidez — o IFIX é o índice dos principais fundos imobiliários do Brasil; (2) avalie o dividend yield (rendimento distribuído nos últimos 12 meses / preço atual) — uma referência razoável está entre 8% e 12% ao ano; (3) verifique a vacância (percentual de imóveis desocupados) — quanto menor, mais estável o rendimento; (4) diversifique entre pelo menos 3 tipos: tijolo (imóveis físicos), papel (recebíveis imobiliários) e logística/galpões. Aportes mensais em FIIs de qualidade acumulam um fluxo de renda passiva crescente ao longo dos anos."
+        },
+        {
+          "type": "reframe",
+          "text": "FIIs não são especulação — são ativos geradores de caixa. A volatilidade do preço da cota existe, mas o que importa para o investidor de longo prazo é o fluxo de rendimentos, não o preço do dia. Quedas no preço com manutenção dos rendimentos são oportunidades de comprar mais cotas pelo mesmo dividendo."
+        },
+        {
+          "type": "reflection",
+          "text": "Se você investisse R$ 500 por mês em FIIs com rendimento médio de 0,7% ao mês, em 10 anos teria acumulado capital suficiente para gerar quanto de renda passiva por mês? Faça o cálculo — e veja em quanto tempo o fluxo de renda passiva se tornaria significativo na sua vida."
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Qual é a principal vantagem tributária dos FIIs para investidores pessoas físicas no Brasil?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Isenção total de qualquer imposto — tanto na distribuição de rendimentos quanto no ganho de capital na venda das cotas.",
+          "correct": false,
+          "feedback": "A isenção se aplica apenas aos rendimentos distribuídos mensalmente (aluguéis). O ganho de capital na venda das cotas é tributado em 20%, assim como em ações. A isenção parcial já é muito relevante — mas não é total."
+        },
+        {
+          "id": "b",
+          "text": "Os rendimentos distribuídos mensalmente (aluguéis) são isentos de Imposto de Renda para pessoas físicas — desde que atendidas as condições regulatórias.",
+          "correct": true,
+          "feedback": "Correto. A isenção dos rendimentos distribuídos é o grande diferencial tributário dos FIIs. Enquanto um CDB ou ação paga IR sobre os rendimentos (de 15% a 22,5%), os dividendos de FIIs chegam integrais à conta do investidor pessoa física."
+        },
+        {
+          "id": "c",
+          "text": "FIIs são isentos de IR e também de IOF em qualquer resgate, independentemente do prazo.",
+          "correct": false,
+          "feedback": "IOF incide sobre resgates de curto prazo em alguns produtos, mas não é a principal característica tributária dos FIIs. O diferencial real é a isenção de IR sobre os rendimentos distribuídos — não a isenção de IOF."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_con_03",
+    "profile": "em_construcao",
+    "order": 23,
+    "title": "Tesouro Direto: Selic, IPCA+ e Prefixado — qual escolher e quando",
+    "subtitle": "Entendendo os três tipos e os riscos que ninguém menciona",
+    "category": "produto",
+    "estimatedMinutes": 9,
+    "sourceRef": "Thiago Nigro — Do Mil ao Milhão; Nathalia Arcuri — Me Poupe!",
+    "content": {
+      "hook": "Tesouro Direto é o investimento mais recomendado do Brasil — e o menos compreendido em profundidade. Existem três tipos radicalmente diferentes, e escolher o errado para o objetivo errado pode resultar em prejuízo mesmo num investimento 'seguro'.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "Tesouro Selic: rende a taxa básica de juros do país (Selic), com liquidez diária e sem risco de marcação a mercado. É o produto ideal para reserva de emergência e dinheiro que pode precisar ser resgatado a qualquer momento. Nunca perde valor nominal. Rendimento: acompanha a Selic diariamente."
+        },
+        {
+          "type": "explanation",
+          "text": "Tesouro IPCA+: paga inflação (IPCA) mais uma taxa prefixada (ex: IPCA + 6% ao ano). Garante ganho real acima da inflação — ideal para objetivos de longo prazo como aposentadoria. Tem marcação a mercado: o preço oscila diariamente conforme as expectativas de juros futuros. Se você resgatar antes do vencimento, pode receber mais ou menos do que investiu — dependendo do momento. Se mantiver até o vencimento, recebe exatamente o combinado."
+        },
+        {
+          "type": "explanation",
+          "text": "Tesouro Prefixado: taxa fixa acordada no momento da compra (ex: 13% ao ano). Você sabe exatamente quanto vai receber no vencimento. Tem marcação a mercado como o IPCA+: resgate antecipado pode gerar ganho ou perda. Risco: se a inflação superar a taxa prefixada, o retorno real pode ser negativo. Ideal para quem acredita que os juros vão cair e quer travar a taxa atual."
+        },
+        {
+          "type": "practical",
+          "text": "Guia de escolha por objetivo: reserva de emergência e liquidez → Tesouro Selic exclusivamente. Objetivo de longo prazo (10+ anos, aposentadoria) → Tesouro IPCA+ com vencimento próximo ao horizonte. Objetivo de médio prazo com expectativa de queda de juros → Tesouro Prefixado com cautela. Regra de ouro: nunca aplique em IPCA+ ou Prefixado dinheiro que você pode precisar resgatar antes do vencimento — o risco de marcação a mercado pode gerar perda nominal em momentos de alta de juros."
+        },
+        {
+          "type": "reflection",
+          "text": "Você tem hoje algum Tesouro IPCA+ ou Prefixado com prazo de vencimento bem mais longo do que seu horizonte de necessidade? Se sim, você pode estar correndo o risco de marcação a mercado sem saber."
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Por que o Tesouro IPCA+ pode gerar perda se resgatado antes do vencimento, mesmo sendo considerado investimento seguro?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Porque o Tesouro IPCA+ tem taxa de administração alta que consome o rendimento.",
+          "correct": false,
+          "feedback": "A taxa de custódia do Tesouro Direto (0,2% ao ano pela B3) é uma das menores do mercado. A causa de eventual perda antes do vencimento não é taxa — é a marcação a mercado."
+        },
+        {
+          "id": "b",
+          "text": "Porque o preço do título oscila conforme as expectativas de juros futuros — se as taxas subirem, o preço cai, e quem vende antes do vencimento pode receber menos do que investiu.",
+          "correct": true,
+          "feedback": "Exato. Isso se chama marcação a mercado: o valor do título hoje reflete o que o mercado pagaria por ele agora, não o valor combinado no vencimento. Quando os juros futuros esperados sobem, o preço dos títulos existentes cai — porque quem quer comprar prefere os novos com taxas mais altas. Quem aguarda o vencimento recebe exatamente o combinado, sem surpresas."
+        },
+        {
+          "id": "c",
+          "text": "Porque o IPCA medido pode ser menor do que o esperado, reduzindo o rendimento total.",
+          "correct": false,
+          "feedback": "Um IPCA mais baixo do que o esperado reduziria o componente de inflação do rendimento — mas o título ainda pagaria a taxa real combinada (ex: IPCA + 6%). A causa de perda antes do vencimento é a marcação a mercado — não a variação do IPCA."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_con_04",
+    "profile": "em_construcao",
+    "order": 24,
+    "title": "Criptomoedas: o que são, o que não são — e como pensar sobre elas",
+    "subtitle": "Uma análise comportamental de um ativo sem cobertura na nossa base bibliográfica",
+    "category": "conceito",
+    "estimatedMinutes": 8,
+    "sourceRef": "Daniel Kahneman — Rápido e Devagar; Dan Ariely — Previsivelmente Irracional; MJ DeMarco — The Millionaire Fastlane",
+    "content": {
+      "hook": "Nota importante: nenhum dos 14 livros desta base trata de criptomoedas. Esta pílula não recomenda nem desencoraja o investimento em cripto — aborda o tema pela lente do comportamento financeiro: por que as pessoas compram cripto, o que os vieses cognitivos fazem com as decisões nesse mercado, e quais perguntas você deve ser capaz de responder antes de alocar qualquer capital.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "Criptomoedas são ativos digitais baseados em tecnologia de registro distribuído (blockchain). Bitcoin foi o primeiro e é o mais estabelecido. Existem milhares de outros tokens com propostas e fundamentals muito diferentes entre si. Do ponto de vista financeiro, cripto representa uma classe de ativo altamente volátil, sem histórico longo o suficiente para análise estatística robusta, sem fluxo de caixa intrínseco na maioria dos casos, e com regulação ainda em desenvolvimento em quase todos os países."
+        },
+        {
+          "type": "insight",
+          "text": "O que a psicologia comportamental documenta sobre cripto é revelador: o mercado concentra quase todos os vieses cognitivos estudados por Kahneman e Ariely ao mesmo tempo. FOMO (Fear Of Missing Out) — comprar porque todos estão comprando e você vai 'perder'. Efeito manada — o preço sobe porque sobe, não por fundamento. Viés de confirmação — só consumir informação que valida a tese de que vai subir mais. Aversão à perda — não vender quando cai porque 'vai voltar'. Ancoragem — comparar o preço atual com o máximo histórico e achar que está 'barato'."
+        },
+        {
+          "type": "practical",
+          "text": "As perguntas que qualquer investidor racional deve responder antes de alocar capital em cripto: (1) Qual é o caso de uso real desse ativo — ele resolve um problema que não seria resolvido de outra forma? (2) Você entende o mecanismo técnico suficientemente para explicar como funciona em uma frase? (3) Você está comprando porque acredita no valor de longo prazo — ou porque o preço subiu e você quer entrar? (4) Quanto você pode perder desse valor sem que isso afete seu orçamento, sua reserva ou seu sono? Se não consegue responder as quatro, a alocação em cripto é especulação — não investimento."
+        },
+        {
+          "type": "reframe",
+          "text": "Cripto pode ser parte de uma carteira bem estruturada — como uma posição especulativa de tamanho controlado, assumida conscientemente e dentro de um portfólio que já tem os fundamentos em ordem (reserva, dívidas quitadas, investimentos diversificados). O que a história dos mercados mostra é que a maioria das pessoas compra perto do topo, em euforia, e vende no fundo, em pânico — exatamente como descrevem Kahneman e Ariely. Cripto amplifica esse padrão pela volatilidade extrema."
+        },
+        {
+          "type": "reflection",
+          "text": "Se você já investiu ou cogita investir em cripto: essa decisão vem de análise do ativo — ou do medo de ficar de fora quando todos ao redor parecem estar ganhando dinheiro? A honestidade com essa pergunta vale mais do que qualquer análise técnica."
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Do ponto de vista do comportamento financeiro, qual é o maior risco específico do mercado de criptomoedas?",
+      "options": [
+        {
+          "id": "a",
+          "text": "A tributação elevada sobre os ganhos, que reduz o retorno líquido.",
+          "correct": false,
+          "feedback": "A tributação de cripto no Brasil (15% sobre ganhos acima de R$ 35.000/mês) é um custo real, mas não é o maior risco comportamental. O principal risco é muito mais fundamental: as decisões de compra e venda serem guiadas por emoção, euforia e FOMO — não por análise."
+        },
+        {
+          "id": "b",
+          "text": "A concentração de todos os principais vieses cognitivos — FOMO, efeito manada, aversão à perda e ancoragem — num ativo de volatilidade extrema, levando a compras no topo e vendas no fundo.",
+          "correct": true,
+          "feedback": "Exato. Kahneman e Ariely documentaram esses vieses em todos os mercados financeiros — mas cripto os amplifica pela volatilidade, pela narrativa de enriquecimento rápido e pelo ambiente de redes sociais. O resultado histórico documentado: a maioria dos participantes de varejo perde dinheiro em cripto — não porque o ativo não valoriza, mas porque compra tarde e vende cedo por emoção."
+        },
+        {
+          "id": "c",
+          "text": "A possibilidade técnica de hackers roubarem os ativos das exchanges.",
+          "correct": false,
+          "feedback": "Segurança de custódia é um risco operacional real que deve ser gerenciado (custódia própria vs. exchange, escolha de plataformas reguladas). Mas o maior risco para a maioria dos investidores não é técnico — é comportamental: tomar decisões ruins baseadas em emoção e vieses cognitivos."
+        }
+      ]
+    }
+  },
+  {
     "id": "liv_01",
     "profile": "livre",
     "order": 1,
@@ -3756,180 +4510,6 @@
     }
   },
   {
-    "id": "rec_new01",
-    "profile": "em_recuperacao",
-    "order": 19,
-    "title": "A matemática que os bancos esperam que você nunca faça",
-    "subtitle": "O que acontece com uma dívida de R$ 5.000 sem pagamento por um ano",
-    "category": "dívidas",
-    "estimatedMinutes": 7,
-    "sourceRef": "Ramit Sethi — Como Ficar Rico; Thiago Nigro — Do Mil ao Milhão",
-    "content": {
-      "hook": "R$ 5.000 no rotativo do cartão a 12% ao mês. Sem nenhum pagamento. Após 12 meses: R$ 17.449. Após 24 meses: R$ 60.879. Você jamais pagaria R$ 60.000 por algo que custou R$ 5.000 — mas é exatamente o que acontece se você só paga o mínimo.",
-      "sections": [
-        {
-          "type": "explanation",
-          "text": "A matemática dos juros compostos nas dívidas é implacável. Uma dívida de R$ 5.000 no rotativo do cartão a 12% ao mês (taxa comum no Brasil) cresce da seguinte forma: em 6 meses vira R$ 9.869; em 12 meses R$ 17.449; em 18 meses R$ 30.817; em 24 meses R$ 54.449. O valor original foi R$ 5.000. Os juros acumulados em 2 anos: R$ 49.449. Esse é o motivo pelo qual a eliminação das dívidas de alto custo precisa ser a prioridade absoluta antes de qualquer investimento."
-        },
-        {
-          "type": "insight",
-          "text": "O pagamento mínimo do cartão foi projetado pelos bancos para maximizar o tempo que você permanece devedor — e portanto o total de juros que você paga. Um pagamento mínimo de 5% do saldo sobre R$ 5.000 cobre R$ 250 por mês. Os juros de 12% ao mês sobre R$ 5.000 são R$ 600. Isso significa que mesmo pagando o mínimo, sua dívida cresce R$ 350 por mês. Você paga e a dívida aumenta — indefinidamente, até você pagar mais do que os juros gerados."
-        },
-        {
-          "type": "practical",
-          "text": "Ação imediata: para cada dívida rotativa que você tem, calcule o juro mensal (saldo × taxa/100). Compare com o pagamento mínimo. Se o mínimo for menor que o juro, essa dívida está crescendo mesmo com pagamento. Ela é prioridade absoluta — qualquer recurso extra disponível vai direto para ela. Não existe investimento de baixo risco que compense pagar essa dívida mais devagar."
-        },
-        {
-          "type": "reframe",
-          "text": "Quitar uma dívida de 12% ao mês não é 'perder dinheiro que poderia estar investido'. É o investimento com maior retorno garantido disponível — 12% ao mês, sem risco, imediatamente. Nenhum produto financeiro acessível ao público geral chega perto disso."
-        },
-        {
-          "type": "reflection",
-          "text": "Você sabe o juro mensal exato que está pagando em cada dívida — não a parcela, mas a taxa percentual ao mês? Se não sabe, esse é o número que você precisa descobrir hoje."
-        }
-      ]
-    },
-    "quiz": {
-      "question": "Uma dívida de R$ 3.000 no rotativo do cartão tem taxa de 10% ao mês. O pagamento mínimo é R$ 150 (5% do saldo). O que acontece com o saldo devedor?",
-      "options": [
-        {
-          "id": "a",
-          "text": "Diminui lentamente, porque você está pagando o mínimo todo mês.",
-          "correct": false,
-          "feedback": "Os juros mensais são R$ 300 (10% de R$ 3.000). O pagamento mínimo é R$ 150. O saldo aumenta R$ 150 por mês — mesmo você pagando. Para parar de crescer, o pagamento mínimo precisaria ser de pelo menos R$ 300."
-        },
-        {
-          "id": "b",
-          "text": "Aumenta todo mês, porque os juros (R$ 300) são maiores do que o pagamento mínimo (R$ 150).",
-          "correct": true,
-          "feedback": "Exato. Essa é a situação mais crítica em gestão de dívidas: quando o mínimo não cobre os juros gerados, a dívida cresce indefinidamente mesmo com pagamentos regulares. É matematicamente impossível quitá-la nesse ritmo sem aumentar os aportes."
-        },
-        {
-          "id": "c",
-          "text": "Fica estável, porque o pagamento equilibra os juros cobrados.",
-          "correct": false,
-          "feedback": "Para estabilizar a dívida, o pagamento precisaria cobrir exatamente os juros gerados — R$ 300 neste caso. O mínimo de R$ 150 cobre apenas metade dos juros, fazendo o saldo crescer R$ 150 por mês."
-        }
-      ]
-    }
-  },
-  {
-    "id": "est_new01",
-    "profile": "estabilizado",
-    "order": 17,
-    "title": "O DRE pessoal: onde o seu dinheiro realmente desaparece",
-    "subtitle": "Como organizar as finanças em camadas para ver em qual etapa o problema acontece",
-    "category": "análise",
-    "estimatedMinutes": 8,
-    "sourceRef": "Lyfx — Metodologia DRE Pessoal; Ramit Sethi — Como Ficar Rico",
-    "content": {
-      "hook": "Empresas lucrativas usam um demonstrativo chamado DRE para saber, camada por camada, onde o dinheiro desaparece. Aplicar essa lógica às finanças pessoais revela algo que extrato bancário e planilha simples não mostram: em qual etapa da sua vida financeira o problema acontece.",
-      "sections": [
-        {
-          "type": "explanation",
-          "text": "O DRE pessoal organiza o fluxo financeiro em margens progressivas. Primeiro: sua Receita Total — tudo que entrou. Segundo: subtraia as despesas fixas (aluguel, condomínio, assinaturas, seguros) — o que sobra é a Margem após Fixos. Terceiro: subtraia as despesas variáveis essenciais (alimentação, transporte, farmácia) — o que sobra é a Margem Operacional. Quarto: subtraia os comprometimentos com dívidas (parcelas, rotativo, financiamentos) — o que sobra é o Resultado Operacional. Quinto: subtraia alocações intencionais e imprevistos — esse é o Resultado Líquido real do mês."
-        },
-        {
-          "type": "insight",
-          "text": "A revelação mais poderosa do DRE pessoal é a localização do problema. Uma pessoa com Margem após Fixos positiva mas Resultado Operacional negativo tem o problema no consumo variável — gastos do dia a dia. Outra com Margem Operacional positiva mas Resultado Operacional negativo tem o problema no comprometimento com dívidas — é aí que o dinheiro some. Sem essa análise em camadas, você gasta energia tentando economizar na categoria errada."
-        },
-        {
-          "type": "practical",
-          "text": "Monte seu DRE deste mês: pegue o extrato completo e categorize cada lançamento em fixo, variável essencial, comprometimento com dívida ou alocação intencional. Some cada grupo. Calcule as margens progressivas. Onde o resultado fica negativo pela primeira vez — essa é a camada onde o problema está. Essa informação direciona completamente a estratégia do próximo mês."
-        },
-        {
-          "type": "reframe",
-          "text": "Controlar finanças sem o DRE pessoal é como dirigir olhando só para o velocímetro e ignorando o nível de combustível, a temperatura do motor e o GPS. Você tem dados, mas não os dados que importam."
-        },
-        {
-          "type": "reflection",
-          "text": "Se você fosse fazer o DRE deste mês agora, em qual camada você acredita que a margem vai a zero ou fica negativa? A hipótese diz muito sobre onde você percebe o problema — e comparar com o dado real revela se a percepção está correta."
-        }
-      ]
-    },
-    "quiz": {
-      "question": "Uma pessoa tem R$ 5.000 de receita. Após fixos, restam R$ 2.800. Após variáveis, restam R$ 1.400. Após comprometimentos com dívidas, restam -R$ 200 (resultado negativo). Qual é o diagnóstico?",
-      "options": [
-        {
-          "id": "a",
-          "text": "O problema está nos gastos fixos — aluguel e assinaturas estão altos demais.",
-          "correct": false,
-          "feedback": "Os fixos consumiram R$ 2.200 de R$ 5.000 (44%) — relevante, mas não é onde o resultado ficou negativo. A Margem após Fixos ainda era positiva em R$ 2.800."
-        },
-        {
-          "id": "b",
-          "text": "O problema está no comprometimento com dívidas — que consome mais do que a margem operacional disponível.",
-          "correct": true,
-          "feedback": "Correto. O resultado ficou negativo na camada de dívidas: havia R$ 1.400 disponíveis e os comprometimentos somaram mais de R$ 1.600. A prioridade clara é reduzir o total de parcelas — o consumo variável já está dentro da capacidade, mas as dívidas superam a margem que sobra."
-        },
-        {
-          "id": "c",
-          "text": "O problema está nos gastos variáveis — alimentação e transporte estão consumindo demais.",
-          "correct": false,
-          "feedback": "Os variáveis consumiram R$ 1.400 de R$ 2.800 (50% da margem após fixos) — relevante para análise futura, mas não é onde o resultado ficou negativo. A Margem Operacional ainda estava positiva antes dos comprometimentos com dívidas."
-        }
-      ]
-    }
-  },
-  {
-    "id": "con_new01",
-    "profile": "em_construcao",
-    "order": 20,
-    "title": "Previdência privada: quando vale — e quando é armadilha",
-    "subtitle": "Como avaliar PGBL e VGBL sem depender do que o banco te diz",
-    "category": "produto",
-    "estimatedMinutes": 9,
-    "sourceRef": "Ramit Sethi — Como Ficar Rico; Thiago Nigro — Do Mil ao Milhão",
-    "content": {
-      "hook": "Previdência privada é frequentemente vendida como 'o investimento certo para o futuro'. A verdade é mais nuançada: pode ser excelente ou péssima dependendo de três variáveis que o gerente raramente menciona.",
-      "sections": [
-        {
-          "type": "explanation",
-          "text": "Existem dois tipos principais de previdência privada no Brasil. O PGBL (Plano Gerador de Benefício Livre) permite deduzir os aportes do Imposto de Renda até 12% da renda bruta anual — mas o imposto incide sobre o total resgatado (principal + rendimentos) no futuro. É indicado para quem declara IR no modelo completo. O VGBL (Vida Gerador de Benefício Livre) não permite dedução de IR na entrada, mas no resgate o imposto incide apenas sobre os rendimentos — não sobre o principal. É indicado para quem declara pelo simplificado ou como complemento após o limite do PGBL."
-        },
-        {
-          "type": "insight",
-          "text": "O problema não está no produto — está nas taxas. Há dois custos que precisam ser avaliados: a taxa de carregamento (cobrada em cada aporte, podendo chegar a 3-5%) e a taxa de administração anual (cobrada sobre o saldo total). Uma previdência com 1% de carregamento + 2,5% de administração ao ano tem custo total que pode superar 3,5% ao ano — comparando com um ETF de 0,2% ao ano, a diferença em 20 anos pode representar 40-50% do patrimônio final. Bancos tradicionais frequentemente oferecem produtos com taxas muito acima do razoável."
-        },
-        {
-          "type": "practical",
-          "text": "Como avaliar se a previdência privada faz sentido para você: (1) Você declara IR no modelo completo? Se não, o PGBL não tem vantagem fiscal. (2) Qual é a taxa de administração? Acima de 1% ao ano para produtos conservadores, questione. (3) Há taxa de carregamento? Se sim, negocie zero ou procure outro produto. (4) Qual o prazo de carência para resgate? Se for longo, considere o custo de liquidez. (5) Compare com alternativas: Tesouro IPCA+, CDB de longo prazo ou ETFs de baixo custo. A previdência só faz sentido quando a vantagem fiscal supera a desvantagem das taxas."
-        },
-        {
-          "type": "reframe",
-          "text": "Previdência privada não é investimento de aposentadoria por natureza — é um veículo com tratamento tributário específico. A qualidade do investimento dentro dela depende inteiramente das taxas e do gestor. Um bom produto existe; o problema é que raramente é o que o gerente do banco empurra primeiro."
-        },
-        {
-          "type": "reflection",
-          "text": "Se você tem previdência privada hoje, você sabe a taxa de administração anual e se há taxa de carregamento? Esses dois números determinam se o produto está trabalhando para você ou para o banco."
-        }
-      ]
-    },
-    "quiz": {
-      "question": "Para quem o PGBL é especialmente vantajoso — e por quê?",
-      "options": [
-        {
-          "id": "a",
-          "text": "Para qualquer pessoa que queira guardar dinheiro para a aposentadoria, independentemente da situação tributária.",
-          "correct": false,
-          "feedback": "A vantagem exclusiva do PGBL é fiscal: a dedução de até 12% da renda bruta anual no IR. Quem declara pelo modelo simplificado não tem essa vantagem — e paga IR sobre o total resgatado (principal + rendimentos). Para esse perfil, o VGBL é mais adequado."
-        },
-        {
-          "id": "b",
-          "text": "Para quem declara IR no modelo completo e paga alíquotas mais altas — a dedução anual gera economia real de imposto que compensa o produto.",
-          "correct": true,
-          "feedback": "Correto. O PGBL reduz a base de cálculo do IR no presente em até 12% da renda bruta. Para alguém com alíquota de 27,5%, cada R$ 1.000 aportado no PGBL gera R$ 275 de imposto economizado agora — que fica investido gerando rendimento até o resgate."
-        },
-        {
-          "id": "c",
-          "text": "Para quem quer garantir um rendimento fixo e previsível para a aposentadoria.",
-          "correct": false,
-          "feedback": "A previdência privada não garante rendimento fixo — isso depende do portfólio dentro do plano. Alguns planos são conservadores (renda fixa), outros são arrojados (ações). A vantagem do PGBL é tributária, não de rendimento garantido."
-        }
-      ]
-    }
-  },
-  {
     "id": "liv_new01",
     "profile": "livre",
     "order": 16,
@@ -3983,6 +4563,180 @@
           "text": "Porque investidores com margem de segurança pagam menos impostos sobre rendimentos.",
           "correct": false,
           "feedback": "A tributação não é afetada pela margem de segurança da carteira. O benefício é comportamental e estrutural: você nunca precisa vender ativos por necessidade de liquidez em momentos de crise — o que é onde a maior parte das perdas permanentes de patrimônio acontece."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_liv_01",
+    "profile": "livre",
+    "order": 17,
+    "title": "Dinheiro no relacionamento: o tabu que destrói casamentos e finanças",
+    "subtitle": "Como casais constroem — ou destroem — patrimônio juntos",
+    "category": "planejamento",
+    "estimatedMinutes": 8,
+    "sourceRef": "Morgan Housel — A Psicologia Financeira; Richard Thaler — Misbehaving; contexto comportamental",
+    "content": {
+      "hook": "Pesquisas consistentes apontam conflito sobre dinheiro como uma das principais causas de divórcio em todo o mundo. E a maioria dos casais nunca teve uma conversa estruturada sobre como gerenciar finanças juntos — antes de casar, de ter filhos ou de acumular patrimônio significativo.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "Cada pessoa chega a um relacionamento com seus roteiros invisíveis sobre dinheiro — crenças formadas na infância, hábitos de consumo, tolerância ao risco, relação com poupança e com dívidas. Quando dois sistemas financeiros diferentes começam a operar juntos sem comunicação explícita, os conflitos são inevitáveis. O problema não é a diferença — é a ausência de acordo sobre como lidar com ela. Casais que discutem abertamente sobre dinheiro têm relacionamentos mais duradouros e patrimônio maior do que os que evitam o tema."
+        },
+        {
+          "type": "insight",
+          "text": "Existem três modelos principais de gestão financeira a dois: (1) finanças totalmente unificadas — tudo num pool comum, todas as decisões conjuntas; (2) finanças totalmente separadas — cada um paga o que combinar, sem conta conjunta; (3) modelo híbrido — conta conjunta para despesas do lar, contas individuais para gastos pessoais. Nenhum modelo é universalmente melhor — o que importa é que ambos concordem, entendam e se sintam bem com o sistema escolhido. O pior cenário é nenhum sistema explícito, onde cada um age por suposição do que o outro quer."
+        },
+        {
+          "type": "practical",
+          "text": "Cinco conversas que todo casal deve ter antes de unir finanças: (1) Qual é a renda real de cada um — bruta, líquida, e variável? (2) Quais são as dívidas e os comprometimentos de cada um? (3) Qual é o perfil de risco de cada um — conservador, moderado, arrojado? (4) Quais são os objetivos financeiros individuais e conjuntos para os próximos 5 e 10 anos? (5) Quem vai cuidar das finanças operacionais do dia a dia — e como o outro acompanha? Essas conversas são desconfortáveis na primeira vez e se tornam naturais com prática."
+        },
+        {
+          "type": "reframe",
+          "text": "Falar sobre dinheiro no relacionamento não é falta de romantismo — é respeito. É o reconhecimento de que a vida financeira do casal tem um impacto direto e permanente na qualidade de vida de ambos, e que deixar isso no piloto automático é uma escolha com consequências reais."
+        },
+        {
+          "type": "reflection",
+          "text": "Você e seu parceiro(a) sabem a renda, as dívidas e os objetivos financeiros um do outro com precisão? Já decidiram explicitamente como as finanças funcionarão juntos — ou isso está rodando no piloto automático de suposições não ditas?"
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Qual modelo de gestão financeira a dois é recomendado como o 'correto' para casais?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Finanças totalmente unificadas — conta conjunta para tudo, sem separação individual.",
+          "correct": false,
+          "feedback": "Unificação total funciona bem para muitos casais — mas não é universalmente o melhor modelo. Depende do perfil, dos objetivos e do acordo explícito entre os dois. O que torna qualquer modelo bom não é a estrutura em si, mas a clareza e o consenso sobre como ele funciona."
+        },
+        {
+          "id": "b",
+          "text": "Não existe um modelo universalmente correto — o que importa é que ambos conheçam, concordem e se sintam bem com o sistema escolhido.",
+          "correct": true,
+          "feedback": "Exato. A pesquisa comportamental mostra que o modelo específico importa menos do que a qualidade da comunicação sobre dinheiro. Casais que concordam sobre o sistema — qualquer que seja — têm resultados financeiros e relacionais melhores do que os que não têm sistema explícito."
+        },
+        {
+          "id": "c",
+          "text": "Finanças totalmente separadas — cada um mantém independência financeira para evitar conflitos.",
+          "correct": false,
+          "feedback": "Separação total resolve alguns conflitos mas cria outros — especialmente em objetivos de longo prazo comuns (imóvel, filhos, aposentadoria) e em situações de assimetria de renda. A independência financeira individual é um valor, mas não é um sistema de gestão conjunta completo."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_liv_02",
+    "profile": "livre",
+    "order": 18,
+    "title": "Aposentadoria: quando parar — e o que acontece depois",
+    "subtitle": "A psicologia da transição do acúmulo para o usufruto",
+    "category": "planejamento",
+    "estimatedMinutes": 9,
+    "sourceRef": "Vicki Robin & Joe Dominguez — Your Money or Your Life; Morgan Housel — A Psicologia Financeira",
+    "content": {
+      "hook": "Quase todo planejamento financeiro foca em acumular para aposentadoria. Muito pouco foca na parte mais difícil: aprender a gastar o que foi acumulado. Para quem passou décadas poupando, começar a consumir o patrimônio pode ser psicologicamente mais difícil do que parecer.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "A aposentadoria — pelo patrimônio próprio, não pelo INSS — acontece quando a renda passiva gerada pelos investimentos cobre consistentemente as despesas mensais. Pela regra dos 4%, isso ocorre quando o patrimônio total é pelo menos 25 vezes as despesas anuais. O INSS representa uma renda vitalícia adicional que pode reduzir o patrimônio necessário — mas seu valor real depende da alíquota contributiva, do tempo de contribuição e da data de aposentadoria, e tende a ser corroído pela inflação ao longo do tempo."
+        },
+        {
+          "type": "insight",
+          "text": "A transição psicológica do acúmulo para o usufruto é documentada como um dos desafios mais subestimados da aposentadoria. Após décadas de comportamento de poupança, o hábito mental de 'guardar' se torna difícil de desligar. Pesquisas mostram que aposentados com patrimônio suficiente frequentemente subutilizam os recursos que acumularam — continuam economizando por hábito, sem desfrutar do que construíram. Morgan Housel descreve isso como a outra face da aversão à perda: o medo de 'acabar o dinheiro' mesmo quando os números mostram que isso não vai acontecer."
+        },
+        {
+          "type": "practical",
+          "text": "Quatro dimensões do planejamento de aposentadoria que vão além do número: (1) Propósito — com o que você vai ocupar o tempo quando não trabalhar por necessidade? Aposentados sem propósito têm índices maiores de depressão e declínio cognitivo; (2) Identidade — como você se define além do trabalho? A transição de 'o que você faz' para 'quem você é' é real e pode ser difícil; (3) Relacionamentos — o trabalho estrutura interações sociais; como você vai mantê-las e criar novas? (4) Saúde — qual é o plano de longo prazo para saúde física e mental, que afeta diretamente os custos da aposentadoria?"
+        },
+        {
+          "type": "reframe",
+          "text": "Aposentadoria não é parar de trabalhar — é parar de trabalhar por obrigação financeira. A liberdade não é a ausência de atividade: é a escolha de qual atividade vale seu tempo. Quem se aposenta sem ter desenvolvido propósito e estrutura além do trabalho frequentemente volta a trabalhar — não por necessidade, mas por falta de alternativa significativa."
+        },
+        {
+          "type": "reflection",
+          "text": "Se você parasse de trabalhar amanhã, como seriam seus dias daqui a 6 meses? Você sabe quais atividades, projetos ou relacionamentos dariam estrutura e sentido à sua rotina? Essa resposta é tão importante quanto o número no extrato."
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Por que aposentados com patrimônio suficiente frequentemente subutilizam os recursos que acumularam?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Porque os impostos sobre o resgate de investimentos são muito altos, desestimulando o saque.",
+          "correct": false,
+          "feedback": "Impostos são um custo real mas não são o fator principal documentado. O padrão de subutilização acontece mesmo quando os impostos são baixos — é um fenômeno comportamental, não fiscal."
+        },
+        {
+          "id": "b",
+          "text": "Porque décadas de hábito de poupança criam uma resistência psicológica a 'consumir o patrimônio' — mesmo quando os números mostram que é seguro fazê-lo.",
+          "correct": true,
+          "feedback": "Exato. O hábito mental de guardar se torna difícil de desligar mesmo quando a situação muda. A aversão à perda faz o aposentado superestimar o risco de 'acabar o dinheiro' — e subutilizar o que levou décadas para construir. É um dos paradoxos mais documentados da psicologia da aposentadoria."
+        },
+        {
+          "id": "c",
+          "text": "Porque a maioria dos aposentados não sabe calcular quanto pode gastar com segurança.",
+          "correct": false,
+          "feedback": "Falta de cálculo contribui, mas não é o fator principal. Mesmo aposentados que calcularam detalhadamente e sabem que têm mais do que suficiente frequentemente continuam economizando por hábito. O problema é comportamental — não de informação."
+        }
+      ]
+    }
+  },
+  {
+    "id": "dlc_liv_03",
+    "profile": "livre",
+    "order": 19,
+    "title": "Proteção patrimonial: quando o tamanho do patrimônio cria riscos novos",
+    "subtitle": "Uma introdução às ferramentas de blindagem para quem tem muito a perder",
+    "category": "planejamento",
+    "estimatedMinutes": 8,
+    "sourceRef": "Morgan Housel — A Psicologia Financeira; contexto jurídico-financeiro brasileiro",
+    "content": {
+      "hook": "Um patrimônio relevante não é apenas uma conquista — é um alvo. Ações trabalhistas, dívidas pessoais, responsabilidade civil, regimes matrimoniais inadequados e ausência de estrutura sucessória são riscos que crescem proporcionalmente ao que você tem. Proteger não é paranoia — é gestão.",
+      "sections": [
+        {
+          "type": "explanation",
+          "text": "A proteção patrimonial é o conjunto de estratégias jurídicas e financeiras que reduz a exposição do patrimônio a riscos externos — processos judiciais, cobranças, responsabilidade empresarial — sem configurar fraude ou evasão. As ferramentas mais comuns no Brasil incluem: holding familiar (empresa que concentra os bens da família, separando patrimônio pessoal do empresarial e facilitando a sucessão), regime de bens (a escolha do regime matrimonial afeta diretamente o que pode ser atingido em caso de divórcio ou dívida do cônjuge), e blindagem de ativos (estruturas que limitam a responsabilidade civil do empresário aos bens da empresa, não aos pessoais)."
+        },
+        {
+          "type": "insight",
+          "text": "O Brasil tem algumas particularidades importantes: o regime matrimonial padrão (comunhão parcial de bens) torna cônjuges co-responsáveis por dívidas contraídas durante o casamento em benefício da família. Uma empresa sem a separação adequada entre pessoa física e jurídica pode fazer com que dívidas empresariais atinjam o patrimônio pessoal do sócio. E o processo de inventário sem planejamento prévio pode consumir 10% a 20% do patrimônio em taxas e honorários, além de levar anos."
+        },
+        {
+          "type": "practical",
+          "text": "Três checklist de proteção básica para quem está no perfil Livre: (1) Regimes matrimoniais — você sabe em qual regime de bens é casado e o que isso significa para cada ativo? (2) Estrutura empresarial — se você tem empresa, o CNPJ e o CPF estão devidamente separados contratualmente? Pró-labore e lucros distribuídos têm tratamento diferente do que misturar contas pessoais e empresariais; (3) Beneficiários e testamento — está atualizado? Os beneficiários dos seus investimentos são quem você quer? Há um testamento que expressa sua vontade para o que o inventário não cobre? Esta pílula é uma introdução — os detalhes exigem assessoria jurídica e contábil especializada."
+        },
+        {
+          "type": "reframe",
+          "text": "Proteção patrimonial não é para quem quer esconder dinheiro — é para quem quer garantir que décadas de trabalho não sejam dilapidadas por um processo judicial, uma separação mal estruturada ou um inventário burocrático. É o equivalente financeiro de um seguro: você espera não precisar, mas é irresponsável não ter."
+        },
+        {
+          "type": "reflection",
+          "text": "Se um processo judicial fosse aberto contra você amanhã — trabalhista, civil ou empresarial — quais dos seus ativos estariam em risco? Você tem essa resposta? Se não, essa é a pergunta que você deveria levar a um advogado especializado em direito patrimonial."
+        }
+      ]
+    },
+    "quiz": {
+      "question": "Por que a criação de uma holding familiar pode ser vantajosa para quem tem patrimônio relevante no Brasil?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Porque holdings estão isentas de todos os impostos federais, reduzindo a carga tributária a zero.",
+          "correct": false,
+          "feedback": "Holdings não são isentas de impostos — elas têm um regime tributário diferente que pode ser mais eficiente em alguns contextos, mas não elimina a tributação. O benefício principal não é isenção fiscal, mas separação patrimonial e facilidade sucessória."
+        },
+        {
+          "id": "b",
+          "text": "Porque separa juridicamente o patrimônio pessoal do familiar, facilita a sucessão e pode reduzir custos e conflitos no inventário.",
+          "correct": true,
+          "feedback": "Correto. Uma holding centraliza os bens da família numa estrutura jurídica separada da pessoa física, facilitando a transferência para herdeiros (por doação de cotas em vida, sem inventário) e protegendo patrimônio pessoal de responsabilidades empresariais. Mas a criação e gestão exigem assessoria especializada."
+        },
+        {
+          "id": "c",
+          "text": "Porque holdings permitem acumular dívidas sem que os credores possam cobrar dos sócios.",
+          "correct": false,
+          "feedback": "Isso seria blindagem fraudulenta — que o direito brasileiro não protege. Holdings legítimas protegem contra responsabilidades inadvertidas e facilitam a gestão patrimonial familiar, mas não são instrumentos para escapar de dívidas contraídas de boa-fé."
         }
       ]
     }

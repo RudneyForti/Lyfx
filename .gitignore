@@ -22,6 +22,8 @@
 
 # misc
 .DS_Store
+._.DS_Store
+._*
 *.pem
 
 # debug
@@ -45,3 +47,10 @@ next-env.d.ts
 # database
 *.db
 *.db-journal
+
+# logs
+dev-server.log
+
+# base de conhecimento (PDFs — arquivos grandes, não versionados)
+docs/Base de Conhecimento/
+.claude/agents/Agent_Smith/Base de Conhecimento/
