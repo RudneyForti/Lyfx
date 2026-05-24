@@ -57,6 +57,11 @@
 }
 
 /* ── BASE ── */
+/* CS-11: valor inicial de --sidebar-width no :root evita flash de layout no SSR */
+:root {
+  --sidebar-width: 220px;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html {
