@@ -9,14 +9,20 @@ export function proxy(request: NextRequest) {
   const isPublic = publicPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
 
   if (!session && !isPublic) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    // CS-13: preservar rota original para restaurar após login
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   if (session && (pathname === "/" || pathname === "/login")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  return NextResponse.next();
+  // CS-13: injeta pathname como header para preservar rota no redirect de login
+  const response = NextResponse.next();
+  response.headers.set("x-pathname", pathname);
+  return response;
 }
 
 export const config = {
