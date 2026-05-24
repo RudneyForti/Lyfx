@@ -67,7 +67,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
     setError("");
 
     if (!form.description.trim()) return setError("Descrição obrigatória.");
-    if (!form.amount || Number(form.amount) <= 0) return setError("Valor inválido.");
+    if (!form.amount || Number(form.amount) <= 0) return setError("Valor deve ser maior que zero.");
     if (!form.category) return setError("Selecione uma categoria.");
 
     if (mode === "installment") {

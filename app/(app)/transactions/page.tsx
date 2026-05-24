@@ -3,11 +3,30 @@ import { getTags } from "@/app/actions/tags";
 import { getAccountsForSelect } from "@/app/actions/institutions";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { TransactionList } from "@/components/transactions/TransactionList";
+import { TransactionMonthNav } from "@/components/transactions/TransactionMonthNav";
 
-export default async function TransactionsPage() {
+interface Props {
+  searchParams: Promise<{ month?: string }>;
+}
+
+export default async function TransactionsPage({ searchParams }: Props) {
+  const params = await searchParams;
   const now = new Date();
+
+  // CS-06: lê o parâmetro ?month=YYYY-MM da URL; fallback para mês atual
+  let year  = now.getFullYear();
+  let month = now.getMonth() + 1;
+
+  if (params.month && /^\d{4}-\d{2}$/.test(params.month)) {
+    const [y, m] = params.month.split("-").map(Number);
+    year  = y;
+    month = m;
+  }
+
+  const currentMonthParam = `${year}-${String(month).padStart(2, "0")}`;
+
   const [transactions, allTags, accounts] = await Promise.all([
-    getTransactions({ month: now.getMonth() + 1, year: now.getFullYear() }),
+    getTransactions({ month, year }),
     getTags(),
     getAccountsForSelect(),
   ]);
@@ -21,11 +40,11 @@ export default async function TransactionsPage() {
       <h1 className="font-[family-name:var(--font-display)] italic text-[36px] font-bold tracking-tight text-[var(--color-f1)] mb-2 leading-tight">
         Transa<span className="text-[var(--color-cyan)]">ções</span>
       </h1>
-      <p className="text-[var(--color-f3)] text-sm mb-10">
-        Registre créditos e débitos. Tudo que entra e tudo que sai.
-      </p>
 
-      <div className="grid grid-cols-[380px_1fr] gap-8 items-start">
+      {/* CS-06: navegação de período */}
+      <TransactionMonthNav currentMonth={currentMonthParam} />
+
+      <div className="grid grid-cols-[380px_1fr] gap-8 items-start mt-6">
         {/* Formulário */}
         <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[12px] p-5 sticky top-8">
           <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] mb-4">
