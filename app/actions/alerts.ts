@@ -177,11 +177,13 @@ export async function getAlerts(): Promise<Alert[]> {
   }
 
   // ── 5. Passivos críticos (cheque especial / rotativo) ────────────────
+  // CS-08: apenas passivos com saldo > 0 geram alerta crítico
   const criticalLiabilities = await db.liability.findMany({
     where: {
       userId,
       status: "active",
       type: { in: ["cheque_especial", "rotativo"] },
+      currentBalance: { gt: 0 },
     },
     orderBy: { interestRate: "desc" },
   });
