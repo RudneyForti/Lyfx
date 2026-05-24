@@ -24,10 +24,14 @@ export async function setup(data: { name: string; email: string; password: strin
 
 export async function login(data: { email: string; password: string }) {
   const user = await db.user.findFirst({ where: { email: data.email.trim().toLowerCase() } });
-  if (!user) return { error: "E-mail não encontrado." };
 
-  const valid = await bcrypt.compare(data.password, user.password);
-  if (!valid) return { error: "Senha incorreta." };
+  // Timing side-channel defense: bcrypt roda sempre, mesmo quando o usuário não existe,
+  // para evitar que a diferença de latência (~100ms vs ~5ms) revele se o e-mail é válido.
+  const dummyHash = "$2a$10$X7lMWzBw0JxWxYzNq7fVOeK8Vz6v9pQZtR3sM1kL5nH2dE4gIuJwC";
+  const passwordToCheck = user?.password ?? dummyHash;
+  const valid = await bcrypt.compare(data.password, passwordToCheck);
+
+  if (!user || !valid) return { error: "E-mail ou senha inválidos." };
 
   await setSession(user.id);
   redirect("/dashboard");
