@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { db } from "@/lib/db";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserMenu } from "@/components/layout/UserMenu";
@@ -8,7 +8,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const jar = await cookies();
   const userId = jar.get("lyfx_session")?.value;
 
-  if (!userId) redirect("/login");
+  if (!userId) {
+    // CS-13: preservar rota original como ?redirect= para restaurar após login
+    const hdrs = await headers();
+    const pathname = hdrs.get("x-pathname") ?? "/dashboard";
+    redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
+  }
 
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) redirect("/api/clear-session");
