@@ -34,15 +34,15 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
     context: "" as "" | "personal" | "professional",
     accountId: "",
   });
-  const [installmentCount, setInstallmentCount] = useState("2");
+  const [installmentCount, setInstallmentCount] = useState("1");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [error, setError] = useState("");
 
   const categories = type === "credit" ? CREDIT_CATEGORIES : DEBIT_CATEGORIES;
 
   const perInstallment =
-    form.amount && Number(form.amount) > 0 && Number(installmentCount) > 1
-      ? Math.ceil((Number(form.amount) / Number(installmentCount)) * 100) / 100
+    form.amount && Number(form.amount) > 0 && Number(installmentCount) >= 1
+      ? Math.floor((Number(form.amount) / Number(installmentCount)) * 100) / 100
       : null;
 
   function handleTypeChange(t: TransactionType) {
@@ -67,12 +67,12 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
     setError("");
 
     if (!form.description.trim()) return setError("Descrição obrigatória.");
-    if (!form.amount || Number(form.amount) <= 0) return setError("Valor inválido.");
+    if (!form.amount || Number(form.amount) <= 0) return setError("Valor deve ser maior que zero.");
     if (!form.category) return setError("Selecione uma categoria.");
 
     if (mode === "installment") {
       const count = Number(installmentCount);
-      if (!count || count < 2 || count > 120) return setError("Número de parcelas deve ser entre 2 e 120.");
+      if (!count || count < 1 || count > 120) return setError("Número de parcelas deve ser entre 1 e 120.");
 
       startTransition(async () => {
         await createInstallments({
@@ -201,7 +201,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
               <IconStack2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)] pointer-events-none" />
               <input
                 type="number"
-                min="2"
+                min="1"
                 max="120"
                 placeholder="12"
                 value={installmentCount}
@@ -216,7 +216,9 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
             )}
           </div>
           <div className="text-[10px] text-[var(--color-f4)] mt-0.5">
-            Serão criadas {installmentCount || "N"} transações mensais a partir da data acima.
+            {Number(installmentCount) === 1
+              ? "Será criada 1 transação mensal a partir da data acima."
+              : `Serão criadas ${installmentCount || "N"} transações mensais a partir da data acima.`}
           </div>
         </div>
       )}
@@ -447,7 +449,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
         {isPending
           ? "Salvando..."
           : mode === "installment"
-            ? `Criar ${installmentCount || "N"} parcelas`
+            ? `Criar ${installmentCount || "N"} ${Number(installmentCount) === 1 ? "parcela" : "parcelas"}`
             : "Registrar transação"}
       </button>
     </form>
