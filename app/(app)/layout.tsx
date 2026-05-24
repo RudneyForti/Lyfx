@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
+import { getSessionUserId } from "@/lib/session";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserMenu } from "@/components/layout/UserMenu";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const jar = await cookies();
-  const userId = jar.get("lyfx_session")?.value;
+  const userId = await getSessionUserId();
 
   if (!userId) {
     // CS-13: preservar rota original como ?redirect= para restaurar após login
