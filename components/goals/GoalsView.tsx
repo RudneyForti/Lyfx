@@ -60,7 +60,8 @@ function NewGoalForm({ avgBalance, onClose }: { avgBalance: number; onClose: () 
     if (!deadline) { setError("Prazo obrigatório."); return; }
     setError("");
     startTransition(async () => {
-      await createGoal({ name, description, targetAmount: Number(targetAmount), deadline, color, icon: "target" });
+      const result = await createGoal({ name, description, targetAmount: Number(targetAmount), deadline, color, icon: "target" });
+      if (result?.error) { setError(result.error); return; }
       onClose();
     });
   }
