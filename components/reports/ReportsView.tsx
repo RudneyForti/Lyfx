@@ -26,6 +26,13 @@ function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
+// CS-10: guard de divisão por zero — retorna null quando denominator === 0
+// (exibir "—" em vez de Infinity ou NaN)
+function safePercent(numerator: number, denominator: number): number | null {
+  if (!denominator || denominator === 0) return null;
+  return (numerator / denominator) * 100;
+}
+
 function fmtShort(v: number) {
   if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(1).replace(".", ",")}k`;
   return v.toFixed(0);
@@ -145,7 +152,8 @@ function CategoryBreakdown({ categoryTotals, months }: { categoryTotals: Categor
   const credits = categoryTotals.filter(c => c.type === "credit");
   const debits  = categoryTotals.filter(c => c.type === "debit");
 
-  const maxDebit = Math.max(...debits.map(d => d.total), 1);
+  const maxCredit = Math.max(...credits.map(c => c.total), 0);
+  const maxDebit  = Math.max(...debits.map(d => d.total),  0);
 
   return (
     <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[12px] p-5">
@@ -163,7 +171,7 @@ function CategoryBreakdown({ categoryTotals, months }: { categoryTotals: Categor
                 <div className="flex-1 h-1.5 bg-[var(--color-bg4)] rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full bg-[var(--color-green)]"
-                    style={{ width: `${(cat.total / Math.max(...credits.map(c => c.total), 1)) * 100}%`, opacity: 0.75 }}
+                    style={{ width: `${safePercent(cat.total, maxCredit) ?? 0}%`, opacity: 0.75 }}
                   />
                 </div>
                 <div className="text-[11px] font-mono text-[var(--color-f2)] w-[90px] text-right shrink-0">{fmt(cat.total)}</div>
@@ -184,7 +192,7 @@ function CategoryBreakdown({ categoryTotals, months }: { categoryTotals: Categor
                 <div className="flex-1 h-1.5 bg-[var(--color-bg4)] rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full bg-[var(--color-red)]"
-                    style={{ width: `${(cat.total / maxDebit) * 100}%`, opacity: 0.75 }}
+                    style={{ width: `${safePercent(cat.total, maxDebit) ?? 0}%`, opacity: 0.75 }}
                   />
                 </div>
                 <div className="text-[11px] font-mono text-[var(--color-f2)] w-[90px] text-right shrink-0">{fmt(cat.total)}</div>

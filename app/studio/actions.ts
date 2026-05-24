@@ -60,6 +60,7 @@ export async function adminDeleteUser(userId: string) {
   await db.institution.deleteMany({ where: { userId } }); // Accounts cascade via onDelete
   await db.asset.deleteMany({ where: { userId } });        // AssetExpenses cascade via onDelete
   await db.settings.deleteMany({ where: { userId } });
+  await db.pillProgress.deleteMany({ where: { userId } }); // CS-12: evitar dados órfãos de educação
   await db.user.delete({ where: { id: userId } });
   revalidatePath("/studio");
   return { ok: true };
