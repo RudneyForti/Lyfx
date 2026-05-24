@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
-import { Prisma } from "@/lib/generated/prisma";
+import { Prisma } from "@/lib/generated/prisma/client";
 
 export async function getTags() {
   const userId = await requireAuth();
