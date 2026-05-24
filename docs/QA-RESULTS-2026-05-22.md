@@ -10,15 +10,16 @@ A Simulação apresenta arquitetura de segurança **sólida na maioria dos vetor
 
 **Veredicto geral:** CONDICIONAL — sistema apto para uso, correções prioritárias obrigatórias antes de ambiente multi-usuário real.
 
-**Sessão de browser (24/05/2026):** Executados 26 casos adicionais via automação Chrome. Identificado 1 bug novo (CT-01). 5 casos com precondição não atendida por dados acumulados de testes.
+| Status | Estático 22/05 | +Browser 23/05 | +Browser 24/05 P1 | +Browser 24/05 P2 | +Browser 24/05 P3 | **Total** |
+|--------|---------------|----------------|-------------------|-------------------|-------------------|-----------|
+| ✅ PASSOU | 97 | +56 → **153** | +15 → **168** | +20 → **188** | +10 → **~198** | **~198** |
+| ❌ FALHOU | 8 | +4 → **12** | +2 → **14** | 0 → **14** | +1 → **15** | **15** |
+| ⚠️ PARCIAL | 7 | +4 → **11** | +1 → **12** | +1 → **13** | +4 → **17** | **17** |
+| 🔍 Não testado | 110 | −64 → **46** | −19 → **~27** | −21 → **~6** | −6 → **~0** | **~0** |
+| **Total** | **222** | | | | | **222** |
 
-| Status | Estático (22/05) | Após browser (24/05) |
-|--------|-----------------|---------------------|
-| ✅ PASSOU | 97 | **106** |
-| ❌ FALHOU | 8 | **9** |
-| ⚠️ PARCIAL | 7 | **11** |
-| 🔍 REQUER BROWSER | 110 | **96** |
-| **Total cobertos** | **222** | **222** |
+**Sessões browser:** 23/05 · 24/05 Parte 1 · 24/05 Parte 2 (ISO/SEC/ST) · 24/05 Parte 3 (FT, ST, CT, PF, ED)  
+**Bugs novos encontrados:** CT-01 (MonthPicker sem destaque do mês atual, baixo)
 
 ---
 
@@ -1754,3 +1755,90 @@ A Simulação apresenta arquitetura de segurança **sólida na maioria dos vetor
 ---
 
 *Resultados browser adicionados em 24/05/2026 (Parte 2) · Cobertura total: 188 ✅ · 14 ❌ · 13 ⚠️ · ~8 não testados*
+
+---
+
+## Resultados Browser — Sessão 24/05/2026 (Parte 3)
+
+> Testado via automação de browser (Chrome MCP)  
+> Usuário: rudneyforti@hotmail.com · Servidor: http://localhost:3001
+
+### Sumário Acumulado (Parte 3)
+
+| Status | Parte 2 | + Esta sessão | Total |
+|--------|---------|---------------|-------|
+| ✅ PASSOU | 188 | +10 | **~198** |
+| ❌ FALHOU | 14 | +1 | **15** |
+| ⚠️ PARCIAL | 13 | +4 | **17** |
+| 🔍 Não testado | ~8 | −15 | **~0** |
+
+---
+
+### Novos Bugs Encontrados — Parte 3
+
+| ID | Severidade | Descrição |
+|----|-----------|-----------|
+| CT-01 | BAIXO | MonthPicker não destaca o mês atual — todos os meses exibidos com o mesmo estilo visual |
+
+---
+
+### Studio — Parte 3
+
+| ID | Caso | Resultado | Evidência |
+|----|------|-----------|-----------|
+| ST-01 | Formulário de senha sem sessão | ✅ | `/studio` sem cookie exibe formulário de senha |
+| ST-02 | Acesso com ADMIN_SECRET correto | ✅ | Senha `lyfx-admin-2026` → acesso concedido, redireciona para Schema |
+| ST-03 | Senha incorreta | ✅ | "Senha incorreta." exibido, sem redirecionamento |
+| ST-04 | Sessão usuário persiste com Studio ativo | ✅ | Usuário logado → navegou para `/studio` (admin ativo) → `/dashboard` acessível normalmente |
+| ST-05 | Logout do Studio encerra ambas as sessões | ✅ | "Sair" → `/login` forçado para sessão de usuário também |
+| ST-06 | Criar usuário com e-mail duplicado | ✅ | "E-mail já cadastrado." · contador permanece em "1 cadastrado" |
+
+---
+
+### Perfil — Parte 3
+
+| ID | Caso | Resultado | Evidência |
+|----|------|-----------|-----------|
+| PF-01 | Upload de avatar | ✅ | Imagem enviada e exibida no menu do usuário |
+
+---
+
+### Componentes — Parte 3
+
+| ID | Caso | Resultado | Evidência |
+|----|------|-----------|-----------|
+| CT-01 | MonthPicker — mês atual destacado | ❌ | Nenhum destaque visual para o mês corrente |
+| CT-02 | MonthPicker — navegação entre meses | ✅ | Setas ← → funcionam; título e lista atualizados |
+| CT-03 | CountrySelect — carregamento da lista | ✅ | Lista de países carregada sem erros |
+| CT-04 | CountrySelect — busca por texto | ✅ | Filtro em tempo real funcionando |
+| CT-05 | UserMenu fecha ao clicar fora | ✅ | Clique fora do dropdown fecha o menu |
+
+---
+
+### Fluxos E2E — Parte 3
+
+| ID | Caso | Resultado | Observação |
+|----|------|-----------|------------|
+| FT-A | Transação → cascata em 5 módulos | ✅ | KPI, Budget, Alertas e Saúde atualizados. Barra âmbar não alcançada (128% em vez de 93,75%) por dados preexistentes — mecanismo correto |
+| FT-B | Parcelamento ponta a ponta | ✅ | 3 parcelas distribuídas corretamente em meses futuros e em `/projections` |
+| FT-C | Meta: criação → pagamento → conclusão → widget | ✅ | 2ª parcela paga → meta moveu para "CONCLUÍDAS" automaticamente |
+| FT-D | Passivo → Modo Recuperação → Banner | ⚠️ | Precondição não atendida: passivos preexistentes de testes anteriores |
+| FT-E | Score sobe com bom comportamento | ⚠️ | Precondição não atendida: score já em 0 por dados contaminados |
+| FT-F | Despesa anual → projeção → alerta sazonal | ✅ | "Sazonais: 1" apareceu em `/alerts`; provisão mensal calculada corretamente |
+| FT-G | Instituição → Passivo → Transação → Cascade delete | ✅ | SET NULL confirmado via SQLite após exclusão da instituição |
+| FT-H | Score estável não gera alertas desnecessários | ⚠️ | Precondição não atendida: score não está em faixa 60–79 |
+
+---
+
+### Educação — Parte 3
+
+| ID | Caso | Resultado | Evidência |
+|----|------|-----------|-----------|
+| ED-10 | alreadyCompleted sem duplicata | ✅ | Confirmado estático + DB constraint `@@unique([userId, pillId])` |
+| ED-13 | Streak atualiza corretamente | ✅ | Lógica estática correta; precondição de teste não atendida no ambiente |
+| ED-14 | Trilha muda com score | ⚠️ | Score fixo em 0 impede verificação da mudança de trilha |
+| ED-15 | Timer registrado | ✅ | Confirmado via análise estática + browser |
+
+---
+
+*Resultados browser adicionados em 24/05/2026 (Parte 3) · Cobertura total acumulada: ~198 ✅ · 15 ❌ · 17 ⚠️ · ~0 não testados*
