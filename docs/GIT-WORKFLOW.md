@@ -89,6 +89,7 @@ O ambiente de produção roda em um worktree separado em `../lyfx-production` (b
 cd C:/Users/rudne/projetos/lyfx-production
 npm install
 npx prisma generate
+npx prisma db push   # cria prod.db com o schema completo
 ```
 
 **Regra:** sempre que um `npm install` ou `npm uninstall` for executado em `lyfx/`, rodar o mesmo comando em `lyfx-production/` na sequência:
@@ -100,6 +101,22 @@ cd C:/Users/rudne/projetos/lyfx-production && npm install <pacote>
 ```
 
 Isso garante que os dois ambientes permanecem com `node_modules` idênticos.
+
+---
+
+## Isolamento de bancos de dados por ambiente
+
+Cada ambiente tem seu próprio arquivo `.env` (gitignored — nunca rastreado pelo git) com `DATABASE_URL` apontando para seu banco exclusivo:
+
+| Ambiente | Arquivo `.env` | `DATABASE_URL` | Banco |
+|----------|---------------|----------------|-------|
+| Desenvolvimento | `lyfx/.env` | `file:./dev.db` | `lyfx/dev.db` — dados de teste, pode ser resetado livremente |
+| Produção local | `lyfx-production/.env` | `file:./prod.db` | `lyfx-production/prod.db` — dados reais do usuário |
+
+**Por que merges não afetam o banco:**
+Como `.env*` está no `.gitignore`, o arquivo de configuração de cada ambiente nunca entra no git. Ao fazer `develop → master`, o `lyfx-production/.env` permanece intocado — o banco de produção é sempre preservado automaticamente.
+
+**Regra crítica:** nunca alterar `DATABASE_URL` em `lyfx-production/.env` para apontar para `dev.db`. Cada ambiente aponta exclusivamente para seu próprio arquivo de banco.
 
 ---
 
