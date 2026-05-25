@@ -109,7 +109,7 @@ const FEATURES = [
   {
     icon: <IconLayoutDashboard size={20} />,
     title: "DRE Pessoal",
-    desc: "Cada real categorizado com semântica precisa — fixo, variável, comprometido, sazonal. Não apenas quanto você gastou, mas qual tipo de gasto foi.",
+    desc: "Cada real categorizado com semântica precisa, fixo, variável, comprometido, sazonal. Não apenas quanto você gastou, mas qual tipo de gasto foi.",
     color: "#22D3EE",
     mockup: (
       <div style={{ padding: "16px 0 4px" }}>
@@ -199,14 +199,14 @@ const FEATURES = [
   {
     icon: <IconAlertTriangle size={20} />,
     title: "Alertas Proativos",
-    desc: "O sistema trabalha por você. Alertas de orçamento estourado, metas comprometidas, passivos com taxa crítica e projeções negativas — antes de virar problema.",
+    desc: "O sistema trabalha por você. Alertas de orçamento estourado, metas comprometidas, passivos com taxa crítica e projeções negativas, antes de virar problema.",
     color: "#FB923C",
     mockup: (
       <div style={{ padding: "16px 0 4px", display: "flex", flexDirection: "column", gap: 7 }}>
         {[
           { type: "danger", icon: "🔴", msg: "Cheque especial ativo · 12% a.m.", sub: "Equivale a 290% a.a." },
           { type: "warning", icon: "🟡", msg: "Orçamento de Lazer a 130%", sub: "R$ 520 de R$ 400 limite" },
-          { type: "info", icon: "🔵", msg: "IPVA vence em 18 dias", sub: "R$ 1.240 — provisão ok" },
+          { type: "info", icon: "🔵", msg: "IPVA vence em 18 dias", sub: "R$ 1.240, provisão ok" },
         ].map(a => (
           <div key={a.msg} style={{
             padding: "9px 12px", borderRadius: 10,
@@ -278,7 +278,7 @@ const FEATURES = [
 const FAQ_ITEMS = [
   {
     q: "O que é o score de saúde financeira?",
-    a: "É um diagnóstico calculado em 4 dimensões: comprometimento da renda (% gasta em fixos), taxa de poupança, resultado mensal e cobertura do fundo de reserva. O resultado é um número de 0 a 100 com um perfil — de Crítico a Saudável — que orienta o que focar primeiro.",
+    a: "É um diagnóstico calculado em 4 dimensões: comprometimento da renda (% gasta em fixos), taxa de poupança, resultado mensal e cobertura do fundo de reserva. O resultado é um número de 0 a 100 com um perfil, de Crítico a Saudável, que orienta o que focar primeiro.",
   },
   {
     q: "Como funciona a Educação Financeira?",
@@ -298,7 +298,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "O que é uma DRE pessoal?",
-    a: "DRE (Demonstração do Resultado do Exercício) é o relatório que empresas usam para entender receitas e despesas. O Lyfx traz essa mesma estrutura para as finanças pessoais — cada real vai para uma categoria com semântica precisa, revelando não apenas quanto você gastou, mas qual tipo de gasto foi.",
+    a: "DRE (Demonstração do Resultado do Exercício) é o relatório que empresas usam para entender receitas e despesas. O Lyfx traz essa mesma estrutura para as finanças pessoais, cada real vai para uma categoria com semântica precisa, revelando não apenas quanto você gastou, mas qual tipo de gasto foi.",
   },
 ];
 
@@ -533,6 +533,7 @@ export function LandingPage() {
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
           {[
+            { label: "Sobre",           anchor: "sobre" },
             { label: "Funcionalidades", anchor: "funcionalidades" },
             { label: "Como funciona",   anchor: "como-funciona" },
             { label: "Preços",          anchor: "precos" },
@@ -617,7 +618,7 @@ export function LandingPage() {
               maxWidth: 480, lineHeight: 1.75, marginBottom: 36,
               animation: "fadeUp 0.55s 0.1s ease both",
             }}>
-              DRE pessoal, score de saúde financeira em 4 dimensões, educação adaptada ao seu perfil e alertas proativos. Não só controle — diagnóstico.
+              DRE pessoal, score de saúde financeira em 4 dimensões, educação adaptada ao seu perfil e alertas proativos. Não só controle, diagnóstico.
             </p>
 
             <div className="hero-ctas" style={{ display: "flex", gap: 12, animation: "fadeUp 0.55s 0.15s ease both" }}>
@@ -669,6 +670,124 @@ export function LandingPage() {
 
       {/* ── Marquee — no fold, separando hero de funcionalidades ── */}
       <Marquee />
+
+      {/* ── Sobre ── */}
+      <section id="sobre" style={{
+        padding: "96px 48px",
+        background: "var(--color-bg2)",
+        borderTop: "1px solid var(--color-border)",
+        borderBottom: "1px solid var(--color-border)",
+        position: "relative",
+        overflow: "hidden",
+      }}>
+
+        {/* Watermark f(x) — easter egg visual */}
+        <div style={{
+          position: "absolute", right: "-16px", top: "50%",
+          transform: "translateY(-50%)",
+          fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700,
+          fontSize: "clamp(180px, 24vw, 300px)",
+          color: "rgba(34,211,238,0.035)",
+          lineHeight: 1, pointerEvents: "none", userSelect: "none",
+        }}>f(x)</div>
+
+        <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
+
+          {/* Narrativa principal — grid 2×2: título/subtítulo na linha 1, parágrafos na linha 2 */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "auto auto", columnGap: 64, rowGap: 0, marginBottom: 64 }}>
+
+            {/* [1,1] Label + título */}
+            <div style={{ paddingBottom: 20 }}>
+              <div style={{ fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 14 }}>Sobre</div>
+              <h2 style={{
+                fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700,
+                fontSize: "clamp(26px, 3.5vw, 38px)", letterSpacing: "-1px", lineHeight: 1.2,
+                margin: 0,
+              }}>
+                Ninguém nos ensinou<br />
+                <span style={{ color: "var(--color-cyan)" }}>a lidar com dinheiro.</span>
+              </h2>
+            </div>
+
+            {/* [1,2] Subtítulo — encostado na base do título via align-self */}
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", paddingBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                <div style={{ width: 28, height: 2, background: "var(--color-cyan)", borderRadius: 999, opacity: 0.7, flexShrink: 0 }} />
+                <p style={{ fontSize: 15, color: "var(--color-f1)", fontWeight: 600, margin: 0 }}>
+                  O Lyfx nasceu desse problema.
+                </p>
+              </div>
+            </div>
+
+            {/* [2,1] Parágrafos esquerda */}
+            <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 28 }}>
+              <p style={{ fontSize: 14, color: "var(--color-f3)", lineHeight: 1.85, marginBottom: 16 }}>
+                A educação financeira nunca foi pauta do currículo escolar. Crescemos aprendendo a resolver equações, mas sem entender o que fazer com o salário no fim do mês.
+              </p>
+              <p style={{ fontSize: 14, color: "var(--color-f3)", lineHeight: 1.85 }}>
+                O resultado é previsível: decisões no achismo, endividamento silencioso, e uma sensação constante de que o dinheiro nunca é suficiente, não por falta de esforço, mas por falta de clareza.
+              </p>
+            </div>
+
+            {/* [2,2] Parágrafos direita */}
+            <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 28 }}>
+              <p style={{ fontSize: 14, color: "var(--color-f3)", lineHeight: 1.85, marginBottom: 16 }}>
+                Uma plataforma que traduz a complexidade das finanças pessoais em diagnóstico claro, para que qualquer pessoa, com ou sem formação financeira, possa enxergar onde está e tomar decisões melhores.
+              </p>
+              <p style={{ fontSize: 14, color: "var(--color-f3)", lineHeight: 1.85 }}>
+                Não é sobre perfeição. É sobre progresso mensurável, decisão a decisão.
+              </p>
+            </div>
+
+          </div>
+
+          {/* Divisor — easter egg */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 16, marginBottom: 32,
+          }}>
+            <div style={{ flex: 1, height: "0.5px", background: "var(--color-border)" }} />
+            <span style={{ fontSize: 10, letterSpacing: "2px", textTransform: "uppercase", color: "var(--color-f4)" }}>A matemática por trás do nome</span>
+            <div style={{ flex: 1, height: "0.5px", background: "var(--color-border)" }} />
+          </div>
+
+          {/* Cards f(x) — easter egg */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+            {[
+              { symbol: "f′(x)", label: "Derivada",  desc: "Taxa de mudança. Os deltas do dashboard mostram quanto você evolui a cada mês.", highlight: false },
+              { symbol: "∫f(x)dx", label: "Integral", desc: "Acumulação ao longo do tempo. Patrimônio, reservas e metas, a área sob a curva da sua vida.", highlight: true },
+              { symbol: "lim→∞",  label: "Limite",   desc: "Independência financeira, o ponto onde f(x) converge para a vida que você projetou.", highlight: false },
+            ].map(card => (
+              <div key={card.label} style={{
+                background: card.highlight ? "rgba(34,211,238,0.06)" : "var(--color-bg3)",
+                border: `1px solid ${card.highlight ? "rgba(34,211,238,0.2)" : "var(--color-border)"}`,
+                borderRadius: 14, padding: "22px 20px", textAlign: "center",
+              }}>
+                <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: "clamp(24px, 3vw, 34px)", color: "var(--color-cyan)", lineHeight: 1, marginBottom: 12 }}>
+                  {card.symbol}
+                </div>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 10 }}>
+                  {card.label}
+                </div>
+                <p style={{ fontSize: 12, color: card.highlight ? "var(--color-f2)" : "var(--color-f3)", lineHeight: 1.75, margin: 0 }}>
+                  {card.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Fixed point */}
+          <div style={{ display: "flex", alignItems: "center", gap: 20, padding: "16px 24px", background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 12 }}>
+            <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: 20, color: "var(--color-cyan)", flexShrink: 0 }}>f(x) = x</div>
+            <div style={{ width: "0.5px", height: 36, background: "var(--color-border)", flexShrink: 0 }} />
+            <p style={{ fontSize: 12, color: "var(--color-f4)", lineHeight: 1.7, margin: 0 }}>
+              <span style={{ color: "var(--color-f3)" }}>Fixed point</span>, em matemática, o equilíbrio onde a função retorna a si mesma.{" "}
+              <br />
+              <span style={{ color: "var(--color-f2)", display: "inline-block", marginTop: 4 }}>Life Fixed</span>{" "}é isso: o estado onde sua vida financeira está no controle.
+            </p>
+          </div>
+
+        </div>
+      </section>
 
       {/* ── Features ── */}
       <section id="funcionalidades" style={{ padding: "96px 48px", maxWidth: 1200, margin: "0 auto" }}>
@@ -740,7 +859,7 @@ export function LandingPage() {
               <span style={{ color: "var(--color-cyan)" }}>tem solução.</span>
             </h2>
             <p style={{ fontSize: 15, color: "var(--color-f3)", lineHeight: 1.75, maxWidth: 420, margin: "0 auto" }}>
-              Um plano. Acesso completo. Diagnóstico real das suas finanças — sem planilha, sem achismo.
+              Um plano. Acesso completo. Diagnóstico real das suas finanças, sem planilha, sem achismo.
             </p>
           </div>
 
@@ -896,6 +1015,7 @@ export function LandingPage() {
           <div style={{ overflow: "hidden", padding: "18px 0 20px" }}>
             <div style={{
               display: "flex",
+              width: "max-content",
               animation: "marquee 22s linear infinite",
               whiteSpace: "nowrap",
               willChange: "transform",
