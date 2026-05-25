@@ -82,6 +82,7 @@ Exemplo:
 | `1.6.0` | MINOR | Segurança: HMAC-SHA256 na sessão, timing defense, validação de e-mail. Novas capacidades: edição inline de tags, navegação de transações por URL, "lembrar de mim" + preservação de rota. Qualidade: 9 correções de bug e UX (parcelas, validações, alertas, relatórios, sidebar, Studio) |
 | `1.6.1` | PATCH | Fix: proxy.ts valida HMAC via Web Crypto API no Edge Runtime — elimina loop infinito de redirects quando cookie tem assinatura inválida |
 | `1.6.2` | PATCH | Fix: lib/db.ts lê DATABASE_URL do ambiente em vez de caminho hardcoded — permite worktree de produção apontar para dev.db compartilhado |
+| `1.6.3` | PATCH | Isolamento completo de bancos por ambiente: prod.db exclusivo para master, dev.db para develop. Merges preservam apontamento via .env gitignored. Documentação atualizada. |
 
 ---
 
