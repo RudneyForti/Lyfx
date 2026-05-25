@@ -83,6 +83,7 @@ Exemplo:
 | `1.6.1` | PATCH | Fix: proxy.ts valida HMAC via Web Crypto API no Edge Runtime — elimina loop infinito de redirects quando cookie tem assinatura inválida |
 | `1.6.2` | PATCH | Fix: lib/db.ts lê DATABASE_URL do ambiente em vez de caminho hardcoded — permite worktree de produção apontar para dev.db compartilhado |
 | `1.6.3` | PATCH | Isolamento completo de bancos por ambiente: prod.db exclusivo para master, dev.db para develop. Merges preservam apontamento via .env gitignored. Documentação atualizada. |
+| `1.6.4` | PATCH | Landing page: glassmorphism da navbar restaurado, seção de Pricing, textura de pontos com vignette de borda, FAQ sem layout shift, hover ciano nos links da navbar, marquee do footer atualizado, StepCards com hover animado. |
 
 ---
 
