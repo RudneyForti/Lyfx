@@ -40,6 +40,17 @@ develop  ← desenvolvimento (branch base para todo trabalho)
 | `refactor/` | Refatoração sem mudança de comportamento |
 | `release/` | Apenas para branches de release com versão (ex: `release/v2.0.0`) |
 
+## Sincronização do worktree de produção
+
+Sempre que instalar ou remover um pacote npm em `lyfx/`, replicar imediatamente em `lyfx-production/`:
+
+```bash
+npm install <pacote>   # em lyfx/
+npm install <pacote>   # em lyfx-production/
+```
+
+---
+
 ## Convenção de portas
 
 | Branch | Porta | Regra |

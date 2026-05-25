@@ -79,6 +79,22 @@ git push origin master
 
 ---
 
+## Worktree de produção
+
+O ambiente de produção roda em um worktree separado em `../lyfx-production` (branch `master`, porta 4000).
+
+**Regra:** sempre que um `npm install` ou `npm uninstall` for executado em `lyfx/`, rodar o mesmo comando em `lyfx-production/` na sequência:
+
+```bash
+# Exemplo — instalar novo pacote
+cd C:/Users/rudne/projetos/lyfx && npm install <pacote>
+cd C:/Users/rudne/projetos/lyfx-production && npm install <pacote>
+```
+
+Isso garante que os dois ambientes permanecem com `node_modules` idênticos.
+
+---
+
 ## Convenção de portas
 
 | Ambiente | Branch | Porta | Comando |
