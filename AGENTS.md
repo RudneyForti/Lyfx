@@ -20,7 +20,7 @@ develop  ← desenvolvimento (branch base para todo trabalho)
 |-------|-------------|
 | **E3 — Implementar** | Criar branch de trabalho **a partir de `develop`**: `git checkout develop && git checkout -b fix/nome` ou `feature/nome` |
 | **E6 — Commit** | Merge da branch de trabalho em `develop`: `git checkout develop && git merge fix/nome --no-ff` → push → **deletar branch imediatamente** |
-| **E7 — Release** | Somente quando o usuário aprovar o lote completo. Executar o checklist completo em `docs/GIT-WORKFLOW.md#e7` antes do merge: (1) determinar versão via `VERSIONING.md`, (2) atualizar `package.json`, (3) atualizar badge e rodapé do `README.md`, (4) adicionar linha no histórico de `VERSIONING.md`, (5) atualizar cabeçalho e seções afetadas em `DOCUMENTATION.md`, (6) fazer merge + tag + sync develop |
+| **E7 — Release** | **Perguntar primeiro:** *"O lote está em `develop`. Quer validar antes ou posso fazer o release para `master`?"* — só avançar com resposta afirmativa explícita. Executar o checklist completo em `docs/GIT-WORKFLOW.md#e7` antes do merge: (1) determinar versão via `VERSIONING.md`, (2) atualizar `package.json`, (3) atualizar badge e rodapé do `README.md`, (4) adicionar linha no histórico de `VERSIONING.md`, (5) atualizar cabeçalho e seções afetadas em `DOCUMENTATION.md`, (6) fazer merge + tag + sync develop |
 
 ## Regras obrigatórias
 
@@ -39,6 +39,33 @@ develop  ← desenvolvimento (branch base para todo trabalho)
 | `feature/` | Nova funcionalidade |
 | `refactor/` | Refatoração sem mudança de comportamento |
 | `release/` | Apenas para branches de release com versão (ex: `release/v2.0.0`) |
+
+## Sincronização do worktree de produção
+
+**Setup inicial do worktree** (rodar uma vez ao criar `lyfx-production/`):
+```bash
+cd lyfx-production && npm install && npx prisma generate
+```
+
+**Sincronização contínua** — sempre que instalar ou remover pacote em `lyfx/`, replicar em `lyfx-production/`:
+
+```bash
+npm install <pacote>   # em lyfx/
+npm install <pacote>   # em lyfx-production/
+```
+
+---
+
+## Convenção de portas
+
+| Branch | Porta | Regra |
+|--------|-------|-------|
+| `develop` + branches temporárias | **3000–3009** | Sempre neste range |
+| `master` | **4000–4009** | Sempre neste range |
+
+Nunca iniciar `master` em porta 3000–3099 nem `develop` em porta 4000–4099.
+
+---
 
 ## Referência completa
 

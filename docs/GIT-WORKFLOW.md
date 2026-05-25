@@ -79,6 +79,43 @@ git push origin master
 
 ---
 
+## Worktree de produção
+
+O ambiente de produção roda em um worktree separado em `../lyfx-production` (branch `master`, porta 4000).
+
+**Setup inicial do worktree** — rodar uma vez ao criar `lyfx-production/`:
+
+```bash
+cd C:/Users/rudne/projetos/lyfx-production
+npm install
+npx prisma generate
+```
+
+**Regra:** sempre que um `npm install` ou `npm uninstall` for executado em `lyfx/`, rodar o mesmo comando em `lyfx-production/` na sequência:
+
+```bash
+# Exemplo — instalar novo pacote
+cd C:/Users/rudne/projetos/lyfx && npm install <pacote>
+cd C:/Users/rudne/projetos/lyfx-production && npm install <pacote>
+```
+
+Isso garante que os dois ambientes permanecem com `node_modules` idênticos.
+
+---
+
+## Convenção de portas
+
+| Ambiente | Branch | Porta | Comando |
+|----------|--------|-------|---------|
+| Desenvolvimento | `develop` | **3000** | `npm run dev -- --port 3000` |
+| Produção local | `master` | **4000** | `npm run dev -- --port 4000` |
+
+- Portas 3001–3009 reservadas para branches temporárias de trabalho em `develop`
+- Portas 4001–4009 reservadas para testes pontuais em `master`
+- Nunca subir `master` em porta 3000–3009 nem `develop` em porta 4000–4009
+
+---
+
 ## Diagrama temporal
 
 ```
@@ -102,6 +139,16 @@ master   ───────────────────────�
 | `refactor/` | `refactor/session-module` | Refatoração sem mudança de comportamento |
 
 > Branches de trabalho são descartáveis. Nascem e morrem dentro do mesmo lote de CSs.
+
+---
+
+## Pergunta obrigatória antes do E7
+
+Antes de qualquer merge `develop → master`, o agente **deve perguntar ao usuário**:
+
+> *"O lote está em `develop`. Quer validar antes ou posso fazer o release para `master` agora?"*
+
+Nunca assumir que aprovação de implementação = aprovação de release para produção.
 
 ---
 
