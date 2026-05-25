@@ -40,6 +40,17 @@ develop  ← desenvolvimento (branch base para todo trabalho)
 | `refactor/` | Refatoração sem mudança de comportamento |
 | `release/` | Apenas para branches de release com versão (ex: `release/v2.0.0`) |
 
+## Convenção de portas
+
+| Branch | Porta | Regra |
+|--------|-------|-------|
+| `develop` + branches temporárias | **3000–3009** | Sempre neste range |
+| `master` | **4000–4009** | Sempre neste range |
+
+Nunca iniciar `master` em porta 3000–3099 nem `develop` em porta 4000–4099.
+
+---
+
 ## Referência completa
 
 Ver `docs/GIT-WORKFLOW.md` para o fluxo detalhado com exemplos de comandos.

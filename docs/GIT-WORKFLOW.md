@@ -79,6 +79,19 @@ git push origin master
 
 ---
 
+## Convenção de portas
+
+| Ambiente | Branch | Porta | Comando |
+|----------|--------|-------|---------|
+| Desenvolvimento | `develop` | **3000** | `npm run dev -- --port 3000` |
+| Produção local | `master` | **4000** | `npm run dev -- --port 4000` |
+
+- Portas 3001–3009 reservadas para branches temporárias de trabalho em `develop`
+- Portas 4001–4009 reservadas para testes pontuais em `master`
+- Nunca subir `master` em porta 3000–3009 nem `develop` em porta 4000–4009
+
+---
+
 ## Diagrama temporal
 
 ```
