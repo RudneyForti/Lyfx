@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   IconChevronDown, IconChevronRight,
@@ -285,10 +285,6 @@ const FAQ_ITEMS = [
     a: "O módulo identifica seu perfil de saúde financeira e sugere pílulas pedagógicas específicas para ele. Cada pílula tem conteúdo explicativo e um quiz de fixação. Há um sistema de streak semanal para manter consistência no aprendizado.",
   },
   {
-    q: "O Lyfx é gratuito?",
-    a: "Sim. Você pode criar sua conta e começar a usar agora, sem cartão de crédito e sem compromisso.",
-  },
-  {
     q: "Meus dados financeiros ficam seguros?",
     a: "Seus dados são armazenados localmente com isolamento completo por usuário. Toda query exige autenticação. Privacidade é uma prioridade no Lyfx.",
   },
@@ -306,27 +302,84 @@ const FAQ_ITEMS = [
   },
 ];
 
-function FAQItem({ q, a }: { q: string; a: string }) {
-  const [open, setOpen] = useState(false);
+function FAQItem({ q, a, index, open, onToggle }: { q: string; a: string; index: number; open: boolean; onToggle: () => void }) {
+  const [hovered, setHovered] = useState(false);
+
   return (
-    <div style={{ borderBottom: "1px solid var(--color-border)" }}>
-      <button
-        onClick={() => setOpen(!open)}
-        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0", background: "none", border: "none", cursor: "pointer", textAlign: "left", gap: 16 }}
-      >
-        <span style={{ fontSize: 15, fontWeight: 500, color: "var(--color-f1)" }}>{q}</span>
-        <span style={{ color: "var(--color-f4)", flexShrink: 0, transition: "transform 200ms", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
-          <IconChevronDown size={16} />
+    <div
+      onClick={onToggle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        cursor: "pointer",
+        borderRadius: 14,
+        /* padding fixo — nunca muda, nada se move */
+        padding: "18px 20px",
+        marginBottom: 4,
+        background: open ? "rgba(34,211,238,0.06)" : hovered ? "rgba(34,211,238,0.025)" : "transparent",
+        /* borda sempre presente (1px), só a cor muda — sem layout shift */
+        border: "1px solid transparent",
+        borderBottom: open
+          ? "1px solid rgba(34,211,238,0.22)"
+          : "1px solid var(--color-border)",
+        outline: open ? "1px solid rgba(34,211,238,0.22)" : "1px solid transparent",
+        transition: "background 0.2s ease, border-color 0.2s ease, outline-color 0.2s ease",
+      }}
+    >
+      {/* Linha principal — padding zero, o pai já cuida */}
+      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+
+        <span style={{
+          fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700,
+          fontSize: 18, lineHeight: 1,
+          color: "var(--color-cyan)",
+          opacity: open ? 0.7 : hovered ? 0.5 : 0.35,
+          flexShrink: 0, width: 28,
+          transition: "opacity 0.2s",
+        }}>
+          {String(index + 1).padStart(2, "0")}
         </span>
-      </button>
+
+        <span style={{
+          fontSize: 15, fontWeight: 500, flex: 1,
+          color: open || hovered ? "var(--color-f1)" : "var(--color-f2)",
+          transition: "color 0.2s",
+        }}>
+          {q}
+        </span>
+
+        <span style={{
+          flexShrink: 0,
+          color: open || hovered ? "var(--color-cyan)" : "var(--color-f4)",
+          transform: open ? "rotate(90deg)" : hovered ? "rotate(0deg)" : "rotate(-45deg)",
+          transition: "color 0.2s, transform 0.22s ease",
+          display: "flex",
+        }}>
+          <IconArrowRight size={16} />
+        </span>
+      </div>
+
+      {/* Resposta */}
       {open && (
-        <p style={{ fontSize: 14, color: "var(--color-f3)", lineHeight: 1.75, paddingBottom: 20, margin: 0 }}>{a}</p>
+        <p style={{
+          fontSize: 14, color: "var(--color-f3)", lineHeight: 1.75,
+          margin: "14px 0 0 48px",
+        }}>
+          {a}
+        </p>
       )}
     </div>
   );
 }
 
 /* ── StepCard ── */
+function hexToRgba(hex: string, alpha: number) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function StepCard({ step, title, desc, color, isLast }: { step: string; title: string; desc: string; color: string; isLast: boolean }) {
   const [hovered, setHovered] = useState(false);
   return (
@@ -338,7 +391,7 @@ function StepCard({ step, title, desc, color, isLast }: { step: string; title: s
         padding: "28px 20px",
         borderRadius: 14,
         border: `1px solid ${hovered ? color : "var(--color-border)"}`,
-        background: hovered ? color : "var(--color-bg3)",
+        background: hovered ? hexToRgba(color, 0.12) : "var(--color-bg3)",
         transition: "background 0.25s ease, border-color 0.25s ease",
         cursor: "default",
         overflow: "hidden",
@@ -350,11 +403,11 @@ function StepCard({ step, title, desc, color, isLast }: { step: string; title: s
         fontStyle: "italic",
         fontSize: 36,
         fontWeight: 700,
-        color: hovered ? "rgba(0,0,0,0.2)" : color,
-        opacity: hovered ? 1 : 0.35,
+        color: color,
+        opacity: hovered ? 0.6 : 0.35,
         lineHeight: 1,
         marginBottom: 12,
-        transition: "color 0.25s ease, opacity 0.25s ease",
+        transition: "opacity 0.25s ease",
       }}>{step}</div>
 
       {/* título */}
@@ -362,7 +415,7 @@ function StepCard({ step, title, desc, color, isLast }: { step: string; title: s
         fontSize: 14,
         fontWeight: 600,
         marginBottom: 8,
-        color: hovered ? "#000" : color,
+        color: color,
         transition: "color 0.25s ease",
       }}>{title}</div>
 
@@ -370,7 +423,7 @@ function StepCard({ step, title, desc, color, isLast }: { step: string; title: s
       <div style={{
         fontSize: 12,
         lineHeight: 1.7,
-        color: hovered ? "rgba(0,0,0,0.65)" : "var(--color-f3)",
+        color: hovered ? "var(--color-f2)" : "var(--color-f3)",
         transition: "color 0.25s ease",
       }}>{desc}</div>
 
@@ -383,7 +436,7 @@ function StepCard({ step, title, desc, color, isLast }: { step: string; title: s
           opacity: hovered ? 1 : 0,
           transform: hovered ? "translateX(0)" : "translateX(-6px)",
           transition: "opacity 0.25s ease, transform 0.25s ease",
-          color: "rgba(0,0,0,0.4)",
+          color: color,
         }}>
           <IconChevronRight size={20} />
         </div>
@@ -392,42 +445,126 @@ function StepCard({ step, title, desc, color, isLast }: { step: string; title: s
   );
 }
 
+/* ── FAQ List ── */
+function FAQList() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  return (
+    <>
+      {FAQ_ITEMS.map((item, i) => (
+        <FAQItem
+          key={item.q} {...item} index={i}
+          open={openIndex === i}
+          onToggle={() => setOpenIndex(openIndex === i ? null : i)}
+        />
+      ))}
+    </>
+  );
+}
+
 /* ── Main ── */
 export function LandingPage() {
-  return (
-    <div style={{ background: "var(--color-bg)", color: "var(--color-f1)", fontFamily: "var(--font-body)", overflowX: "hidden" }}>
+  const [scrolled, setScrolled] = useState(false);
 
-      {/* ── Navbar ── */}
-      <nav style={{
-        position: "sticky", top: 0, zIndex: 50,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 48px", height: 60,
-        background: "rgba(12,12,12,0.85)", backdropFilter: "blur(16px)",
-        borderBottom: "1px solid var(--color-border)",
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <div style={{
+      background: "var(--color-bg)",
+      backgroundImage: "radial-gradient(circle, rgba(34,211,238,0.09) 1px, transparent 1px)",
+      backgroundSize: "32px 32px",
+      color: "var(--color-f1)", fontFamily: "var(--font-body)", overflowX: "hidden",
+    }}>
+
+      <style>{`
+        .hero-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 64px;
+          align-items: center;
+        }
+        @media (max-width: 900px) {
+          .hero-grid {
+            grid-template-columns: 1fr;
+            text-align: center;
+          }
+          .hero-text { align-items: center !important; }
+          .hero-ctas { justify-content: center !important; }
+        }
+      `}</style>
+
+      {/* ── Navbar wrapper ── */}
+      <div style={{
+        position: "fixed", top: 12, left: 16, right: 16, zIndex: 50, borderRadius: 32,
+        background: "rgba(255,255,255,0.06)", /* borda estática sempre presente */
       }}>
-        <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: 22, letterSpacing: "-0.5px" }}>
+
+        {/* Camada do cometa — faz fade-in sobre a borda estática */}
+        <div
+          className={scrolled ? "nav-comet-border" : ""}
+          style={{
+            position: "absolute", inset: 0, borderRadius: 32, padding: 1,
+            pointerEvents: "none",
+            opacity: scrolled ? 1 : 0,
+            transition: "opacity 0.6s ease",
+          }}
+        />
+
+        {/* ── Navbar — margin:1 abre espaço para a borda; glassmorphism intacto ── */}
+        <nav style={{
+          position: "relative",
+          margin: 1,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "0 0 0 28px", height: 50,
+          borderRadius: 31,
+          background: scrolled ? "rgba(10,10,10,0.82)" : "rgba(18,18,18,0.5)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          transition: "background 0.3s ease",
+        }}>
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: 22, letterSpacing: "-0.5px", background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--color-f1)" }}
+        >
           Ly<span style={{ color: "var(--color-cyan)" }}>fx</span>
-        </div>
+        </button>
         <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          {["Funcionalidades", "Como funciona", "FAQ"].map(item => (
+          {[
+            { label: "Funcionalidades", anchor: "funcionalidades" },
+            { label: "Como funciona",   anchor: "como-funciona" },
+            { label: "Preços",          anchor: "precos" },
+            { label: "FAQ",             anchor: "faq" },
+          ].map(item => (
             <a
-              key={item}
-              href={`#${item.toLowerCase().replace(/\s/g, "-")}`}
-              style={{ fontSize: 13, color: "var(--color-f3)", textDecoration: "none", transition: "color 150ms" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "var(--color-f1)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "var(--color-f3)")}
+              key={item.label}
+              href={`#${item.anchor}`}
+              style={{ fontSize: 13, color: "var(--color-f3)", textDecoration: "none", transition: "color 150ms, text-decoration-color 150ms" }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = "var(--color-f1)";
+                e.currentTarget.style.textDecoration = "underline";
+                e.currentTarget.style.textDecorationColor = "rgba(34,211,238,0.55)";
+                e.currentTarget.style.textDecorationThickness = "1px";
+                e.currentTarget.style.textUnderlineOffset = "5px";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = "var(--color-f3)";
+                e.currentTarget.style.textDecoration = "none";
+              }}
             >
-              {item}
+              {item.label}
             </a>
           ))}
         </div>
         <Link
           href="/login"
           style={{
-            display: "flex", alignItems: "center", gap: 6,
+            display: "flex", alignItems: "center", gap: 6, alignSelf: "stretch",
             fontSize: 13, fontWeight: 600,
             background: "var(--color-cyan)", color: "#083344",
-            padding: "8px 18px", borderRadius: 8,
+            padding: "0 24px", margin: "4px 4px 4px 0", borderRadius: 999,
             textDecoration: "none", transition: "opacity 150ms",
           }}
           onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
@@ -436,76 +573,101 @@ export function LandingPage() {
           Entrar <IconArrowRight size={14} />
         </Link>
       </nav>
+      </div>
 
-      {/* ── Hero ── */}
-      <section style={{ padding: "100px 48px 80px", maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <div
-          style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 14px", borderRadius: 999, border: "1px solid var(--color-cyan-border)", background: "var(--color-cyan-faint)", fontSize: 11, color: "var(--color-cyan)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 32, animation: "fadeUp 0.5s ease both" }}
-        >
-          <IconSparkles size={12} /> Diagnóstico · Controle · Educação
-        </div>
+      {/* ── Hero zone — wrapper full-width para vignette cobrir 100vw × 100vh ── */}
+      <div style={{ position: "relative" }}>
 
-        <h1 style={{
-          fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700,
-          fontSize: "clamp(42px, 7vw, 80px)", textAlign: "center",
-          letterSpacing: "-2px", lineHeight: 1.1, marginBottom: 24,
-          animation: "fadeUp 0.55s 0.05s ease both",
-        }}>
-          Sua vida financeira.<br />
-          <span style={{ color: "var(--color-cyan)" }}>Diagnosticada.</span>
-        </h1>
+        {/* Vignette de borda — 4 gradientes lineares independentes, sem anéis */}
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+          background: `
+            linear-gradient(to right,  var(--color-bg) 0%, rgba(10,10,10,0) 12%, rgba(10,10,10,0) 88%, var(--color-bg) 100%),
+            linear-gradient(to bottom, var(--color-bg) 0%, rgba(10,10,10,0) 10%, rgba(10,10,10,0) 82%, var(--color-bg) 100%)
+          `,
+        }} />
 
-        <p style={{
-          fontSize: "clamp(15px, 2vw, 18px)", color: "var(--color-f3)", textAlign: "center",
-          maxWidth: 560, lineHeight: 1.75, marginBottom: 40,
-          animation: "fadeUp 0.55s 0.1s ease both",
-        }}>
-          DRE pessoal, score de saúde financeira em 4 dimensões, educação adaptada ao seu perfil e alertas proativos. Não só controle — diagnóstico.
-        </p>
+        {/* Espaçador do navbar flutuante: top(12) + height(52) + gap(8) */}
+        <div style={{ height: 72, position: "relative", zIndex: 1 }} />
 
-        <div style={{ display: "flex", gap: 12, marginBottom: 72, animation: "fadeUp 0.55s 0.15s ease both" }}>
-          <Link
-            href="/login"
-            style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "12px 28px",
-              background: "var(--color-cyan)", color: "#083344",
-              borderRadius: 10, fontSize: 14, fontWeight: 700, textDecoration: "none",
-              transition: "opacity 150ms",
-            }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
-            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-          >
-            Acessar o Lyfx <IconArrowRight size={15} />
-          </Link>
-          <a
-            href="#como-funciona"
-            style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "12px 24px",
-              background: "transparent", color: "var(--color-f2)",
-              border: "1px solid var(--color-border2)", borderRadius: 10,
-              fontSize: 14, textDecoration: "none", transition: "all 150ms",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)"; e.currentTarget.style.color = "var(--color-f1)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--color-border2)"; e.currentTarget.style.color = "var(--color-f2)"; }}
-          >
-            Ver como funciona
-          </a>
-        </div>
+        {/* ── Hero ── */}
+        <section style={{ position: "relative", zIndex: 1, padding: "0 48px", maxWidth: 1200, margin: "0 auto", minHeight: "calc(100vh - 116px)", display: "flex", alignItems: "center", width: "100%" }}>
+        <div className="hero-grid" style={{ width: "100%", position: "relative" }}>
 
-        {/* Hero mockup */}
-        <div style={{ animation: "fadeUp 0.7s 0.2s ease both", width: "100%", display: "flex", justifyContent: "center" }}>
-          <div style={{ position: "relative" }}>
-            <div style={{
-              position: "absolute", inset: -1,
-              background: "linear-gradient(135deg, rgba(34,211,238,0.15), transparent 60%)",
-              borderRadius: 18, filter: "blur(20px)",
-            }} />
-            <DashboardMockup />
+          {/* Coluna esquerda: texto + CTAs */}
+          <div className="hero-text" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+            <div
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 14px", borderRadius: 999, border: "1px solid var(--color-cyan-border)", background: "var(--color-cyan-faint)", fontSize: 11, color: "var(--color-cyan)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 28, animation: "fadeUp 0.5s ease both" }}
+            >
+              <IconSparkles size={12} /> Diagnóstico · Controle · Educação
+            </div>
+
+            <h1 style={{
+              fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700,
+              fontSize: "clamp(38px, 5vw, 72px)",
+              letterSpacing: "0.5px", lineHeight: 1.15, marginBottom: 24,
+              animation: "fadeUp 0.55s 0.05s ease both",
+            }}>
+              Sua vida financeira.<br />
+              <span style={{ color: "var(--color-cyan)" }}>Diagnosticada.</span>
+            </h1>
+
+            <p style={{
+              fontSize: "clamp(14px, 1.5vw, 17px)", color: "var(--color-f3)",
+              maxWidth: 480, lineHeight: 1.75, marginBottom: 36,
+              animation: "fadeUp 0.55s 0.1s ease both",
+            }}>
+              DRE pessoal, score de saúde financeira em 4 dimensões, educação adaptada ao seu perfil e alertas proativos. Não só controle — diagnóstico.
+            </p>
+
+            <div className="hero-ctas" style={{ display: "flex", gap: 12, animation: "fadeUp 0.55s 0.15s ease both" }}>
+              <Link
+                href="/login"
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, padding: "12px 28px",
+                  background: "var(--color-cyan)", color: "#083344",
+                  borderRadius: 10, fontSize: 14, fontWeight: 700, textDecoration: "none",
+                  transition: "opacity 150ms",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
+                onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+              >
+                Acessar o Lyfx <IconArrowRight size={15} />
+              </Link>
+              <a
+                href="#como-funciona"
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, padding: "12px 24px",
+                  background: "transparent", color: "var(--color-f2)",
+                  border: "1px solid var(--color-border2)", borderRadius: 10,
+                  fontSize: 14, textDecoration: "none", transition: "all 150ms",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)"; e.currentTarget.style.color = "var(--color-f1)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--color-border2)"; e.currentTarget.style.color = "var(--color-f2)"; }}
+              >
+                Ver como funciona
+              </a>
+            </div>
           </div>
-        </div>
-      </section>
 
-      {/* ── Marquee ── */}
+          {/* Coluna direita: mockup */}
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", animation: "fadeUp 0.7s 0.2s ease both" }}>
+            <div style={{ position: "relative" }}>
+              <div style={{
+                position: "absolute", inset: -1,
+                background: "linear-gradient(135deg, rgba(34,211,238,0.15), transparent 60%)",
+                borderRadius: 18, filter: "blur(20px)",
+              }} />
+              <DashboardMockup />
+            </div>
+          </div>
+
+        </div>
+        </section>
+
+      </div>{/* fim hero zone */}
+
+      {/* ── Marquee — no fold, separando hero de funcionalidades ── */}
       <Marquee />
 
       {/* ── Features ── */}
@@ -566,8 +728,114 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ── Pricing ── */}
+      <section id="precos" style={{ padding: "96px 48px", borderTop: "1px solid var(--color-border)" }}>
+        <div style={{ maxWidth: 860, margin: "0 auto" }}>
+
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <div style={{ fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 14 }}>Planos</div>
+            <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: "clamp(32px, 5vw, 52px)", letterSpacing: "-1.5px", lineHeight: 1.15, marginBottom: 16 }}>
+              Sua equação<br />
+              <span style={{ color: "var(--color-cyan)" }}>tem solução.</span>
+            </h2>
+            <p style={{ fontSize: 15, color: "var(--color-f3)", lineHeight: 1.75, maxWidth: 420, margin: "0 auto" }}>
+              Um plano. Acesso completo. Diagnóstico real das suas finanças — sem planilha, sem achismo.
+            </p>
+          </div>
+
+          {/* Card único */}
+          <div style={{
+            maxWidth: 480, margin: "0 auto",
+            background: "var(--color-bg2)",
+            border: "1px solid rgba(34,211,238,0.25)",
+            borderRadius: 24,
+            overflow: "hidden",
+            boxShadow: "0 0 60px rgba(34,211,238,0.06)",
+          }}>
+
+            {/* Topo do card */}
+            <div style={{
+              padding: "36px 36px 28px",
+              borderBottom: "1px solid var(--color-border)",
+              background: "linear-gradient(160deg, rgba(34,211,238,0.06) 0%, transparent 60%)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-f2)", letterSpacing: "0.5px" }}>Lyfx Completo</span>
+                <span style={{
+                  fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase",
+                  padding: "3px 10px", borderRadius: 999,
+                  background: "rgba(34,211,238,0.1)", color: "var(--color-cyan)",
+                  border: "1px solid rgba(34,211,238,0.2)",
+                }}>Único plano</span>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 8 }}>
+                <span style={{ fontSize: 13, color: "var(--color-f4)", marginBottom: 6 }}>R$</span>
+                <span style={{
+                  fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700,
+                  fontSize: 56, lineHeight: 1, color: "var(--color-cyan)", letterSpacing: "-2px",
+                }}>XX,xx</span>
+                <span style={{ fontSize: 13, color: "var(--color-f4)", marginBottom: 8 }}>/mês</span>
+              </div>
+              <p style={{ fontSize: 13, color: "var(--color-f4)", lineHeight: 1.6, margin: 0 }}>
+                Acesso completo a todas as funcionalidades. Sem limites, sem surpresas.
+              </p>
+            </div>
+
+            {/* Features */}
+            <div style={{ padding: "28px 36px 32px" }}>
+              <div style={{ fontSize: 11, letterSpacing: "1px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 18 }}>O que está incluído</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+                {[
+                  "DRE Pessoal com categorização semântica",
+                  "Score de saúde financeira em 4 dimensões",
+                  "85 pílulas de educação financeira adaptadas ao seu perfil",
+                  "Quiz de fixação e streak semanal",
+                  "Alertas proativos de orçamento, metas e passivos",
+                  "Gestão de passivos com método avalanche",
+                  "Cadastro de bens, imóveis e veículos",
+                  "Orçamento mensal por categoria",
+                  "Controle de parcelamentos",
+                  "Instituições financeiras vinculadas",
+                  "Relatórios e histórico completo",
+                  "Isolamento de dados por usuário",
+                ].map(feature => (
+                  <div key={feature} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{
+                      width: 18, height: 18, borderRadius: 999, flexShrink: 0, marginTop: 1,
+                      background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.3)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <div style={{ width: 6, height: 6, borderRadius: 999, background: "var(--color-cyan)" }} />
+                    </div>
+                    <span style={{ fontSize: 13, color: "var(--color-f3)", lineHeight: 1.5 }}>{feature}</span>
+                  </div>
+                ))}
+              </div>
+
+              <Link
+                href="/login"
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  marginTop: 32, padding: "14px 0",
+                  background: "var(--color-cyan)", color: "#083344",
+                  borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: "none",
+                  transition: "opacity 150ms",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
+                onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+              >
+                Começar agora <IconArrowRight size={15} />
+              </Link>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
       {/* ── FAQ ── */}
-      <section id="faq" style={{ padding: "96px 48px", maxWidth: 700, margin: "0 auto" }}>
+      <section id="faq" style={{ padding: "96px 48px", maxWidth: 860, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
           <div style={{ fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 14 }}>FAQ</div>
           <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: "clamp(28px, 4vw, 40px)", letterSpacing: "-1px" }}>
@@ -575,43 +843,89 @@ export function LandingPage() {
           </h2>
         </div>
         <div>
-          {FAQ_ITEMS.map(item => <FAQItem key={item.q} {...item} />)}
+          <FAQList />
         </div>
       </section>
 
-      {/* ── Final CTA ── */}
-      <section style={{ padding: "80px 48px 96px", textAlign: "center", borderTop: "1px solid var(--color-border)" }}>
-        <div style={{ maxWidth: 560, margin: "0 auto" }}>
-          <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: "clamp(32px, 5vw, 52px)", letterSpacing: "-1.5px", lineHeight: 1.15, marginBottom: 20 }}>
-            Sua equação<br />
-            <span style={{ color: "var(--color-cyan)" }}>tem solução.</span>
-          </h2>
-          <p style={{ fontSize: 15, color: "var(--color-f3)", lineHeight: 1.75, marginBottom: 36 }}>
-            Comece agora. É grátis, leva menos de um minuto e vai mudar a forma como você enxerga suas finanças.
-          </p>
-          <Link
-            href="/login"
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 8,
-              padding: "14px 36px", background: "var(--color-cyan)", color: "#083344",
-              borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: "none",
-              transition: "opacity 150ms",
-            }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
-            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-          >
-            Acessar o Lyfx <IconArrowRight size={16} />
-          </Link>
-        </div>
-      </section>
+      {/* ── Footer Card ── */}
+      <footer style={{ padding: "0 16px 16px" }}>
+        <div style={{
+          background: "var(--color-bg2)",
+          border: "1px solid var(--color-border)",
+          borderRadius: 32,
+          overflow: "hidden",
+        }}>
 
-      {/* ── Footer ── */}
-      <footer style={{ borderTop: "1px solid var(--color-border)", padding: "28px 48px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: 18 }}>
-          Ly<span style={{ color: "var(--color-cyan)" }}>fx</span>
-          <span style={{ fontFamily: "var(--font-body)", fontStyle: "normal", fontSize: 11, color: "var(--color-f4)", marginLeft: 8, letterSpacing: "1px" }}>LIFE FIXED</span>
+          {/* Info row */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "28px 36px",
+            borderBottom: "1px solid rgba(34, 211, 238, 0.18)",
+          }}>
+            {/* Logo */}
+            <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: 18 }}>
+              Ly<span style={{ color: "var(--color-cyan)" }}>fx</span>
+              <span style={{ fontFamily: "var(--font-body)", fontStyle: "normal", fontSize: 11, color: "var(--color-f4)", marginLeft: 8, letterSpacing: "1px" }}>LIFE FIXED</span>
+            </div>
+
+            {/* Voltar ao topo */}
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                background: "transparent", border: "1px solid var(--color-border)",
+                borderRadius: 8, padding: "7px 14px",
+                fontSize: 11, color: "var(--color-f3)", cursor: "pointer",
+                letterSpacing: "0.5px", textTransform: "uppercase",
+                transition: "border-color 150ms, color 150ms",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--color-cyan)"; e.currentTarget.style.color = "var(--color-cyan)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--color-border)"; e.currentTarget.style.color = "var(--color-f3)"; }}
+            >
+              ↑ Voltar ao topo
+            </button>
+
+            {/* Meta */}
+            <div style={{ fontSize: 11, color: "var(--color-f4)", textAlign: "right" }}>
+              v1.6.3 · © 2026 Lyfx<br />
+              <span style={{ color: "var(--color-f4)", opacity: 0.6 }}>Todos os direitos reservados.</span>
+            </div>
+          </div>
+
+          {/* Marquee gigante */}
+          <div style={{ overflow: "hidden", padding: "18px 0 20px" }}>
+            <div style={{
+              display: "flex",
+              animation: "marquee 22s linear infinite",
+              whiteSpace: "nowrap",
+              willChange: "transform",
+            }}>
+              {[0, 1].map(i => (
+                <span key={i} style={{
+                  fontFamily: "var(--font-display)",
+                  fontStyle: "italic",
+                  fontWeight: 700,
+                  fontSize: "clamp(56px, 9vw, 110px)",
+                  letterSpacing: "-2px",
+                  lineHeight: 1,
+                  color: "var(--color-f1)",
+                  opacity: 0.07,
+                  userSelect: "none",
+                  flexShrink: 0,
+                }}>
+                  Pronto para resolver sua equação?&nbsp;&nbsp;·&nbsp;&nbsp;
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Linha de assinatura ciano no fundo */}
+          <div style={{
+            height: 2,
+            background: "linear-gradient(90deg, transparent 0%, rgba(34,211,238,0.5) 40%, rgba(34,211,238,0.7) 50%, rgba(34,211,238,0.5) 60%, transparent 100%)",
+          }} />
+
         </div>
-        <div style={{ fontSize: 11, color: "var(--color-f4)" }}>v1.5.0 · © 2026 Lyfx. Todos os direitos reservados.</div>
       </footer>
 
       {/* ── Keyframes ── */}
@@ -619,6 +933,37 @@ export function LandingPage() {
         @keyframes marquee {
           from { transform: translateX(0); }
           to   { transform: translateX(-50%); }
+        }
+
+        @property --border-angle {
+          syntax: '<angle>';
+          initial-value: 0deg;
+          inherits: false;
+        }
+
+        @keyframes nav-comet {
+          to { --border-angle: 360deg; }
+        }
+
+        .nav-comet-border {
+          background: conic-gradient(
+            from var(--border-angle),
+            transparent 0%,
+            transparent 55%,
+            rgba(34, 211, 238, 0.12) 65%,
+            rgba(34, 211, 238, 0.55) 72%,
+            rgba(34, 211, 238, 1)    75%,
+            rgba(34, 211, 238, 0.55) 78%,
+            rgba(34, 211, 238, 0.12) 85%,
+            transparent 92%,
+            transparent 100%
+          );
+          animation: nav-comet 3.5s linear infinite;
+          -webkit-mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
         }
       `}</style>
     </div>
