@@ -7,7 +7,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-local-003B57?style=flat-square&logo=sqlite)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
-![Version](https://img.shields.io/badge/version-1.6.3-22D3EE?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.6.4-22D3EE?style=flat-square)
 
 ---
 
@@ -72,4 +72,4 @@ Para detalhes completos sobre arquitetura, schema do banco, relacionamentos, cat
 
 ---
 
-*v1.6.3 · Maio 2026 · Projeto pessoal em desenvolvimento ativo.*
+*v1.6.4 · Maio 2026 · Projeto pessoal em desenvolvimento ativo.*
