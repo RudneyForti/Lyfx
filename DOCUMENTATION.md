@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.5.0 · Maio 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.6.0 · Maio 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -74,8 +74,9 @@ Arquitetura multi-usuário com isolamento completo por `userId`. Cada usuário v
 
 | Tecnologia | Justificativa |
 |---|---|
-| **bcryptjs** | Hash de senhas com salt automático (fator 10). Escolhido sobre `bcrypt` nativo por ser pure JavaScript — sem dependências de compilação nativa (node-gyp). |
-| **Cookie httpOnly** | Sessão armazenada como cookie `lyfx_session` com `httpOnly: true`, `sameSite: lax`, `maxAge: 30 dias`. Simples, seguro e compatível com SSR sem JWT. |
+| **bcryptjs** | Hash de senhas com salt automático (fator 10). Escolhido sobre `bcrypt` nativo por ser pure JavaScript — sem dependências de compilação nativa (node-gyp). Executa mesmo quando o usuário não existe (timing defense contra username enumeration). |
+| **HMAC-SHA256** | Cookie `lyfx_session` assinado com `createHmac('sha256', SESSION_SECRET)` em `lib/session.ts`. Formato: `<userId>.<hmacHex>`. Verificação em tempo constante via `timingSafeEqual`. `SESSION_SECRET` obrigatória no `.env`. |
+| **Cookie httpOnly** | Sessão armazenada como cookie `lyfx_session` com `httpOnly: true`, `sameSite: lax`. `maxAge: 30 dias` por padrão; omitido quando `remember=false` (session cookie). |
 
 ### Ícones
 
@@ -87,7 +88,7 @@ Arquitetura multi-usuário com isolamento completo por `userId`. Cada usuário v
 
 | Arquivo | Função |
 |---|---|
-| `proxy.ts` | Substituto do `middleware.ts` (convenção depreciada no Next.js 16). Roda no Edge Runtime. Verifica o cookie `lyfx_session` e redireciona rotas protegidas para `/login`. Não acessa o banco (limitação do Edge). |
+| `proxy.ts` | Substituto do `middleware.ts` (convenção depreciada no Next.js 16). Roda no Edge Runtime. Verifica o cookie `lyfx_session`, redireciona rotas protegidas para `/login?redirect=<rota>` preservando o destino original, e injeta header `x-pathname`. Não acessa o banco (limitação do Edge). |
 
 ---
 
