@@ -78,6 +78,8 @@ Exemplo:
 | `1.3.0` | MINOR | Bens e Imóveis: imóveis, veículos, despesas associadas |
 | `1.3.1` | PATCH | Auditoria de segurança e bugs (IDOR, tipos, ownership) |
 | `1.4.0` | MINOR | `reserveBalance` em Settings + alerta de passivo crítico + 3 correções TS |
+| `1.5.0` | MINOR | Módulo de Educação Financeira — 85 pílulas pedagógicas por perfil, quiz de fixação e streak semanal |
+| `1.6.0` | MINOR | Segurança: HMAC-SHA256 na sessão, timing defense, validação de e-mail. Novas capacidades: edição inline de tags, navegação de transações por URL, "lembrar de mim" + preservação de rota. Qualidade: 9 correções de bug e UX (parcelas, validações, alertas, relatórios, sidebar, Studio) |
 
 ---
 
@@ -85,8 +87,7 @@ Exemplo:
 
 | Versão | Tipo | Conteúdo previsto |
 |---|---|---|
-| `1.5.0` | MINOR | Módulo de Educação Financeira (`/education`) — pílulas por perfil |
-| `1.6.0` | MINOR | Onboarding wizard + importação OFX/CSV |
+| `1.7.0` | MINOR | Onboarding wizard + importação OFX/CSV |
 | `2.0.0` | MAJOR | Deploy em produção: PostgreSQL, domínio próprio, HTTPS |
 
 ---

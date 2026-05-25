@@ -116,19 +116,74 @@ master   ───────────────────────�
 
 ---
 
-## Versão e tag no release
+## E7 — Checklist de release (develop → master)
 
-A cada merge em `master`, atualizar `package.json` e criar tag:
+Execute nesta ordem. Nenhum passo é opcional.
 
-```bash
-# Editar package.json → "version": "1.X.Y"
-git add package.json
-git commit -m "chore: bump version to 1.X.Y"
-git tag v1.X.Y
-git push origin master --tags
+### 1. Determinar a nova versão
+
+Consultar `VERSIONING.md` para decidir se é PATCH, MINOR ou MAJOR com base no que entrou no lote.
+
+### 2. Atualizar `package.json`
+
+```json
+"version": "X.X.X"
 ```
 
-Consultar `VERSIONING.md` para decidir se é PATCH, MINOR ou MAJOR.
+### 3. Atualizar `README.md`
+
+Dois pontos obrigatórios:
+
+**Badge de versão** (linha ~10):
+```markdown
+![Version](https://img.shields.io/badge/version-X.X.X-22D3EE?style=flat-square)
+```
+
+**Rodapé** (última linha):
+```markdown
+*vX.X.X · Mês Ano · Projeto pessoal em desenvolvimento ativo.*
+```
+
+**Tabela de módulos** — adicionar linha se o lote incluiu novo módulo:
+```markdown
+| **NomeDoMódulo** | Descrição do que faz |
+```
+
+### 4. Atualizar `VERSIONING.md`
+
+Adicionar linha na tabela de histórico:
+```markdown
+| `X.X.X` | PATCH/MINOR/MAJOR | O que foi construído neste lote |
+```
+
+Remover a entrada de "Próximos marcos" correspondente se ela existir.
+
+### 5. Atualizar `DOCUMENTATION.md`
+
+**Cabeçalho** (linha 2):
+```markdown
+> Lyfx — Documentação Técnica · vX.X.X · Mês Ano
+```
+
+**Seções afetadas** — atualizar apenas as seções que o lote tocou:
+- Novo módulo → adicionar entrada em "Funcionalidades"
+- Mudança de autenticação → atualizar "Autenticação e Sessão"
+- Novo campo no schema → atualizar "Schema do Banco de Dados"
+- Nova decisão arquitetural → adicionar em "Decisões Arquiteturais"
+
+### 6. Fazer o merge e a tag
+
+```bash
+git checkout master
+git merge develop --no-ff -m "release: vX.X.X — [resumo do lote]"
+git tag vX.X.X
+git push origin master --tags
+git checkout develop
+git merge master --no-ff -m "chore: sync develop após release vX.X.X"
+git push origin develop
+```
+
+> O último merge (master → develop) garante que develop não fique atrás de master após o release.
 
 ---
 
