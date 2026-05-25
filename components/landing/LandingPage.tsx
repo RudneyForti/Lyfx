@@ -326,6 +326,72 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   );
 }
 
+/* ── StepCard ── */
+function StepCard({ step, title, desc, color, isLast }: { step: string; title: string; desc: string; color: string; isLast: boolean }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "relative",
+        padding: "28px 20px",
+        borderRadius: 14,
+        border: `1px solid ${hovered ? color : "var(--color-border)"}`,
+        background: hovered ? color : "var(--color-bg3)",
+        transition: "background 0.25s ease, border-color 0.25s ease",
+        cursor: "default",
+        overflow: "hidden",
+      }}
+    >
+      {/* número */}
+      <div style={{
+        fontFamily: "var(--font-display)",
+        fontStyle: "italic",
+        fontSize: 36,
+        fontWeight: 700,
+        color: hovered ? "rgba(0,0,0,0.2)" : color,
+        opacity: hovered ? 1 : 0.35,
+        lineHeight: 1,
+        marginBottom: 12,
+        transition: "color 0.25s ease, opacity 0.25s ease",
+      }}>{step}</div>
+
+      {/* título */}
+      <div style={{
+        fontSize: 14,
+        fontWeight: 600,
+        marginBottom: 8,
+        color: hovered ? "#000" : color,
+        transition: "color 0.25s ease",
+      }}>{title}</div>
+
+      {/* descrição */}
+      <div style={{
+        fontSize: 12,
+        lineHeight: 1.7,
+        color: hovered ? "rgba(0,0,0,0.65)" : "var(--color-f3)",
+        transition: "color 0.25s ease",
+      }}>{desc}</div>
+
+      {/* seta — aparece no hover, oculta no último card */}
+      {!isLast && (
+        <div style={{
+          position: "absolute",
+          right: 12,
+          bottom: 12,
+          opacity: hovered ? 1 : 0,
+          transform: hovered ? "translateX(0)" : "translateX(-6px)",
+          transition: "opacity 0.25s ease, transform 0.25s ease",
+          color: "rgba(0,0,0,0.4)",
+        }}>
+          <IconChevronRight size={20} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Main ── */
 export function LandingPage() {
   return (
@@ -489,24 +555,13 @@ export function LandingPage() {
           <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: "clamp(28px, 4vw, 40px)", letterSpacing: "-1px", marginBottom: 56 }}>
             Do lançamento ao diagnóstico.
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, position: "relative" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
             {[
               { step: "01", title: "Crie sua conta", desc: "Sem cartão, sem burocracia. Só você e sua conta.", color: "#22D3EE" },
               { step: "02", title: "Lance transações", desc: "Receitas, despesas, parcelas e recorrências. Tudo categorizado.", color: "#A3E635" },
               { step: "03", title: "Veja seu score", desc: "4 dimensões analisadas. Um diagnóstico claro da sua saúde financeira.", color: "#A78BFA" },
               { step: "04", title: "Evolua com pílulas", desc: "Educação adaptada ao seu perfil. Aprenda o que você mais precisa.", color: "#FBBF24" },
-            ].map((s, i) => (
-              <div key={s.step} style={{ position: "relative", padding: "28px 20px", background: "var(--color-bg3)", borderRadius: 14, border: "1px solid var(--color-border)" }}>
-                {i < 3 && (
-                  <div style={{ position: "absolute", right: -22, top: "50%", transform: "translateY(-50%)", color: "var(--color-f4)", zIndex: 1 }}>
-                    <IconChevronRight size={16} />
-                  </div>
-                )}
-                <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: 36, fontWeight: 700, color: s.color, opacity: 0.35, lineHeight: 1, marginBottom: 12 }}>{s.step}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: s.color }}>{s.title}</div>
-                <div style={{ fontSize: 12, color: "var(--color-f3)", lineHeight: 1.7 }}>{s.desc}</div>
-              </div>
-            ))}
+            ].map((s, i) => <StepCard key={s.step} {...s} isLast={i === 3} />)}
           </div>
         </div>
       </section>
