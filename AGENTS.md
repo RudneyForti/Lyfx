@@ -42,7 +42,12 @@ develop  ← desenvolvimento (branch base para todo trabalho)
 
 ## Sincronização do worktree de produção
 
-Sempre que instalar ou remover um pacote npm em `lyfx/`, replicar imediatamente em `lyfx-production/`:
+**Setup inicial do worktree** (rodar uma vez ao criar `lyfx-production/`):
+```bash
+cd lyfx-production && npm install && npx prisma generate
+```
+
+**Sincronização contínua** — sempre que instalar ou remover pacote em `lyfx/`, replicar em `lyfx-production/`:
 
 ```bash
 npm install <pacote>   # em lyfx/

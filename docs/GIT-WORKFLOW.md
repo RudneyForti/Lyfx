@@ -83,6 +83,14 @@ git push origin master
 
 O ambiente de produção roda em um worktree separado em `../lyfx-production` (branch `master`, porta 4000).
 
+**Setup inicial do worktree** — rodar uma vez ao criar `lyfx-production/`:
+
+```bash
+cd C:/Users/rudne/projetos/lyfx-production
+npm install
+npx prisma generate
+```
+
 **Regra:** sempre que um `npm install` ou `npm uninstall` for executado em `lyfx/`, rodar o mesmo comando em `lyfx-production/` na sequência:
 
 ```bash
