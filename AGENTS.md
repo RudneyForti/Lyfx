@@ -20,7 +20,7 @@ develop  ← desenvolvimento (branch base para todo trabalho)
 |-------|-------------|
 | **E3 — Implementar** | Criar branch de trabalho **a partir de `develop`**: `git checkout develop && git checkout -b fix/nome` ou `feature/nome` |
 | **E6 — Commit** | Merge da branch de trabalho em `develop`: `git checkout develop && git merge fix/nome --no-ff` → push → **deletar branch imediatamente** |
-| **E7 — Release** | Somente quando o usuário aprovar o lote completo: `git checkout master && git merge develop --no-ff` → push |
+| **E7 — Release** | Somente quando o usuário aprovar o lote completo. Executar o checklist completo em `docs/GIT-WORKFLOW.md#e7` antes do merge: (1) determinar versão via `VERSIONING.md`, (2) atualizar `package.json`, (3) atualizar badge e rodapé do `README.md`, (4) adicionar linha no histórico de `VERSIONING.md`, (5) atualizar cabeçalho e seções afetadas em `DOCUMENTATION.md`, (6) fazer merge + tag + sync develop |
 
 ## Regras obrigatórias
 
