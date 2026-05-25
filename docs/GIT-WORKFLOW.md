@@ -105,6 +105,16 @@ master   ───────────────────────�
 
 ---
 
+## Pergunta obrigatória antes do E7
+
+Antes de qualquer merge `develop → master`, o agente **deve perguntar ao usuário**:
+
+> *"O lote está em `develop`. Quer validar antes ou posso fazer o release para `master` agora?"*
+
+Nunca assumir que aprovação de implementação = aprovação de release para produção.
+
+---
+
 ## Regras invioláveis
 
 1. **Nunca commitar direto em `master`** — sem exceção
