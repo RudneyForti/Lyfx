@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.6.2 · Maio 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.6.3 · Maio 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -51,7 +51,7 @@ Arquitetura multi-usuário com isolamento completo por `userId`. Cada usuário v
 
 | Tecnologia | Versão | Justificativa |
 |---|---|---|
-| **SQLite** | — | Banco embarcado, zero configuração de servidor, arquivo único (`dev.db`). Ideal para uso local/single-user e para futura portabilidade. Migração para PostgreSQL é trivial com Prisma. |
+| **SQLite** | — | Banco embarcado, zero configuração de servidor, arquivo único por ambiente. Ideal para uso local/single-user e para futura portabilidade. Migração para PostgreSQL é trivial com Prisma. |
 | **Prisma** | 7.8.0 | ORM type-safe que gera um client TypeScript a partir do schema. Queries com autocomplete e validação em tempo de compilação. |
 | **@prisma/adapter-better-sqlite3** | — | Adaptador necessário na v7 do Prisma para SQLite — a datasource não recebe mais `url` diretamente; o adapter é instanciado em `lib/db.ts` e injetado no client. |
 | **better-sqlite3** | — | Driver SQLite síncrono de alta performance para Node.js. |
@@ -1204,7 +1204,7 @@ lyfx/
 
 | Arquivo | O que faz |
 |---|---|
-| `db.ts` | Singleton do `PrismaClient` com `PrismaBetterSqlite3` como adapter. Reutiliza a instância entre hot-reloads em desenvolvimento via `globalThis`. |
+| `db.ts` | Singleton do `PrismaClient` com `PrismaBetterSqlite3` como adapter. Lê `DATABASE_URL` do ambiente (fallback: `file:./dev.db`). Cada ambiente aponta para seu próprio banco via `.env` (gitignored). |
 | `session.ts` | `getSessionUserId()` lê o cookie `lyfx_session`; `setSession(userId)` grava o cookie httpOnly; `clearSession()` apaga o cookie; `requireAuth()` retorna o `userId` ou lança erro se não autenticado. |
 | `types.ts` | Interfaces TypeScript do domínio: `Transaction`, `Tag`, `Goal`, `GoalPayment`, `Liability`, `DRESummary` (com `margins` e `saved`), tipos de categoria, recorrência e contexto. |
 | `categories.ts` | Array `CATEGORIES` com as 9 categorias (2 de crédito + 7 de débito), cada uma com `value`, `label`, `group`, `groupLabel` e `examples`. Fonte de verdade para dropdowns e agrupamentos. |
@@ -1287,6 +1287,17 @@ Usa o Agent Smith para auditar a action completePill
 **Decisão**: `PrismaBetterSqlite3` instanciado em `lib/db.ts` e passado via `{ adapter }` ao `PrismaClient`.
 
 **Motivo**: Prisma v7 removeu o suporte nativo ao SQLite inline na datasource. O novo modelo requer um adapter explícito. Isso também habilita futura troca para PostgreSQL sem mudança no código de queries — apenas a instanciação do adapter muda.
+
+### Isolamento de bancos por ambiente
+
+**Decisão**: cada ambiente mantém seu próprio arquivo `.env` (gitignored) com `DATABASE_URL` apontando para um banco SQLite exclusivo:
+
+| Ambiente | Banco |
+|---|---|
+| `develop` (porta 3000) | `lyfx/dev.db` — dados de teste, resetável livremente |
+| `master` (porta 4000) | `lyfx-production/prod.db` — dados reais do usuário |
+
+**Motivo**: banco compartilhado entre dev e produção criava risco de corrupção de dados (migrações de schema em `develop` afetariam produção imediatamente). O isolamento via `.env` gitignored é automático — merges nunca tocam o arquivo de configuração de nenhum ambiente, preservando o apontamento de banco de cada um indefinidamente.
 
 ---
 
