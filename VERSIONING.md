@@ -89,6 +89,7 @@ Exemplo:
 | `1.6.7` | PATCH | Landing page: responsividade completa (mobile/tablet/desktop/TV) — hamburger menu pill-ciano, hero padding adaptativo, Sobre em 1 coluna, features e StepCards responsivos, seta dos steps aponta para baixo no mobile, footer reorganizado. |
 | `1.7.0` | MINOR | Migração de banco de dados: SQLite → PostgreSQL 18 local. schema.prisma provider atualizado, lib/db.ts sem adapter externo (singleton HMR-safe), bancos lyfx_dev e lyfx_prod criados localmente. |
 | `1.7.1` | PATCH | Fix: Prisma v7 com provider=prisma-client exige adapter explícito — instala @prisma/adapter-pg + pg, lib/db.ts usa PrismaPg. |
+| `1.7.2` | PATCH | Landing page: versão do footer lida dinamicamente do package.json via prop — zero manutenção manual a cada release. |
 
 ---
 
