@@ -169,6 +169,91 @@ export async function getStudioData() {
   };
 }
 
+// ── Live schema from PostgreSQL information_schema ────────────────────────────
+
+export interface SchemaColumn {
+  column_name: string;
+  data_type: string;
+  is_nullable: string;
+  column_default: string | null;
+}
+
+export interface SchemaForeignKey {
+  table_name: string;
+  column_name: string;
+  foreign_table_name: string;
+  foreign_column_name: string;
+  constraint_name: string;
+}
+
+export interface SchemaTable {
+  name: string;
+  columns: SchemaColumn[];
+}
+
+export interface LiveSchema {
+  tables: SchemaTable[];
+  foreignKeys: SchemaForeignKey[];
+}
+
+export async function getLiveSchema(): Promise<LiveSchema> {
+  await requireAdmin();
+
+  type ColRow = SchemaColumn & { table_name: string };
+
+  const [columns, fks] = await Promise.all([
+    db.$queryRaw<ColRow[]>`
+      SELECT
+        table_name,
+        column_name,
+        data_type,
+        is_nullable,
+        column_default
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name NOT IN ('_prisma_migrations')
+      ORDER BY table_name, ordinal_position
+    `,
+    db.$queryRaw<SchemaForeignKey[]>`
+      SELECT
+        kcu.table_name,
+        kcu.column_name,
+        ccu.table_name  AS foreign_table_name,
+        ccu.column_name AS foreign_column_name,
+        tc.constraint_name
+      FROM information_schema.table_constraints AS tc
+      JOIN information_schema.key_column_usage AS kcu
+        ON tc.constraint_name = kcu.constraint_name
+        AND tc.table_schema = kcu.table_schema
+      JOIN information_schema.constraint_column_usage AS ccu
+        ON ccu.constraint_name = tc.constraint_name
+        AND ccu.table_schema = tc.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY'
+        AND tc.table_schema = 'public'
+      ORDER BY kcu.table_name, kcu.column_name
+    `,
+  ]);
+
+  // Group columns by table
+  const tableMap = new Map<string, SchemaColumn[]>();
+  for (const row of columns) {
+    if (!tableMap.has(row.table_name)) tableMap.set(row.table_name, []);
+    tableMap.get(row.table_name)!.push({
+      column_name: row.column_name,
+      data_type: row.data_type,
+      is_nullable: row.is_nullable,
+      column_default: row.column_default,
+    });
+  }
+
+  const tables: SchemaTable[] = Array.from(tableMap.entries()).map(([name, cols]) => ({
+    name,
+    columns: cols,
+  }));
+
+  return { tables, foreignKeys: fks };
+}
+
 export async function getDocumentation(): Promise<string> {
   try {
     const filePath = path.join(process.cwd(), "DOCUMENTATION.md");
