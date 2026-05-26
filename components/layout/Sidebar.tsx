@@ -25,50 +25,59 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   collapsed?: boolean;
+  allowedModules?: string[]; // if provided, filter nav items by module key
 }
 
 const navGroups = [
   {
     label: "Principal",
     items: [
-      { href: "/dashboard",    label: "Dashboard",   icon: IconLayoutDashboard },
-      { href: "/transactions", label: "Transações",  icon: IconArrowsExchange },
+      { href: "/dashboard",    label: "Dashboard",   icon: IconLayoutDashboard, moduleKey: "dashboard" },
+      { href: "/transactions", label: "Transações",  icon: IconArrowsExchange,  moduleKey: "transactions" },
     ],
   },
   {
     label: "Planejamento",
     items: [
-      { href: "/planning",       label: "Plano Mensal",   icon: IconCalendarMonth },
-      { href: "/budget",         label: "Orçamento",      icon: IconWallet },
-      { href: "/goals",          label: "Metas",          icon: IconTarget },
-      { href: "/liabilities",    label: "Passivos",       icon: IconTrendingDown },
-      { href: "/projections",    label: "Projeções",      icon: IconChartLine },
-      { href: "/fixed-expenses", label: "Contas fixas",   icon: IconCalendarDue },
-      { href: "/institutions",   label: "Instituições",   icon: IconBuildingBank },
-      { href: "/assets",         label: "Bens e Imóveis", icon: IconHome2 },
+      { href: "/planning",       label: "Plano Mensal",   icon: IconCalendarMonth, moduleKey: "monthly-plan" },
+      { href: "/budget",         label: "Orçamento",      icon: IconWallet,        moduleKey: "budget" },
+      { href: "/goals",          label: "Metas",          icon: IconTarget,        moduleKey: "goals" },
+      { href: "/liabilities",    label: "Passivos",       icon: IconTrendingDown,  moduleKey: "liabilities" },
+      { href: "/projections",    label: "Projeções",      icon: IconChartLine,     moduleKey: "projections" },
+      { href: "/fixed-expenses", label: "Contas fixas",   icon: IconCalendarDue,   moduleKey: "fixed-expenses" },
+      { href: "/institutions",   label: "Instituições",   icon: IconBuildingBank,  moduleKey: "institutions" },
+      { href: "/assets",         label: "Bens e Imóveis", icon: IconHome2,         moduleKey: "assets" },
     ],
   },
   {
     label: "Análise",
     items: [
-      { href: "/alerts",         label: "Alertas",          icon: IconBell },
-      { href: "/reports",        label: "Relatórios",       icon: IconReportAnalytics },
-      { href: "/health",         label: "Saúde financeira", icon: IconHeartRateMonitor },
-      { href: "/reimbursements", label: "Reembolsos",       icon: IconReceipt2 },
-      { href: "/tags",           label: "Minhas tags",      icon: IconTags },
+      { href: "/alerts",         label: "Alertas",          icon: IconBell,             moduleKey: "alerts" },
+      { href: "/reports",        label: "Relatórios",       icon: IconReportAnalytics,  moduleKey: "reports" },
+      { href: "/health",         label: "Saúde financeira", icon: IconHeartRateMonitor, moduleKey: "health" },
+      { href: "/reimbursements", label: "Reembolsos",       icon: IconReceipt2,         moduleKey: "reimbursements" },
+      { href: "/tags",           label: "Minhas tags",      icon: IconTags,             moduleKey: "tags" },
     ],
   },
   {
     label: "Aprender",
     items: [
-      { href: "/education", label: "Educação", icon: IconBook2 },
+      { href: "/education", label: "Educação", icon: IconBook2, moduleKey: "education" },
     ],
   },
 ];
 
-export function Sidebar(_props: Props) {
+export function Sidebar({ allowedModules }: Props) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  // If allowedModules is provided, filter items; otherwise show all
+  const visibleGroups = navGroups.map(group => ({
+    ...group,
+    items: allowedModules
+      ? group.items.filter(item => allowedModules.includes(item.moduleKey))
+      : group.items,
+  })).filter(group => group.items.length > 0);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -110,7 +119,7 @@ export function Sidebar(_props: Props) {
 
       {/* Nav */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2.5">
-        {navGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label} className="mb-4">
             <div
               className={cn(

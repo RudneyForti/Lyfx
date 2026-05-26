@@ -6,10 +6,13 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, getStudioDataForUser } from "./actions";
+import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan } from "@/app/actions/plans";
+import { ALL_MODULES } from "@/lib/modules";
 import {
   IconLock, IconLoader2, IconX, IconLogout, IconDatabase,
   IconUsers, IconTable, IconKey, IconTrash, IconChevronDown, IconChevronRight,
-  IconFileDescription, IconUserPlus, IconFilter,
+  IconFileDescription, IconUserPlus, IconFilter, IconPackage, IconPlus, IconEdit,
+  IconCheck,
 } from "@tabler/icons-react";
 
 /* ── Login gate ── */
@@ -194,14 +197,16 @@ function LogoutButton() {
 
 /* ── Main studio ── */
 type StudioData = Awaited<ReturnType<typeof import("./actions").getStudioData>>;
+type PlanItem = StudioData["plans"][number];
 
 export function StudioMain({ data, docs }: { data: StudioData; docs: string }) {
-  const [tab, setTab] = useState<"schema" | "users" | "data" | "docs">("schema");
+  const [tab, setTab] = useState<"schema" | "users" | "plans" | "data" | "docs">("schema");
   const [expanded, setExpanded] = useState<string | null>("Transaction");
 
   const tabs = [
     { key: "schema", label: "Schema",       icon: <IconDatabase size={14} /> },
     { key: "users",  label: "Usuários",     icon: <IconUsers size={14} /> },
+    { key: "plans",  label: "Planos",       icon: <IconPackage size={14} /> },
     { key: "data",   label: "Dados",        icon: <IconTable size={14} /> },
     { key: "docs",   label: "Documentação", icon: <IconFileDescription size={14} /> },
   ] as const;
@@ -243,10 +248,10 @@ export function StudioMain({ data, docs }: { data: StudioData; docs: string }) {
       {/* Content */}
       <div style={{ padding: tab === "docs" ? 0 : 28, maxWidth: tab === "docs" ? "none" : 900 }}>
         {tab === "schema" && <SchemaTab expanded={expanded} setExpanded={setExpanded} />}
-        {tab === "users"  && <UsersTab users={data.users} />}
+        {tab === "users"  && <UsersTab users={data.users} plans={data.plans} />}
+        {tab === "plans"  && <PlansTab plans={data.plans} users={data.users} />}
         {tab === "data"   && <DataTab data={data} />}
         {tab === "docs"   && <DocsTab content={docs} />}
-
       </div>
     </div>
   );
@@ -316,7 +321,9 @@ function SchemaTab({ expanded, setExpanded }: { expanded: string | null; setExpa
 }
 
 /* ── Users Tab ── */
-function UsersTab({ users }: { data?: unknown; users: { id: string; name: string; email: string | null; createdAt: Date; avatar: string | null }[] }) {
+type UserRow = { id: string; name: string; email: string | null; createdAt: Date; avatar: string | null; planId: string | null; plan: { id: string; name: string; color: string } | null };
+
+function UsersTab({ users, plans }: { users: UserRow[]; plans: PlanItem[] }) {
   const router = useRouter();
   const [resetId, setResetId] = useState<string | null>(null);
   const [newPw, setNewPw] = useState("");
@@ -332,6 +339,18 @@ function UsersTab({ users }: { data?: unknown; users: { id: string; name: string
   const [createForm, setCreateForm] = useState({ name: "", email: "", password: "" });
   const [createMsg, setCreateMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [isCreating, startCreating] = useTransition();
+
+  // plan assignment
+  const [planChangingId, setPlanChangingId] = useState<string | null>(null);
+  const [isPlanPending, startPlanTransition] = useTransition();
+
+  function handlePlanChange(userId: string, planId: string) {
+    startPlanTransition(async () => {
+      await assignUserToPlan(userId, planId || null);
+      setPlanChangingId(null);
+      router.refresh();
+    });
+  }
 
   function handleReset(userId: string) {
     if (newPw.length < 6) { setMsg({ id: userId, text: "Mínimo 6 caracteres.", ok: false }); return; }
@@ -441,15 +460,58 @@ function UsersTab({ users }: { data?: unknown; users: { id: string; name: string
               <div style={{ fontSize: 13, fontWeight: 600 }}>{u.name}</div>
               <div style={{ fontSize: 11, color: "var(--color-f4)" }}>{u.email ?? "sem e-mail"} · desde {new Date(u.createdAt).toLocaleDateString("pt-BR")}</div>
             </div>
+
+            {/* Plan badge / selector */}
+            {planChangingId === u.id ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <select
+                  defaultValue={u.planId ?? ""}
+                  autoFocus
+                  onChange={e => handlePlanChange(u.id, e.target.value)}
+                  style={{ height: 28, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 8px", fontSize: 11, color: "var(--color-f1)", outline: "none", cursor: "pointer" }}
+                >
+                  <option value="">Sem plano</option>
+                  {plans.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                {isPlanPending && <IconLoader2 size={12} style={{ color: "var(--color-f4)", animation: "spin 1s linear infinite" }} />}
+                <button
+                  onClick={() => setPlanChangingId(null)}
+                  style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", color: "var(--color-f4)", borderRadius: 4 }}
+                >
+                  <IconX size={11} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setPlanChangingId(u.id); setResetId(null); setConfirmDeleteId(null); }}
+                title="Alterar plano"
+                style={{
+                  display: "flex", alignItems: "center", gap: 5, padding: "3px 8px 3px 6px",
+                  fontSize: 10, borderRadius: 999, cursor: "pointer",
+                  background: u.plan ? `${u.plan.color}18` : "var(--color-bg3)",
+                  border: `1px solid ${u.plan ? `${u.plan.color}44` : "var(--color-border)"}`,
+                  color: u.plan ? u.plan.color : "var(--color-f4)",
+                  transition: "opacity 150ms",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = "0.75")}
+                onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+              >
+                <IconPackage size={10} />
+                {u.plan ? u.plan.name : "Sem plano"}
+              </button>
+            )}
+
             <div style={{ display: "flex", gap: 6 }}>
               <button
-                onClick={() => { setResetId(resetId === u.id ? null : u.id); setNewPw(""); setMsg(null); setConfirmDeleteId(null); }}
+                onClick={() => { setResetId(resetId === u.id ? null : u.id); setNewPw(""); setMsg(null); setConfirmDeleteId(null); setPlanChangingId(null); }}
                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", fontSize: 11, borderRadius: 6, border: "1px solid var(--color-border2)", background: "var(--color-bg3)", color: "var(--color-f2)", cursor: "pointer" }}
               >
                 <IconKey size={12} /> Resetar senha
               </button>
               <button
-                onClick={() => { setConfirmDeleteId(confirmDeleteId === u.id ? null : u.id); setResetId(null); setMsg(null); }}
+                onClick={() => { setConfirmDeleteId(confirmDeleteId === u.id ? null : u.id); setResetId(null); setMsg(null); setPlanChangingId(null); }}
                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", fontSize: 11, borderRadius: 6, border: "1px solid rgba(248,113,113,0.3)", background: "rgba(248,113,113,0.06)", color: "var(--color-red)", cursor: "pointer" }}
               >
                 <IconTrash size={12} /> Excluir
@@ -510,6 +572,341 @@ function UsersTab({ users }: { data?: unknown; users: { id: string; name: string
 
           {msg?.id === u.id && (
             <div style={{ marginTop: 8, fontSize: 11, color: msg.ok ? "var(--color-green)" : "var(--color-red)" }}>{msg.text}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Plans Tab ── */
+const MODULE_GROUPS = Array.from(new Set(ALL_MODULES.map(m => m.group)));
+
+function PlanForm({
+  initial,
+  onSave,
+  onCancel,
+  isSaving,
+}: {
+  initial?: { name: string; description: string; color: string; isDefault: boolean; modules: string[] };
+  onSave: (data: { name: string; description: string; color: string; isDefault: boolean; modules: string[] }) => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const [form, setForm] = useState({
+    name: initial?.name ?? "",
+    description: initial?.description ?? "",
+    color: initial?.color ?? "#22D3EE",
+    isDefault: initial?.isDefault ?? false,
+    modules: new Set<string>(initial?.modules ?? ALL_MODULES.map(m => m.key)),
+  });
+
+  function toggleModule(key: string) {
+    setForm(f => {
+      const next = new Set(f.modules);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return { ...f, modules: next };
+    });
+  }
+
+  function toggleGroup(group: string) {
+    const groupKeys = ALL_MODULES.filter(m => m.group === group).map(m => m.key);
+    const allOn = groupKeys.every(k => form.modules.has(k));
+    setForm(f => {
+      const next = new Set(f.modules);
+      groupKeys.forEach(k => allOn ? next.delete(k) : next.add(k));
+      return { ...f, modules: next };
+    });
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <input
+          placeholder="Nome do plano *"
+          value={form.name}
+          onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+          style={{ height: 36, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 12px", fontSize: 12, color: "var(--color-f1)", outline: "none" }}
+        />
+        <input
+          placeholder="Descrição (opcional)"
+          value={form.description}
+          onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+          style={{ height: 36, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 12px", fontSize: 12, color: "var(--color-f1)", outline: "none" }}
+        />
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <label style={{ fontSize: 11, color: "var(--color-f3)" }}>Cor</label>
+          <input
+            type="color"
+            value={form.color}
+            onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
+            style={{ width: 32, height: 28, border: "none", background: "none", cursor: "pointer", padding: 0 }}
+          />
+          <span style={{ fontSize: 11, color: "var(--color-f4)", fontFamily: "monospace" }}>{form.color}</span>
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11, color: "var(--color-f2)" }}>
+          <input
+            type="checkbox"
+            checked={form.isDefault}
+            onChange={e => setForm(f => ({ ...f, isDefault: e.target.checked }))}
+          />
+          Plano padrão (novos usuários)
+        </label>
+      </div>
+
+      {/* Module checklist */}
+      <div style={{ border: "1px solid var(--color-border)", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ padding: "8px 14px", background: "var(--color-bg3)", fontSize: 10, color: "var(--color-f4)", letterSpacing: 1, textTransform: "uppercase", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Módulos ({form.modules.size}/{ALL_MODULES.length})</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setForm(f => ({ ...f, modules: new Set(ALL_MODULES.map(m => m.key)) }))} style={{ fontSize: 10, background: "none", border: "none", color: "var(--color-cyan)", cursor: "pointer" }}>Todos</button>
+            <button onClick={() => setForm(f => ({ ...f, modules: new Set() }))} style={{ fontSize: 10, background: "none", border: "none", color: "var(--color-f4)", cursor: "pointer" }}>Nenhum</button>
+          </div>
+        </div>
+        {MODULE_GROUPS.map(group => {
+          const groupMods = ALL_MODULES.filter(m => m.group === group);
+          const allOn = groupMods.every(m => form.modules.has(m.key));
+          return (
+            <div key={group} style={{ borderTop: "1px solid var(--color-border)", padding: "10px 14px" }}>
+              <button
+                onClick={() => toggleGroup(group)}
+                style={{ fontSize: 10, color: allOn ? "var(--color-cyan)" : "var(--color-f4)", background: "none", border: "none", cursor: "pointer", marginBottom: 6, letterSpacing: 0.5, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5 }}
+              >
+                {allOn ? <IconCheck size={10} /> : <span style={{ width: 10, height: 10, border: "1px solid currentColor", borderRadius: 2, display: "inline-block" }} />}
+                {group}
+              </button>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {groupMods.map(m => {
+                  const on = form.modules.has(m.key);
+                  return (
+                    <button
+                      key={m.key}
+                      onClick={() => toggleModule(m.key)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4, padding: "4px 10px",
+                        fontSize: 11, borderRadius: 999, cursor: "pointer", transition: "all 100ms",
+                        background: on ? "rgba(34,211,238,0.12)" : "var(--color-bg3)",
+                        border: `1px solid ${on ? "rgba(34,211,238,0.4)" : "var(--color-border)"}`,
+                        color: on ? "var(--color-cyan)" : "var(--color-f4)",
+                      }}
+                    >
+                      {on && <IconCheck size={9} />}
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          onClick={() => onSave({ name: form.name, description: form.description, color: form.color, isDefault: form.isDefault, modules: Array.from(form.modules) })}
+          disabled={isSaving || !form.name.trim()}
+          style={{ flex: 1, height: 36, background: "var(--color-cyan)", color: "#083344", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+        >
+          {isSaving ? <IconLoader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <IconCheck size={13} />}
+          Salvar
+        </button>
+        <button
+          onClick={onCancel}
+          style={{ height: 36, padding: "0 14px", background: "var(--color-bg4)", color: "var(--color-f3)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12, cursor: "pointer" }}
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; name: string }[] }) {
+  const router = useRouter();
+  const [showCreate, setShowCreate] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [formMsg, setFormMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [isSaving, startSaving] = useTransition();
+  const [isDeleting, startDeleting] = useTransition();
+  const [isSeeding, startSeeding] = useTransition();
+
+  function handleCreate(data: { name: string; description: string; color: string; isDefault: boolean; modules: string[] }) {
+    setFormMsg(null);
+    startSaving(async () => {
+      const r = await createPlan(data);
+      if (r.error) { setFormMsg({ text: r.error, ok: false }); return; }
+      setShowCreate(false);
+      router.refresh();
+    });
+  }
+
+  function handleUpdate(id: string, data: { name: string; description: string; color: string; isDefault: boolean; modules: string[] }) {
+    setFormMsg(null);
+    startSaving(async () => {
+      const r = await updatePlan(id, data);
+      if (r.error) { setFormMsg({ text: r.error, ok: false }); return; }
+      setEditId(null);
+      router.refresh();
+    });
+  }
+
+  function handleDelete(id: string) {
+    startDeleting(async () => {
+      const r = await deletePlan(id);
+      if (r.error) { setFormMsg({ text: r.error, ok: false }); setConfirmDeleteId(null); return; }
+      setConfirmDeleteId(null);
+      router.refresh();
+    });
+  }
+
+  function handleSeed() {
+    startSeeding(async () => {
+      await ensureDefaultPlan();
+      router.refresh();
+    });
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>Planos de acesso</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {plans.length === 0 && (
+            <button
+              onClick={handleSeed}
+              disabled={isSeeding}
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", fontSize: 11, borderRadius: 6, border: "1px solid var(--color-cyan-border)", background: "rgba(34,211,238,0.07)", color: "var(--color-cyan)", cursor: "pointer" }}
+            >
+              {isSeeding ? <IconLoader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <IconPackage size={12} />}
+              Criar plano Full padrão
+            </button>
+          )}
+          <button
+            onClick={() => { setShowCreate(!showCreate); setFormMsg(null); setEditId(null); }}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", fontSize: 11, borderRadius: 6, border: "1px solid var(--color-border2)", background: "var(--color-bg3)", color: "var(--color-cyan)", cursor: "pointer" }}
+          >
+            <IconPlus size={12} /> Novo plano
+          </button>
+        </div>
+      </div>
+      <div style={{ fontSize: 13, color: "var(--color-f3)", marginBottom: 16 }}>{plans.length} plano{plans.length !== 1 ? "s" : ""} configurado{plans.length !== 1 ? "s" : ""}</div>
+
+      {formMsg && (
+        <div style={{ marginBottom: 12, fontSize: 12, padding: "8px 12px", borderRadius: 6, background: formMsg.ok ? "rgba(163,230,53,0.08)" : "rgba(248,113,113,0.08)", border: `1px solid ${formMsg.ok ? "rgba(163,230,53,0.3)" : "rgba(248,113,113,0.3)"}`, color: formMsg.ok ? "var(--color-green)" : "var(--color-red)" }}>
+          {formMsg.text}
+        </div>
+      )}
+
+      {/* Create form */}
+      {showCreate && (
+        <div style={{ background: "var(--color-bg2)", border: "1px solid var(--color-cyan-border)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-cyan)", marginBottom: 12 }}>Novo plano</div>
+          <PlanForm onSave={handleCreate} onCancel={() => setShowCreate(false)} isSaving={isSaving} />
+        </div>
+      )}
+
+      {/* Plan cards */}
+      {plans.length === 0 && !showCreate && (
+        <div style={{ color: "var(--color-f4)", fontSize: 13 }}>Nenhum plano criado ainda. Clique em "Criar plano Full padrão" para começar.</div>
+      )}
+
+      {plans.map(plan => (
+        <div key={plan.id} style={{ background: "var(--color-bg2)", border: `1px solid ${editId === plan.id ? plan.color + "44" : "var(--color-border)"}`, borderRadius: 10, padding: 16, marginBottom: 10, transition: "border-color 200ms" }}>
+          {editId === plan.id ? (
+            <>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-cyan)", marginBottom: 12 }}>Editar plano</div>
+              <PlanForm
+                initial={{ name: plan.name, description: plan.description ?? "", color: plan.color, isDefault: plan.isDefault, modules: plan.modules }}
+                onSave={data => handleUpdate(plan.id, data)}
+                onCancel={() => setEditId(null)}
+                isSaving={isSaving}
+              />
+            </>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ width: 12, height: 12, borderRadius: "50%", background: plan.color, flexShrink: 0, marginTop: 3 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-f1)" }}>{plan.name}</span>
+                    {plan.isDefault && (
+                      <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 999, background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.3)", color: "var(--color-cyan)", letterSpacing: 0.5, textTransform: "uppercase" }}>padrão</span>
+                    )}
+                    <span style={{ fontSize: 11, color: "var(--color-f4)" }}>{plan.userCount} usuário{plan.userCount !== 1 ? "s" : ""}</span>
+                  </div>
+                  {plan.description && <div style={{ fontSize: 12, color: "var(--color-f3)", marginBottom: 8 }}>{plan.description}</div>}
+
+                  {/* Module pills */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+                    {MODULE_GROUPS.map(group => {
+                      const groupMods = ALL_MODULES.filter(m => m.group === group && plan.modules.includes(m.key));
+                      if (groupMods.length === 0) return null;
+                      return (
+                        <div key={group} style={{ display: "flex", flexWrap: "wrap", gap: 3, alignItems: "center" }}>
+                          <span style={{ fontSize: 9, color: "var(--color-f4)", marginRight: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>{group}:</span>
+                          {groupMods.map(m => (
+                            <span key={m.key} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: `${plan.color}14`, border: `1px solid ${plan.color}33`, color: plan.color }}>
+                              {m.label}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })}
+                    <span style={{ fontSize: 10, color: "var(--color-f4)", alignSelf: "center" }}>({plan.modules.length}/{ALL_MODULES.length} módulos)</span>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button
+                    onClick={() => { setEditId(plan.id); setConfirmDeleteId(null); setFormMsg(null); }}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", fontSize: 11, borderRadius: 6, border: "1px solid var(--color-border2)", background: "var(--color-bg3)", color: "var(--color-f2)", cursor: "pointer" }}
+                  >
+                    <IconEdit size={12} /> Editar
+                  </button>
+                  <button
+                    onClick={() => { setConfirmDeleteId(confirmDeleteId === plan.id ? null : plan.id); setEditId(null); setFormMsg(null); }}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", fontSize: 11, borderRadius: 6, border: "1px solid rgba(248,113,113,0.3)", background: "rgba(248,113,113,0.06)", color: "var(--color-red)", cursor: "pointer" }}
+                  >
+                    <IconTrash size={12} /> Excluir
+                  </button>
+                </div>
+              </div>
+
+              {/* Delete confirmation */}
+              {confirmDeleteId === plan.id && (
+                <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 8, background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.25)" }}>
+                  <div style={{ fontSize: 12, color: "var(--color-red)", fontWeight: 600, marginBottom: 4 }}>Confirmar exclusão de "{plan.name}"?</div>
+                  <div style={{ fontSize: 11, color: "var(--color-f3)", marginBottom: 12 }}>
+                    {plan.userCount > 0
+                      ? `Não é possível excluir: ${plan.userCount} usuário(s) estão neste plano. Reatribua-os primeiro.`
+                      : "Esta ação removerá o plano permanentemente."
+                    }
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {plan.userCount === 0 && (
+                      <button
+                        onClick={() => handleDelete(plan.id)}
+                        disabled={isDeleting}
+                        style={{ display: "flex", alignItems: "center", gap: 5, height: 32, padding: "0 14px", background: "var(--color-red)", color: "#fff", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                      >
+                        {isDeleting ? <IconLoader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <IconTrash size={12} />}
+                        Excluir
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      style={{ height: 32, padding: "0 12px", background: "var(--color-bg4)", color: "var(--color-f3)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11, cursor: "pointer" }}
+                    >
+                      {plan.userCount > 0 ? "Fechar" : "Cancelar"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       ))}

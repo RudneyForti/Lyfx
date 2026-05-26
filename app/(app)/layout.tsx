@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSessionUserId } from "@/lib/session";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserMenu } from "@/components/layout/UserMenu";
+import { ALL_MODULE_KEYS } from "@/lib/modules";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const userId = await getSessionUserId();
@@ -15,12 +16,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
   }
 
-  const user = await db.user.findUnique({ where: { id: userId } });
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    include: { plan: { include: { modules: true } } },
+  });
   if (!user) redirect("/api/clear-session");
+
+  // Resolve allowed modules: plan modules if assigned, all modules otherwise
+  const allowedModules: string[] = user.plan
+    ? user.plan.modules.map((m) => m.module)
+    : ALL_MODULE_KEYS;
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
+      <Sidebar allowedModules={allowedModules} />
       <UserMenu name={user.name} avatar={user.avatar ?? null} />
       <main
         className="flex-1 min-h-screen transition-all duration-200"
