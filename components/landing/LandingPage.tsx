@@ -489,7 +489,7 @@ function detectLang(): Lang {
   return "pt";
 }
 
-export function LandingPage() {
+export function LandingPage({ version = "1.0.0" }: { version?: string }) {
   const [scrolled, setScrolled] = useState(false);
   const [lang, setLang] = useState<Lang>("pt");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -982,7 +982,7 @@ export function LandingPage() {
               {t.footer.backToTop}
             </button>
             <div className="footer-version">
-              v1.6.6 · © 2026 Lyfx<br />
+              v{version} · © 2026 Lyfx<br />
               <span style={{ opacity: 0.6 }}>{t.footer.rights}</span>
             </div>
           </div>
