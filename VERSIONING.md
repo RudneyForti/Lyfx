@@ -86,6 +86,7 @@ Exemplo:
 | `1.6.4` | PATCH | Landing page: glassmorphism da navbar restaurado, seção de Pricing, textura de pontos com vignette de borda, FAQ sem layout shift, hover ciano nos links da navbar, marquee do footer atualizado, StepCards com hover animado. |
 | `1.6.5` | PATCH | Landing page: seção "Sobre" com narrativa de educação financeira e easter egg f(x); "Sobre" no navbar; alinhamento 2×2 do grid com adorno ciano; travessões substituídos por vírgulas; fix do loop do marquee do footer (width:max-content). |
 | `1.6.6` | PATCH | Landing page: internacionalização PT/EN/ES — seletor de idioma com bandeiras monocromáticas na navbar, terminologia financeira regionalizada (DRE / P&L / Estado de Resultados), moedas por locale (R$/$/€), detecção automática via navigator.language com persistência em localStorage. |
+| `1.6.7` | PATCH | Landing page: responsividade completa (mobile/tablet/desktop/TV) — hamburger menu pill-ciano, hero padding adaptativo, Sobre em 1 coluna, features e StepCards responsivos, seta dos steps aponta para baixo no mobile, footer reorganizado. |
 
 ---
 
