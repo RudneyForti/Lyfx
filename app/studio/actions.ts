@@ -93,8 +93,17 @@ export async function adminCreateUser(data: { name: string; email: string; passw
   if (existing) return { error: "E-mail já cadastrado." };
 
   const hashed = await bcrypt.hash(data.password, 10);
+
+  // Assign default plan automatically
+  const defaultPlan = await db.plan.findFirst({ where: { isDefault: true } });
+
   await db.user.create({
-    data: { name: data.name.trim(), email: data.email.trim().toLowerCase(), password: hashed },
+    data: {
+      name: data.name.trim(),
+      email: data.email.trim().toLowerCase(),
+      password: hashed,
+      ...(defaultPlan ? { planId: defaultPlan.id } : {}),
+    },
   });
   revalidatePath("/studio");
   return { ok: true };
@@ -102,8 +111,21 @@ export async function adminCreateUser(data: { name: string; email: string; passw
 
 export async function getStudioData() {
   await requireAdmin();
-  const [users, txCount, tagCount, budgetCount, goalCount, liabilityCount, goalPaymentCount, recentTx] = await Promise.all([
-    db.user.findMany({ select: { id: true, name: true, email: true, createdAt: true, avatar: true } }),
+  const [users, plans, txCount, tagCount, budgetCount, goalCount, liabilityCount, goalPaymentCount, recentTx] = await Promise.all([
+    db.user.findMany({
+      select: {
+        id: true, name: true, email: true, createdAt: true, avatar: true,
+        planId: true,
+        plan: { select: { id: true, name: true, color: true } },
+      },
+    }),
+    db.plan.findMany({
+      include: {
+        modules: true,
+        _count: { select: { users: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
     db.transaction.count(),
     db.tag.count(),
     db.budget.count(),
@@ -121,16 +143,28 @@ export async function getStudioData() {
     users.length + txCount + tagCount + budgetCount +
     goalCount + liabilityCount + goalPaymentCount;
 
-  // DB file size
+  // DB file size (PostgreSQL: approximate via pg_database_size)
   let dbSizeBytes = 0;
   try {
-    const dbPath = path.join(process.cwd(), "dev.db");
-    const info = await stat(dbPath);
-    dbSizeBytes = info.size;
+    const result = await db.$queryRaw<[{ size: bigint }]>`
+      SELECT pg_database_size(current_database()) AS size
+    `;
+    dbSizeBytes = Number(result[0].size);
   } catch { /* ignore */ }
 
+  const planList = plans.map(p => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    color: p.color,
+    isDefault: p.isDefault,
+    modules: p.modules.map(m => m.module),
+    userCount: p._count.users,
+  }));
+
   return {
-    users, txCount, tagCount, budgetCount, goalCount, recentTx,
+    users, plans: planList,
+    txCount, tagCount, budgetCount, goalCount, recentTx,
     userCount: users.length, totalRecords, dbSizeBytes,
   };
 }
