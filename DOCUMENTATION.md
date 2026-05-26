@@ -399,14 +399,21 @@ Esta distinção permite que a DRE mostre não apenas o saldo, mas a **qualidade
 
 ### 6.1 Landing Page (`/`)
 
-Página pública de apresentação do produto. Atualizada em v1.5.0 para refletir a visão atual do sistema.
+Página pública de apresentação do produto. Atualizada em v1.5.0 para refletir a visão atual do sistema. Internacionalizada em PT / EN / ES a partir de v1.6.5.
 
 - **Acesso**: qualquer visitante sem sessão
 - **Comportamento com sessão ativa**: redireciona para `/dashboard`
 - **Seções**: Navbar sticky, Hero com mockup do dashboard (inclui widget de saúde financeira), Marquee com termos do produto, 6 cards de features com mini-mockups interativos, seção "Como funciona" em 4 passos, FAQ accordion (7 perguntas), CTA final, Footer
-- **Features destacadas**: DRE Pessoal, Score de Saúde, Educação Financeira, Alertas Proativos, Passivos & Dívidas, Bens & Imóveis
+- **Features destacadas**: DRE Pessoal / Personal P&L / Estado de Resultados, Score de Saúde, Educação Financeira, Alertas Proativos, Passivos & Dívidas, Bens & Imóveis
 - **Marquee**: animação CSS contínua com termos do Lyfx (13 itens)
 - **Navegação**: âncoras para `#funcionalidades`, `#como-funciona`, `#faq`
+- **Internacionalização (i18n)**:
+  - Idiomas suportados: Português (`pt`), English (`en`), Español (`es`)
+  - Terminologia regionalizada: "DRE Pessoal" (PT) / "Personal P&L" (EN) / "Estado de Resultados" (ES); moedas R$ / $ / €
+  - Seletor de idioma na navbar: dropdown com ícones de bandeira monocromáticos (SVG inline)
+  - Detecção automática na carga: lê `localStorage("lyfx-lang")` → `navigator.language` → fallback `"pt"`
+  - Troca manual persiste em `localStorage` — reload mantém o idioma escolhido
+  - Arquitetura: `components/landing/translations.ts` com interface `Translations` e objeto `T: Record<Lang, Translations>`
 
 ### 6.2 Autenticação (`/login`)
 
@@ -1141,7 +1148,8 @@ lyfx/
 
 | Arquivo | O que faz |
 |---|---|
-| `LandingPage.tsx` | Página pública de marketing: navbar sticky com âncoras, hero com `DashboardMockup` (inclui widget de saúde financeira), marquee de termos, 6 cards de features com mini-mockups (DRE, Score de Saúde, Educação, Alertas, Passivos, Bens), seção "Como funciona" em 4 passos, FAQ accordion com 7 itens, CTA final e footer. |
+| `LandingPage.tsx` | Página pública de marketing: navbar sticky com âncoras + seletor de idioma, hero com `DashboardMockup`, marquee, 6 cards de features com mini-mockups, seção "Como funciona" em 4 passos, FAQ accordion com 7 itens, CTA final e footer. Internacionalizada em PT/EN/ES com detecção automática via `navigator.language` e persistência em `localStorage`. |
+| `translations.ts` | Todas as strings da landing page organizadas por idioma (`pt`, `en`, `es`). Interface `Translations` com tipagem explícita; objeto `T: Record<Lang, Translations>`. Inclui terminologia financeira regionalizada e valores de mockup formatados por locale. |
 
 #### `components/layout/`
 
