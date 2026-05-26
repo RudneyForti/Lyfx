@@ -167,7 +167,7 @@ export function StudioMain({ data, docs, liveSchema }: { data: StudioData; docs:
       </div>
 
       {/* Content */}
-      <div style={{ padding: tab === "docs" ? 0 : 28, maxWidth: tab === "docs" ? "none" : tab === "schema" ? 1140 : 900 }}>
+      <div style={{ padding: tab === "docs" ? 0 : 28, maxWidth: tab === "docs" || tab === "schema" ? "none" : 900 }}>
         {tab === "schema" && <SchemaTab expanded={expanded} setExpanded={setExpanded} liveSchema={liveSchema} />}
         {tab === "users"  && <UsersTab users={data.users} plans={data.plans} />}
         {tab === "plans"  && <PlansTab plans={data.plans} users={data.users} />}
@@ -222,12 +222,12 @@ function trunc(s: string, n = 17) { return s.length > n ? s.slice(0, n - 1) + "�
 
 type BoxPos = { col: number; x: number; y: number; height: number };
 
-function computeErdLayout(tables: LiveSchema["tables"]) {
+function computeErdLayout(tables: LiveSchema["tables"], effectiveHeights?: Map<string, number>) {
   // Group by column
   const cols = new Map<number, typeof tables>();
   for (let i = 0; i < ERD_N_COLS; i++) cols.set(i, []);
   for (const t of tables) cols.get(COL_ASSIGN[t.name] ?? 0)!.push(t);
-  // Sort each col: tallest first for visual balance
+  // Sort each col: tallest first for visual balance (by actual column count, not effective height)
   for (const [, arr] of cols) arr.sort((a, b) => b.columns.length - a.columns.length);
 
   const colY = Array(ERD_N_COLS).fill(ERD_PAD);
@@ -235,7 +235,7 @@ function computeErdLayout(tables: LiveSchema["tables"]) {
 
   for (const [colIdx, arr] of cols) {
     for (const t of arr) {
-      const height = ERD_HEADER_H + t.columns.length * ERD_ROW_H;
+      const height = effectiveHeights?.get(t.name) ?? (ERD_HEADER_H + t.columns.length * ERD_ROW_H);
       const x = ERD_PAD + colIdx * (ERD_BOX_W + ERD_COL_GAP);
       positions.set(t.name, { col: colIdx, x, y: colY[colIdx], height });
       colY[colIdx] += height + ERD_ROW_GAP;
@@ -249,7 +249,15 @@ function computeErdLayout(tables: LiveSchema["tables"]) {
 
 function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTableClick: (name: string) => void }) {
   const [hovered, setHovered] = useState<string | null>(null);
-  const { positions, CANVAS_W, CANVAS_H } = computeErdLayout(liveSchema.tables);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  // Effective heights: collapsed tables show header only
+  const effectiveHeights = new Map<string, number>();
+  for (const t of liveSchema.tables) {
+    effectiveHeights.set(t.name, collapsed.has(t.name) ? ERD_HEADER_H : ERD_HEADER_H + t.columns.length * ERD_ROW_H);
+  }
+
+  const { positions, CANVAS_W, CANVAS_H } = computeErdLayout(liveSchema.tables, effectiveHeights);
 
   // Build column-level FK arrows
   const drawnKeys = new Set<string>();
@@ -269,8 +277,15 @@ function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTa
     const srcColIdx = srcTable?.columns.findIndex(c => c.column_name === fk.column_name) ?? 0;
     const dstColIdx = dstTable?.columns.findIndex(c => c.column_name === fk.foreign_column_name) ?? 0;
 
-    const srcRowY = src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
-    const dstRowY = dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
+    // When collapsed, point to header center instead of a specific row
+    const isSrcCollapsed = collapsed.has(fk.table_name);
+    const isDstCollapsed = collapsed.has(fk.foreign_table_name);
+    const srcRowY = isSrcCollapsed
+      ? src.y + ERD_HEADER_H / 2
+      : src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
+    const dstRowY = isDstCollapsed
+      ? dst.y + ERD_HEADER_H / 2
+      : dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
     const color = tableColor(fk.table_name);
 
     let x1: number, x2: number;
@@ -306,6 +321,17 @@ function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTa
     );
   }
 
+  function toggleCollapse(name: string) {
+    const isCurrentlyCollapsed = collapsed.has(name);
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+    // Scroll to detail card when expanding
+    if (isCurrentlyCollapsed) onTableClick(name);
+  }
+
   return (
     <div style={{ background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
       <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -313,81 +339,86 @@ function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTa
           Diagrama ER · {liveSchema.tables.length} tabelas · {liveSchema.foreignKeys.length} foreign keys · gerado em tempo real
         </span>
         <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 4 }}>
-          <IconZoomIn size={10} /> clique para ver campos
+          <IconZoomIn size={10} /> clique para colapsar · expandir
         </span>
       </div>
 
-      {/* SVG scales to 100% container width, height follows aspect ratio */}
-      <svg
-        viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
-        style={{ width: "100%", height: "auto", display: "block" }}
-        preserveAspectRatio="xMinYMin meet"
-      >
-        {/* Arrows behind boxes */}
-        {arrows}
+      {/* Horizontal scroll on small screens; fills full width on large screens */}
+      <div style={{ overflowX: "auto" }}>
+        <svg
+          viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+          style={{ width: "100%", minWidth: CANVAS_W, height: "auto", display: "block" }}
+          preserveAspectRatio="xMinYMin meet"
+        >
+          {/* Arrows behind boxes */}
+          {arrows}
 
-        {/* Table boxes */}
-        {liveSchema.tables.map(t => {
-          const pos = positions.get(t.name);
-          if (!pos) return null;
-          const color = tableColor(t.name);
-          const isHov = hovered === t.name;
-          const boxH = ERD_HEADER_H + t.columns.length * ERD_ROW_H;
+          {/* Table boxes */}
+          {liveSchema.tables.map(t => {
+            const pos = positions.get(t.name);
+            if (!pos) return null;
+            const color = tableColor(t.name);
+            const isHov = hovered === t.name;
+            const isCollapsed = collapsed.has(t.name);
+            const boxH = isCollapsed ? ERD_HEADER_H : ERD_HEADER_H + t.columns.length * ERD_ROW_H;
 
-          return (
-            <g key={t.name} transform={`translate(${pos.x},${pos.y})`}
-              style={{ cursor: "pointer" }}
-              onMouseEnter={() => setHovered(t.name)}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => onTableClick(t.name)}
-            >
-              {/* Glow on hover */}
-              {isHov && <rect x={-2} y={-2} width={ERD_BOX_W + 4} height={boxH + 4} rx={5} fill={color} fillOpacity={0.1} />}
+            return (
+              <g key={t.name} transform={`translate(${pos.x},${pos.y})`}
+                style={{ cursor: "pointer" }}
+                onMouseEnter={() => setHovered(t.name)}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => toggleCollapse(t.name)}
+              >
+                {/* Glow on hover */}
+                {isHov && <rect x={-2} y={-2} width={ERD_BOX_W + 4} height={boxH + 4} rx={5} fill={color} fillOpacity={0.1} />}
 
-              {/* Body */}
-              <rect width={ERD_BOX_W} height={boxH} rx={4}
-                fill="#0d1117"
-                stroke={isHov ? color : color + "55"}
-                strokeWidth={isHov ? 1.5 : 1}
-              />
+                {/* Body */}
+                <rect width={ERD_BOX_W} height={boxH} rx={4}
+                  fill="#0d1117"
+                  stroke={isHov ? color : color + "55"}
+                  strokeWidth={isHov ? 1.5 : 1}
+                />
 
-              {/* Header bar */}
-              <rect width={ERD_BOX_W} height={ERD_HEADER_H} rx={4} fill={color + "28"} />
-              <rect y={ERD_HEADER_H - 1} width={ERD_BOX_W} height={1} fill={color + "66"} />
-              {/* Top color stripe */}
-              <rect width={ERD_BOX_W} height={3} rx={4} fill={color} />
+                {/* Header bar */}
+                <rect width={ERD_BOX_W} height={ERD_HEADER_H} rx={4} fill={color + "28"} />
+                {!isCollapsed && <rect y={ERD_HEADER_H - 1} width={ERD_BOX_W} height={1} fill={color + "66"} />}
+                {/* Top color stripe */}
+                <rect width={ERD_BOX_W} height={3} rx={4} fill={color} />
 
-              {/* Table name */}
-              <text x={8} y={18} fontSize={11} fontWeight={700} fill={color} fontFamily="monospace">{trunc(t.name, 19)}</text>
-              {/* Field count */}
-              <text x={ERD_BOX_W - 5} y={18} fontSize={8.5} fill={color} fillOpacity={0.65} textAnchor="end" fontFamily="monospace">{t.columns.length}f</text>
+                {/* Table name */}
+                <text x={8} y={18} fontSize={11} fontWeight={700} fill={color} fontFamily="monospace">{trunc(t.name, 19)}</text>
+                {/* Collapse indicator + field count */}
+                <text x={ERD_BOX_W - 5} y={18} fontSize={8.5} fill={color} fillOpacity={0.65} textAnchor="end" fontFamily="monospace">
+                  {isCollapsed ? "▶ " : "▼ "}{t.columns.length}f
+                </text>
 
-              {/* Rows */}
-              {t.columns.map((c, i) => {
-                const ry = ERD_HEADER_H + i * ERD_ROW_H;
-                const isPk = c.is_pk, isFk = c.is_fk;
-                const textColor = isPk ? "#22D3EE" : isFk ? "#A78BFA" : "rgba(255,255,255,0.6)";
+                {/* Rows — hidden when collapsed */}
+                {!isCollapsed && t.columns.map((c, i) => {
+                  const ry = ERD_HEADER_H + i * ERD_ROW_H;
+                  const isPk = c.is_pk, isFk = c.is_fk;
+                  const textColor = isPk ? "#22D3EE" : isFk ? "#A78BFA" : "rgba(255,255,255,0.6)";
 
-                return (
-                  <g key={c.column_name} transform={`translate(0,${ry})`}>
-                    {i % 2 !== 0 && <rect width={ERD_BOX_W} height={ERD_ROW_H} fill="rgba(255,255,255,0.022)" />}
-                    {/* PK dot — filled cyan */}
-                    {isPk  && <circle cx={8} cy={ERD_ROW_H / 2} r={3.5} fill="#22D3EE" />}
-                    {/* FK dot — outlined purple */}
-                    {!isPk && isFk && <circle cx={8} cy={ERD_ROW_H / 2} r={3} fill="none" stroke="#A78BFA" strokeWidth={1.2} />}
-                    {/* Regular dot */}
-                    {!isPk && !isFk && <circle cx={8} cy={ERD_ROW_H / 2} r={1.5} fill="rgba(255,255,255,0.18)" />}
-                    {/* Column name */}
-                    <text x={18} y={ERD_ROW_H - 4} fontSize={9.5} fill={textColor} fontFamily="monospace">{trunc(c.column_name, 16)}</text>
-                    {/* Type */}
-                    <text x={ERD_BOX_W - 5} y={ERD_ROW_H - 4} fontSize={8} fill="rgba(255,255,255,0.3)" textAnchor="end" fontFamily="monospace">{erdType(c.data_type)}</text>
-                  </g>
-                );
-              })}
-            </g>
-          );
-        })}
-      </svg>
+                  return (
+                    <g key={c.column_name} transform={`translate(0,${ry})`}>
+                      {i % 2 !== 0 && <rect width={ERD_BOX_W} height={ERD_ROW_H} fill="rgba(255,255,255,0.022)" />}
+                      {/* PK dot — filled cyan */}
+                      {isPk  && <circle cx={8} cy={ERD_ROW_H / 2} r={3.5} fill="#22D3EE" />}
+                      {/* FK dot — outlined purple */}
+                      {!isPk && isFk && <circle cx={8} cy={ERD_ROW_H / 2} r={3} fill="none" stroke="#A78BFA" strokeWidth={1.2} />}
+                      {/* Regular dot */}
+                      {!isPk && !isFk && <circle cx={8} cy={ERD_ROW_H / 2} r={1.5} fill="rgba(255,255,255,0.18)" />}
+                      {/* Column name */}
+                      <text x={18} y={ERD_ROW_H - 4} fontSize={9.5} fill={textColor} fontFamily="monospace">{trunc(c.column_name, 16)}</text>
+                      {/* Type */}
+                      <text x={ERD_BOX_W - 5} y={ERD_ROW_H - 4} fontSize={8} fill="rgba(255,255,255,0.3)" textAnchor="end" fontFamily="monospace">{erdType(c.data_type)}</text>
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -433,10 +464,11 @@ function SchemaTab({ expanded, setExpanded, liveSchema }: {
         </div>
       </div>
 
-      {/* ERD Diagram */}
+      {/* ERD Diagram — full width */}
       <ErdDiagram liveSchema={liveSchema} onTableClick={handleTableClick} />
 
-      {/* Table cards */}
+      {/* Table cards — constrained for readability */}
+      <div style={{ maxWidth: 900 }}>
       {liveSchema.tables.map(t => {
         const open = expanded === t.name;
         const color = tableColor(t.name);
@@ -500,6 +532,7 @@ function SchemaTab({ expanded, setExpanded, liveSchema }: {
           </div>
         );
       })}
+      </div>{/* end maxWidth:900 cards wrapper */}
     </div>
   );
 }
