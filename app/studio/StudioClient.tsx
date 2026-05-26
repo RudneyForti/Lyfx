@@ -6,13 +6,14 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, getStudioDataForUser } from "./actions";
+import type { LiveSchema } from "./actions";
 import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan } from "@/app/actions/plans";
 import { ALL_MODULES } from "@/lib/modules";
 import {
   IconLock, IconLoader2, IconX, IconLogout, IconDatabase,
   IconUsers, IconTable, IconKey, IconTrash, IconChevronDown, IconChevronRight,
   IconFileDescription, IconUserPlus, IconFilter, IconPackage, IconPlus, IconEdit,
-  IconCheck,
+  IconCheck, IconZoomIn,
 } from "@tabler/icons-react";
 
 /* ── Login gate ── */
@@ -96,86 +97,6 @@ export function StudioLoginForm() {
   );
 }
 
-/* ── Schema definitions ── */
-const SCHEMA = [
-  {
-    table: "User",
-    color: "#22D3EE",
-    desc: "Usuário do sistema. App pessoal — apenas 1 registro.",
-    fields: [
-      { name: "id", type: "String", note: "cuid(), chave primária" },
-      { name: "name", type: "String", note: "Nome de exibição" },
-      { name: "email", type: "String?", note: "Único, opcional" },
-      { name: "password", type: "String", note: "Hash bcrypt (min 6 chars)" },
-      { name: "avatar", type: "String?", note: "Base64 JPEG 200×200px" },
-      { name: "age", type: "Int?", note: "Idade" },
-      { name: "gender", type: "String?", note: "Gênero" },
-      { name: "address", type: "String?", note: "Endereço" },
-      { name: "createdAt", type: "DateTime", note: "Auto: now()" },
-      { name: "updatedAt", type: "DateTime", note: "Auto: updatedAt" },
-    ],
-  },
-  {
-    table: "Transaction",
-    color: "#A3E635",
-    desc: "Lançamento financeiro — receita ou despesa.",
-    fields: [
-      { name: "id", type: "String", note: "cuid(), chave primária" },
-      { name: "date", type: "DateTime", note: "Data do lançamento" },
-      { name: "description", type: "String", note: "Título do lançamento" },
-      { name: "amount", type: "Float", note: "Valor em reais (positivo)" },
-      { name: "type", type: "String", note: '"income" | "expense"' },
-      { name: "category", type: "String", note: "Ex: moradia, alimentação, saúde…" },
-      { name: "subcategory", type: "String?", note: "Subdivisão da categoria" },
-      { name: "notes", type: "String?", note: "Observações livres" },
-      { name: "recurrence", type: "String", note: '"once" | "monthly" | "yearly"' },
-      { name: "context", type: "String?", note: '"personal" | "professional"' },
-      { name: "reimbursable", type: "Boolean", note: "Despesa reembolsável" },
-      { name: "createdAt", type: "DateTime", note: "Auto: now()" },
-      { name: "updatedAt", type: "DateTime", note: "Auto: updatedAt" },
-      { name: "tags", type: "TransactionTag[]", note: "Relação N:N com Tag" },
-    ],
-  },
-  {
-    table: "Tag",
-    color: "#FBBF24",
-    desc: "Etiqueta associada a transações.",
-    fields: [
-      { name: "id", type: "String", note: "cuid(), chave primária" },
-      { name: "name", type: "String", note: "Único" },
-      { name: "color", type: "String", note: "Hex, ex: #22D3EE" },
-      { name: "icon", type: "String", note: "Chave do TAG_ICONS (tag, home, car…)" },
-      { name: "createdAt", type: "DateTime", note: "Auto: now()" },
-      { name: "transactions", type: "TransactionTag[]", note: "Relação N:N" },
-    ],
-  },
-  {
-    table: "TransactionTag",
-    color: "#A78BFA",
-    desc: "Tabela pivot da relação N:N entre Transaction e Tag.",
-    fields: [
-      { name: "transactionId", type: "String", note: "FK → Transaction.id (cascade)" },
-      { name: "tagId", type: "String", note: "FK → Tag.id (cascade)" },
-    ],
-  },
-  {
-    table: "Budget",
-    color: "#FB923C",
-    desc: "Limite mensal por categoria.",
-    fields: [
-      { name: "id", type: "String", note: "cuid(), chave primária" },
-      { name: "category", type: "String", note: "Único — mesma key de Transaction.category" },
-      { name: "amount", type: "Float", note: "Limite em reais" },
-      { name: "createdAt", type: "DateTime", note: "Auto: now()" },
-      { name: "updatedAt", type: "DateTime", note: "Auto: updatedAt" },
-    ],
-  },
-];
-
-const RELATIONS = [
-  "Transaction  ──< TransactionTag >──  Tag",
-  "Transaction.category  ──  Budget.category  (lógica, sem FK)",
-];
 
 /* ── Logout button ── */
 function LogoutButton() {
@@ -199,7 +120,7 @@ function LogoutButton() {
 type StudioData = Awaited<ReturnType<typeof import("./actions").getStudioData>>;
 type PlanItem = StudioData["plans"][number];
 
-export function StudioMain({ data, docs }: { data: StudioData; docs: string }) {
+export function StudioMain({ data, docs, liveSchema }: { data: StudioData; docs: string; liveSchema: LiveSchema }) {
   const [tab, setTab] = useState<"schema" | "users" | "plans" | "data" | "docs">("schema");
   const [expanded, setExpanded] = useState<string | null>("Transaction");
 
@@ -247,7 +168,7 @@ export function StudioMain({ data, docs }: { data: StudioData; docs: string }) {
 
       {/* Content */}
       <div style={{ padding: tab === "docs" ? 0 : 28, maxWidth: tab === "docs" ? "none" : 900 }}>
-        {tab === "schema" && <SchemaTab expanded={expanded} setExpanded={setExpanded} />}
+        {tab === "schema" && <SchemaTab expanded={expanded} setExpanded={setExpanded} liveSchema={liveSchema} />}
         {tab === "users"  && <UsersTab users={data.users} plans={data.plans} />}
         {tab === "plans"  && <PlansTab plans={data.plans} users={data.users} />}
         {tab === "data"   && <DataTab data={data} />}
@@ -257,56 +178,276 @@ export function StudioMain({ data, docs }: { data: StudioData; docs: string }) {
   );
 }
 
+/* ── ERD Diagram ── */
+
+// Palette: one color per table (deterministic)
+const TABLE_COLORS: Record<string, string> = {
+  User:            "#22D3EE",
+  Plan:            "#A78BFA",
+  PlanModule:      "#818CF8",
+  Transaction:     "#A3E635",
+  Tag:             "#FBBF24",
+  TransactionTag:  "#FB923C",
+  Budget:          "#F472B6",
+  Goal:            "#34D399",
+  GoalPayment:     "#6EE7B7",
+  Institution:     "#60A5FA",
+  Account:         "#93C5FD",
+  Asset:           "#FCA5A5",
+  AssetExpense:    "#F87171",
+  Liability:       "#E879F9",
+  PillProgress:    "#FDE68A",
+  Settings:        "#94A3B8",
+};
+
+function tableColor(name: string) {
+  return TABLE_COLORS[name] ?? "#64748B";
+}
+
+// Fixed layout positions for the ERD canvas (x, y in a 900×540 virtual space)
+const TABLE_POSITIONS: Record<string, { x: number; y: number }> = {
+  User:            { x: 360, y: 20  },
+  Plan:            { x: 580, y: 20  },
+  PlanModule:      { x: 720, y: 140 },
+  Settings:        { x: 160, y: 20  },
+  Transaction:     { x: 20,  y: 160 },
+  Tag:             { x: 260, y: 280 },
+  TransactionTag:  { x: 80,  y: 370 },
+  Budget:          { x: 300, y: 160 },
+  Goal:            { x: 500, y: 240 },
+  GoalPayment:     { x: 620, y: 360 },
+  Institution:     { x: 160, y: 440 },
+  Account:         { x: 320, y: 440 },
+  Asset:           { x: 480, y: 440 },
+  AssetExpense:    { x: 640, y: 460 },
+  Liability:       { x: 20,  y: 300 },
+  PillProgress:    { x: 460, y: 140 },
+};
+
+const BOX_W = 130;
+const BOX_H = 28; // header only (we show just the table name in diagram)
+
+function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTableClick: (name: string) => void }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const CANVAS_W = 860;
+  const CANVAS_H = 560;
+
+  // Deduplicate FK arrows (some PKs have multiple columns → same table pair appears twice)
+  const drawnPairs = new Set<string>();
+  const arrows: { x1: number; y1: number; x2: number; y2: number; color: string }[] = [];
+
+  for (const fk of liveSchema.foreignKeys) {
+    const key = `${fk.table_name}→${fk.foreign_table_name}`;
+    if (drawnPairs.has(key)) continue;
+    drawnPairs.add(key);
+
+    const src = TABLE_POSITIONS[fk.table_name];
+    const dst = TABLE_POSITIONS[fk.foreign_table_name];
+    if (!src || !dst) continue;
+
+    arrows.push({
+      x1: src.x + BOX_W / 2,
+      y1: src.y + BOX_H / 2,
+      x2: dst.x + BOX_W / 2,
+      y2: dst.y + BOX_H / 2,
+      color: tableColor(fk.table_name),
+    });
+  }
+
+  return (
+    <div style={{ position: "relative", background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
+      <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 10, color: "var(--color-f4)", letterSpacing: 1, textTransform: "uppercase" }}>
+          Diagrama ER · {liveSchema.tables.length} tabelas · {liveSchema.foreignKeys.length} foreign keys
+        </span>
+        <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 4 }}>
+          <IconZoomIn size={10} /> clique numa tabela para ver campos
+        </span>
+      </div>
+
+      <svg
+        viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+        style={{ width: "100%", height: "auto", display: "block" }}
+      >
+        {/* Arrows */}
+        <defs>
+          {liveSchema.tables.map(t => (
+            <marker
+              key={`arrow-${t.name}`}
+              id={`arrow-${t.name}`}
+              viewBox="0 0 6 6"
+              refX="5" refY="3"
+              markerWidth="6" markerHeight="6"
+              orient="auto"
+            >
+              <path d="M 0 0 L 6 3 L 0 6 z" fill={tableColor(t.name)} fillOpacity={0.6} />
+            </marker>
+          ))}
+        </defs>
+
+        {arrows.map((a, i) => (
+          <line
+            key={i}
+            x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2}
+            stroke={a.color}
+            strokeOpacity={0.35}
+            strokeWidth={1.5}
+            strokeDasharray="4 3"
+          />
+        ))}
+
+        {/* Table boxes */}
+        {liveSchema.tables.map(t => {
+          const pos = TABLE_POSITIONS[t.name] ?? { x: 400, y: 260 };
+          const color = tableColor(t.name);
+          const isHovered = hovered === t.name;
+
+          return (
+            <g
+              key={t.name}
+              transform={`translate(${pos.x}, ${pos.y})`}
+              style={{ cursor: "pointer" }}
+              onMouseEnter={() => setHovered(t.name)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => onTableClick(t.name)}
+            >
+              {/* Shadow / glow on hover */}
+              {isHovered && (
+                <rect
+                  x={-2} y={-2}
+                  width={BOX_W + 4} height={BOX_H + 4}
+                  rx={7}
+                  fill={color}
+                  fillOpacity={0.15}
+                />
+              )}
+              {/* Box */}
+              <rect
+                width={BOX_W} height={BOX_H}
+                rx={5}
+                fill="var(--color-bg2)"
+                stroke={isHovered ? color : color + "55"}
+                strokeWidth={isHovered ? 1.5 : 1}
+              />
+              {/* Color stripe */}
+              <rect width={4} height={BOX_H} rx={5} fill={color} fillOpacity={0.9} />
+              <rect x={2} width={2} height={BOX_H} fill={color} fillOpacity={0.9} />
+              {/* Label */}
+              <text
+                x={12} y={18}
+                fontSize={11}
+                fontWeight={600}
+                fill={isHovered ? color : "var(--color-f2)"}
+                fontFamily="var(--font-body)"
+              >
+                {t.name}
+              </text>
+              {/* Field count badge */}
+              <text
+                x={BOX_W - 6} y={18}
+                fontSize={9}
+                fill={color}
+                fillOpacity={0.7}
+                textAnchor="end"
+                fontFamily="var(--font-body)"
+              >
+                {t.columns.length}f
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 /* ── Schema Tab ── */
-function SchemaTab({ expanded, setExpanded }: { expanded: string | null; setExpanded: (v: string | null) => void }) {
+function SchemaTab({ expanded, setExpanded, liveSchema }: {
+  expanded: string | null;
+  setExpanded: (v: string | null) => void;
+  liveSchema: LiveSchema;
+}) {
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  function handleTableClick(name: string) {
+    setExpanded(name);
+    setTimeout(() => {
+      cardRefs.current[name]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
+  // Type label mapping
+  function pgTypeLabel(t: string) {
+    const map: Record<string, string> = {
+      "character varying": "String",
+      "text": "String",
+      "integer": "Int",
+      "bigint": "BigInt",
+      "double precision": "Float",
+      "boolean": "Boolean",
+      "timestamp without time zone": "DateTime",
+      "timestamp with time zone": "DateTime",
+      "uuid": "String(uuid)",
+      "jsonb": "Json",
+    };
+    return map[t] ?? t;
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Modelo de dados</div>
-        <div style={{ fontSize: 13, color: "var(--color-f3)" }}>SQLite · Prisma v7 · 5 tabelas</div>
+        <div style={{ fontSize: 13, color: "var(--color-f3)" }}>
+          PostgreSQL · Prisma v7 · {liveSchema.tables.length} tabelas · gerado em tempo real
+        </div>
       </div>
 
-      {/* Relations */}
-      <div style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "12px 16px", marginBottom: 8 }}>
-        <div style={{ fontSize: 11, color: "var(--color-f4)", letterSpacing: 1, marginBottom: 8 }}>RELAÇÕES</div>
-        {RELATIONS.map(r => (
-          <div key={r} style={{ fontFamily: "monospace", fontSize: 12, color: "var(--color-cyan)", padding: "3px 0" }}>{r}</div>
-        ))}
-      </div>
+      {/* ERD Diagram */}
+      <ErdDiagram liveSchema={liveSchema} onTableClick={handleTableClick} />
 
-      {/* Tables */}
-      {SCHEMA.map(s => {
-        const open = expanded === s.table;
+      {/* Table cards */}
+      {liveSchema.tables.map(t => {
+        const open = expanded === t.name;
+        const color = tableColor(t.name);
         return (
-          <div key={s.table} style={{ background: "var(--color-bg2)", border: `1px solid ${open ? s.color + "44" : "var(--color-border)"}`, borderRadius: 10, overflow: "hidden", transition: "border-color 200ms" }}>
+          <div
+            key={t.name}
+            ref={el => { cardRefs.current[t.name] = el; }}
+            style={{ background: "var(--color-bg2)", border: `1px solid ${open ? color + "55" : "var(--color-border)"}`, borderRadius: 10, overflow: "hidden", transition: "border-color 200ms" }}
+          >
             <button
-              onClick={() => setExpanded(open ? null : s.table)}
+              onClick={() => setExpanded(open ? null : t.name)}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
             >
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-f1)", flex: 1 }}>{s.table}</span>
-              <span style={{ fontSize: 11, color: "var(--color-f4)" }}>{s.fields.length} campos</span>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-f1)", flex: 1 }}>{t.name}</span>
+              <span style={{ fontSize: 11, color: "var(--color-f4)" }}>{t.columns.length} campos</span>
               <span style={{ color: "var(--color-f4)" }}>
                 {open ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
               </span>
             </button>
             {open && (
               <div style={{ borderTop: "1px solid var(--color-border)" }}>
-                <div style={{ padding: "8px 16px 6px", fontSize: 12, color: "var(--color-f3)" }}>{s.desc}</div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "var(--color-bg3)" }}>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "30%" }}>Campo</th>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "20%" }}>Tipo</th>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500 }}>Descrição</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "28%" }}>Campo</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "22%" }}>Tipo</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "10%" }}>Nullable</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500 }}>Default</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {s.fields.map((f, i) => (
-                      <tr key={f.name} style={{ borderTop: "1px solid var(--color-border)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
-                        <td style={{ padding: "7px 16px", fontFamily: "monospace", color: s.color }}>{f.name}</td>
-                        <td style={{ padding: "7px 16px", fontFamily: "monospace", color: "var(--color-f3)" }}>{f.type}</td>
-                        <td style={{ padding: "7px 16px", color: "var(--color-f3)" }}>{f.note}</td>
+                    {t.columns.map((c, i) => (
+                      <tr key={c.column_name} style={{ borderTop: "1px solid var(--color-border)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
+                        <td style={{ padding: "7px 16px", fontFamily: "monospace", color }}>{c.column_name}</td>
+                        <td style={{ padding: "7px 16px", fontFamily: "monospace", color: "var(--color-f3)", fontSize: 11 }}>{pgTypeLabel(c.data_type)}</td>
+                        <td style={{ padding: "7px 16px", color: c.is_nullable === "YES" ? "var(--color-f4)" : "var(--color-cyan)", fontSize: 11 }}>
+                          {c.is_nullable === "YES" ? "nullable" : "required"}
+                        </td>
+                        <td style={{ padding: "7px 16px", fontFamily: "monospace", color: "var(--color-f4)", fontSize: 11 }}>
+                          {c.column_default ? c.column_default.replace(/^'(.*)'::.*$/, "$1").slice(0, 40) : "—"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -316,6 +457,85 @@ function SchemaTab({ expanded, setExpanded }: { expanded: string | null; setExpa
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/* ── Plan Dropdown (identity-styled) ── */
+function PlanDropdown({ plans, value, isPending, onChange, onClose }: {
+  plans: PlanItem[];
+  value: string;
+  isPending: boolean;
+  onChange: (planId: string) => void;
+  onClose: () => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const ref = useRef<HTMLDivElement>(null);
+  const options = [{ id: "", name: "Sem plano", color: "" }, ...plans];
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  const selected = options.find(o => o.id === value) ?? options[0];
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div
+        onClick={() => setOpen(!open)}
+        style={{
+          height: 28, display: "flex", alignItems: "center", gap: 6,
+          padding: "0 10px", fontSize: 11, borderRadius: 6, cursor: "pointer",
+          background: "var(--color-bg3)", border: `1px solid ${open ? "rgba(34,211,238,0.4)" : "var(--color-border2)"}`,
+          color: "var(--color-f2)", userSelect: "none", minWidth: 110,
+          transition: "border-color 150ms",
+        }}
+      >
+        {selected.color && <span style={{ width: 7, height: 7, borderRadius: "50%", background: selected.color, flexShrink: 0 }} />}
+        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selected.name}</span>
+        {isPending
+          ? <IconLoader2 size={10} style={{ color: "var(--color-f4)", animation: "spin 1s linear infinite", flexShrink: 0 }} />
+          : <IconChevronDown size={10} style={{ color: "var(--color-f4)", flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
+        }
+      </div>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 200, minWidth: "100%",
+          background: "var(--color-bg2)", border: "1px solid var(--color-border2)",
+          borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", overflow: "hidden",
+        }}>
+          {options.map(opt => (
+            <div
+              key={opt.id}
+              onClick={() => { onChange(opt.id); setOpen(false); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 12px", fontSize: 11, cursor: "pointer",
+                background: opt.id === value ? "rgba(34,211,238,0.07)" : "transparent",
+                color: opt.id === value ? "var(--color-cyan)" : "var(--color-f2)",
+                transition: "background 100ms",
+              }}
+              onMouseEnter={e => { if (opt.id !== value) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.04)"; }}
+              onMouseLeave={e => { if (opt.id !== value) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+            >
+              {opt.color
+                ? <span style={{ width: 7, height: 7, borderRadius: "50%", background: opt.color, flexShrink: 0 }} />
+                : <span style={{ width: 7, height: 7, flexShrink: 0 }} />
+              }
+              {opt.name}
+              {opt.id === value && <IconCheck size={9} style={{ marginLeft: "auto" }} />}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -463,26 +683,13 @@ function UsersTab({ users, plans }: { users: UserRow[]; plans: PlanItem[] }) {
 
             {/* Plan badge / selector */}
             {planChangingId === u.id ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <select
-                  defaultValue={u.planId ?? ""}
-                  autoFocus
-                  onChange={e => handlePlanChange(u.id, e.target.value)}
-                  style={{ height: 28, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 8px", fontSize: 11, color: "var(--color-f1)", outline: "none", cursor: "pointer" }}
-                >
-                  <option value="">Sem plano</option>
-                  {plans.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                {isPlanPending && <IconLoader2 size={12} style={{ color: "var(--color-f4)", animation: "spin 1s linear infinite" }} />}
-                <button
-                  onClick={() => setPlanChangingId(null)}
-                  style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", color: "var(--color-f4)", borderRadius: 4 }}
-                >
-                  <IconX size={11} />
-                </button>
-              </div>
+              <PlanDropdown
+                plans={plans}
+                value={u.planId ?? ""}
+                isPending={isPlanPending}
+                onChange={planId => handlePlanChange(u.id, planId)}
+                onClose={() => setPlanChangingId(null)}
+              />
             ) : (
               <button
                 onClick={() => { setPlanChangingId(u.id); setResetId(null); setConfirmDeleteId(null); }}
@@ -647,12 +854,19 @@ function PlanForm({
           />
           <span style={{ fontSize: 11, color: "var(--color-f4)", fontFamily: "monospace" }}>{form.color}</span>
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11, color: "var(--color-f2)" }}>
-          <input
-            type="checkbox"
-            checked={form.isDefault}
-            onChange={e => setForm(f => ({ ...f, isDefault: e.target.checked }))}
-          />
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11, color: "var(--color-f2)", userSelect: "none" }}>
+          <div
+            onClick={() => setForm(f => ({ ...f, isDefault: !f.isDefault }))}
+            style={{
+              width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: form.isDefault ? "var(--color-cyan)" : "var(--color-bg3)",
+              border: `1.5px solid ${form.isDefault ? "var(--color-cyan)" : "var(--color-border2)"}`,
+              transition: "all 150ms",
+            }}
+          >
+            {form.isDefault && <IconCheck size={10} style={{ color: "#083344", strokeWidth: 3 }} />}
+          </div>
           Plano padrão (novos usuários)
         </label>
       </div>
@@ -782,7 +996,7 @@ function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; na
               style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", fontSize: 11, borderRadius: 6, border: "1px solid var(--color-cyan-border)", background: "rgba(34,211,238,0.07)", color: "var(--color-cyan)", cursor: "pointer" }}
             >
               {isSeeding ? <IconLoader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <IconPackage size={12} />}
-              Criar plano Full padrão
+              Criar plano Full
             </button>
           )}
           <button

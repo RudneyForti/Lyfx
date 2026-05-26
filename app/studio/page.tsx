@@ -1,4 +1,4 @@
-import { getAdminSession, getStudioData, getDocumentation } from "./actions";
+import { getAdminSession, getStudioData, getDocumentation, getLiveSchema } from "./actions";
 import { StudioLoginForm, StudioMain } from "./StudioClient";
 
 export default async function StudioPage() {
@@ -8,6 +8,10 @@ export default async function StudioPage() {
     return <StudioLoginForm />;
   }
 
-  const [data, docs] = await Promise.all([getStudioData(), getDocumentation()]);
-  return <StudioMain data={data} docs={docs} />;
+  const [data, docs, liveSchema] = await Promise.all([
+    getStudioData(),
+    getDocumentation(),
+    getLiveSchema(),
+  ]);
+  return <StudioMain data={data} docs={docs} liveSchema={liveSchema} />;
 }
