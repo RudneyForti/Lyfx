@@ -176,6 +176,9 @@ export interface SchemaColumn {
   data_type: string;
   is_nullable: string;
   column_default: string | null;
+  is_pk: boolean;
+  is_fk: boolean;
+  fk_ref?: string; // referenced table name
 }
 
 export interface SchemaForeignKey {
@@ -199,50 +202,56 @@ export interface LiveSchema {
 export async function getLiveSchema(): Promise<LiveSchema> {
   await requireAdmin();
 
-  type ColRow = SchemaColumn & { table_name: string };
+  type ColRow = Omit<SchemaColumn, "is_pk" | "is_fk" | "fk_ref"> & { table_name: string };
+  type PkRow  = { table_name: string; column_name: string };
 
-  const [columns, fks] = await Promise.all([
+  const [columns, fks, pks] = await Promise.all([
     db.$queryRaw<ColRow[]>`
-      SELECT
-        table_name,
-        column_name,
-        data_type,
-        is_nullable,
-        column_default
+      SELECT table_name, column_name, data_type, is_nullable, column_default
       FROM information_schema.columns
-      WHERE table_schema = 'public'
-        AND table_name NOT IN ('_prisma_migrations')
+      WHERE table_schema = 'public' AND table_name NOT IN ('_prisma_migrations')
       ORDER BY table_name, ordinal_position
     `,
     db.$queryRaw<SchemaForeignKey[]>`
       SELECT
-        kcu.table_name,
-        kcu.column_name,
+        kcu.table_name, kcu.column_name,
         ccu.table_name  AS foreign_table_name,
         ccu.column_name AS foreign_column_name,
         tc.constraint_name
       FROM information_schema.table_constraints AS tc
       JOIN information_schema.key_column_usage AS kcu
-        ON tc.constraint_name = kcu.constraint_name
-        AND tc.table_schema = kcu.table_schema
+        ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
       JOIN information_schema.constraint_column_usage AS ccu
-        ON ccu.constraint_name = tc.constraint_name
-        AND ccu.table_schema = tc.table_schema
-      WHERE tc.constraint_type = 'FOREIGN KEY'
-        AND tc.table_schema = 'public'
+        ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
       ORDER BY kcu.table_name, kcu.column_name
+    `,
+    db.$queryRaw<PkRow[]>`
+      SELECT kcu.table_name, kcu.column_name
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+      WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = 'public'
     `,
   ]);
 
-  // Group columns by table
+  // Build lookup sets
+  const pkSet  = new Set(pks.map(pk => `${pk.table_name}.${pk.column_name}`));
+  const fkMap  = new Map(fks.map(fk => [`${fk.table_name}.${fk.column_name}`, fk.foreign_table_name]));
+
+  // Group columns by table — annotated with PK/FK
   const tableMap = new Map<string, SchemaColumn[]>();
   for (const row of columns) {
     if (!tableMap.has(row.table_name)) tableMap.set(row.table_name, []);
+    const key = `${row.table_name}.${row.column_name}`;
     tableMap.get(row.table_name)!.push({
-      column_name: row.column_name,
-      data_type: row.data_type,
-      is_nullable: row.is_nullable,
+      column_name:    row.column_name,
+      data_type:      row.data_type,
+      is_nullable:    row.is_nullable,
       column_default: row.column_default,
+      is_pk:  pkSet.has(key),
+      is_fk:  fkMap.has(key),
+      fk_ref: fkMap.get(key),
     });
   }
 
