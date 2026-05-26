@@ -166,15 +166,29 @@ export async function updatePlan(
 
 export async function deletePlan(id: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const count = await db.user.count({ where: { planId: id } });
-    if (count > 0) {
-      return { ok: false, error: `Não é possível excluir: ${count} usuário(s) estão neste plano.` };
-    }
     await db.plan.delete({ where: { id } });
     revalidatePath("/studio");
     return { ok: true };
   } catch (e: unknown) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// Move all users from one plan to another, then delete the source plan
+export async function migrateAndDeletePlan(
+  fromId: string,
+  toId: string | null
+): Promise<{ ok: boolean; moved: number; error?: string }> {
+  try {
+    const result = await db.user.updateMany({
+      where: { planId: fromId },
+      data: { planId: toId },
+    });
+    await db.plan.delete({ where: { id: fromId } });
+    revalidatePath("/studio");
+    return { ok: true, moved: result.count };
+  } catch (e: unknown) {
+    return { ok: false, moved: 0, error: e instanceof Error ? e.message : String(e) };
   }
 }
 

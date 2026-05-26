@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, getStudioDataForUser } from "./actions";
 import type { LiveSchema } from "./actions";
-import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan } from "@/app/actions/plans";
+import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan, migrateAndDeletePlan } from "@/app/actions/plans";
 import { ALL_MODULES } from "@/lib/modules";
 import {
   IconLock, IconLoader2, IconX, IconLogout, IconDatabase,
@@ -508,7 +508,8 @@ function PlanDropdown({ plans, value, isPending, onChange, onClose }: {
 
       {open && (
         <div style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 200, minWidth: "100%",
+          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 200,
+          width: "max-content", minWidth: "100%",
           background: "var(--color-bg2)", border: "1px solid var(--color-border2)",
           borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.5)", overflow: "hidden",
         }}>
@@ -518,7 +519,8 @@ function PlanDropdown({ plans, value, isPending, onChange, onClose }: {
               onClick={() => { onChange(opt.id); setOpen(false); }}
               style={{
                 display: "flex", alignItems: "center", gap: 8,
-                padding: "8px 12px", fontSize: 11, cursor: "pointer",
+                padding: "8px 14px", fontSize: 11, cursor: "pointer",
+                whiteSpace: "nowrap",
                 background: opt.id === value ? "rgba(34,211,238,0.07)" : "transparent",
                 color: opt.id === value ? "var(--color-cyan)" : "var(--color-f2)",
                 transition: "background 100ms",
@@ -531,7 +533,7 @@ function PlanDropdown({ plans, value, isPending, onChange, onClose }: {
                 : <span style={{ width: 7, height: 7, flexShrink: 0 }} />
               }
               {opt.name}
-              {opt.id === value && <IconCheck size={9} style={{ marginLeft: "auto" }} />}
+              {opt.id === value && <IconCheck size={9} style={{ marginLeft: 12 }} />}
             </div>
           ))}
         </div>
@@ -829,12 +831,18 @@ function PlanForm({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <input
-          placeholder="Nome do plano *"
-          value={form.name}
-          onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-          style={{ height: 36, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 12px", fontSize: 12, color: "var(--color-f1)", outline: "none" }}
-        />
+        <div style={{ position: "relative" }}>
+          <input
+            placeholder="Nome do plano *"
+            value={form.name}
+            maxLength={20}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            style={{ height: 36, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 44px 0 12px", fontSize: 12, color: "var(--color-f1)", outline: "none", width: "100%" }}
+          />
+          <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: form.name.length >= 18 ? "var(--color-red)" : "var(--color-f4)", pointerEvents: "none" }}>
+            {form.name.length}/20
+          </span>
+        </div>
         <input
           placeholder="Descrição (opcional)"
           value={form.description}
@@ -943,6 +951,7 @@ function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; na
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [migrateTarget, setMigrateTarget] = useState<string>(""); // planId to migrate to
   const [formMsg, setFormMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [isSaving, startSaving] = useTransition();
   const [isDeleting, startDeleting] = useTransition();
@@ -968,10 +977,25 @@ function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; na
     });
   }
 
-  function handleDelete(id: string) {
+  function openDeleteConfirm(planId: string) {
+    setConfirmDeleteId(planId);
+    setEditId(null);
+    setFormMsg(null);
+    // Pre-select first other plan as migration target
+    const other = plans.find(p => p.id !== planId);
+    setMigrateTarget(other?.id ?? "");
+  }
+
+  function handleDelete(plan: PlanItem) {
     startDeleting(async () => {
-      const r = await deletePlan(id);
-      if (r.error) { setFormMsg({ text: r.error, ok: false }); setConfirmDeleteId(null); return; }
+      if (plan.userCount > 0) {
+        const r = await migrateAndDeletePlan(plan.id, migrateTarget || null);
+        if (r.error) { setFormMsg({ text: r.error, ok: false }); return; }
+        setFormMsg({ text: `${r.moved} usuário(s) migrado(s) com sucesso.`, ok: true });
+      } else {
+        const r = await deletePlan(plan.id);
+        if (r.error) { setFormMsg({ text: r.error, ok: false }); return; }
+      }
       setConfirmDeleteId(null);
       router.refresh();
     });
@@ -1023,9 +1047,8 @@ function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; na
         </div>
       )}
 
-      {/* Plan cards */}
       {plans.length === 0 && !showCreate && (
-        <div style={{ color: "var(--color-f4)", fontSize: 13 }}>Nenhum plano criado ainda. Clique em "Criar plano Full padrão" para começar.</div>
+        <div style={{ color: "var(--color-f4)", fontSize: 13 }}>Nenhum plano criado ainda. Clique em "Criar plano Full" para começar.</div>
       )}
 
       {plans.map(plan => (
@@ -1053,8 +1076,6 @@ function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; na
                     <span style={{ fontSize: 11, color: "var(--color-f4)" }}>{plan.userCount} usuário{plan.userCount !== 1 ? "s" : ""}</span>
                   </div>
                   {plan.description && <div style={{ fontSize: 12, color: "var(--color-f3)", marginBottom: 8 }}>{plan.description}</div>}
-
-                  {/* Module pills */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
                     {MODULE_GROUPS.map(group => {
                       const groupMods = ALL_MODULES.filter(m => m.group === group && plan.modules.includes(m.key));
@@ -1063,9 +1084,7 @@ function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; na
                         <div key={group} style={{ display: "flex", flexWrap: "wrap", gap: 3, alignItems: "center" }}>
                           <span style={{ fontSize: 9, color: "var(--color-f4)", marginRight: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>{group}:</span>
                           {groupMods.map(m => (
-                            <span key={m.key} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: `${plan.color}14`, border: `1px solid ${plan.color}33`, color: plan.color }}>
-                              {m.label}
-                            </span>
+                            <span key={m.key} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: `${plan.color}14`, border: `1px solid ${plan.color}33`, color: plan.color }}>{m.label}</span>
                           ))}
                         </div>
                       );
@@ -1082,7 +1101,7 @@ function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; na
                     <IconEdit size={12} /> Editar
                   </button>
                   <button
-                    onClick={() => { setConfirmDeleteId(confirmDeleteId === plan.id ? null : plan.id); setEditId(null); setFormMsg(null); }}
+                    onClick={() => confirmDeleteId === plan.id ? setConfirmDeleteId(null) : openDeleteConfirm(plan.id)}
                     style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", fontSize: 11, borderRadius: 6, border: "1px solid rgba(248,113,113,0.3)", background: "rgba(248,113,113,0.06)", color: "var(--color-red)", cursor: "pointer" }}
                   >
                     <IconTrash size={12} /> Excluir
@@ -1090,32 +1109,74 @@ function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; na
                 </div>
               </div>
 
-              {/* Delete confirmation */}
+              {/* Delete / migrate confirmation */}
               {confirmDeleteId === plan.id && (
-                <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 8, background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.25)" }}>
-                  <div style={{ fontSize: 12, color: "var(--color-red)", fontWeight: 600, marginBottom: 4 }}>Confirmar exclusão de "{plan.name}"?</div>
-                  <div style={{ fontSize: 11, color: "var(--color-f3)", marginBottom: 12 }}>
-                    {plan.userCount > 0
-                      ? `Não é possível excluir: ${plan.userCount} usuário(s) estão neste plano. Reatribua-os primeiro.`
-                      : "Esta ação removerá o plano permanentemente."
-                    }
+                <div style={{ marginTop: 12, padding: "14px 16px", borderRadius: 8, background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.25)" }}>
+                  <div style={{ fontSize: 12, color: "var(--color-red)", fontWeight: 600, marginBottom: 6 }}>
+                    Excluir "{plan.name}"
+                    {plan.userCount > 0 && ` · ${plan.userCount} usuário${plan.userCount !== 1 ? "s" : ""} serão migrados`}
                   </div>
+
+                  {plan.userCount > 0 ? (
+                    <>
+                      <div style={{ fontSize: 11, color: "var(--color-f3)", marginBottom: 10 }}>
+                        Escolha para qual plano mover os usuários antes de excluir:
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+                        {plans.filter(p => p.id !== plan.id).map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => setMigrateTarget(p.id)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 6,
+                              padding: "5px 12px", fontSize: 11, borderRadius: 999, cursor: "pointer",
+                              background: migrateTarget === p.id ? `${p.color}18` : "var(--color-bg3)",
+                              border: `1px solid ${migrateTarget === p.id ? p.color + "66" : "var(--color-border)"}`,
+                              color: migrateTarget === p.id ? p.color : "var(--color-f3)",
+                              transition: "all 150ms",
+                            }}
+                          >
+                            <span style={{ width: 7, height: 7, borderRadius: "50%", background: p.color }} />
+                            {p.name}
+                            {migrateTarget === p.id && <IconCheck size={9} />}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setMigrateTarget("")}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 6,
+                            padding: "5px 12px", fontSize: 11, borderRadius: 999, cursor: "pointer",
+                            background: migrateTarget === "" ? "rgba(248,113,113,0.1)" : "var(--color-bg3)",
+                            border: `1px solid ${migrateTarget === "" ? "rgba(248,113,113,0.4)" : "var(--color-border)"}`,
+                            color: migrateTarget === "" ? "var(--color-red)" : "var(--color-f3)",
+                            transition: "all 150ms",
+                          }}
+                        >
+                          Sem plano
+                          {migrateTarget === "" && <IconCheck size={9} />}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 11, color: "var(--color-f3)", marginBottom: 14 }}>
+                      Nenhum usuário neste plano. A exclusão é segura.
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", gap: 8 }}>
-                    {plan.userCount === 0 && (
-                      <button
-                        onClick={() => handleDelete(plan.id)}
-                        disabled={isDeleting}
-                        style={{ display: "flex", alignItems: "center", gap: 5, height: 32, padding: "0 14px", background: "var(--color-red)", color: "#fff", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
-                      >
-                        {isDeleting ? <IconLoader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <IconTrash size={12} />}
-                        Excluir
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleDelete(plan)}
+                      disabled={isDeleting}
+                      style={{ display: "flex", alignItems: "center", gap: 5, height: 32, padding: "0 14px", background: "var(--color-red)", color: "#fff", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {isDeleting ? <IconLoader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <IconTrash size={12} />}
+                      {plan.userCount > 0 ? "Migrar e excluir" : "Excluir"}
+                    </button>
                     <button
                       onClick={() => setConfirmDeleteId(null)}
                       style={{ height: 32, padding: "0 12px", background: "var(--color-bg4)", color: "var(--color-f3)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11, cursor: "pointer" }}
                     >
-                      {plan.userCount > 0 ? "Fechar" : "Cancelar"}
+                      Cancelar
                     </button>
                   </div>
                 </div>
@@ -1405,7 +1466,7 @@ function DataTab({ data }: { data: StudioData }) {
           {[
             { label: "Usuários", value: data.userCount, color: "#22D3EE", sub: "contas ativas" },
             { label: "Registros totais", value: data.totalRecords.toLocaleString("pt-BR"), color: "#A78BFA", sub: "em todas as tabelas" },
-            { label: "Tamanho do banco", value: dbSize, color: "#FB923C", sub: "arquivo dev.db" },
+            { label: "Tamanho do banco", value: dbSize, color: "#FB923C", sub: "banco PostgreSQL" },
           ].map(s => (
             <div key={s.label} style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "14px 16px" }}>
               <div style={{ fontSize: 22, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color: s.color, marginBottom: 2 }}>{s.value}</div>
