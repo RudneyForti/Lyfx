@@ -7,6 +7,7 @@ import {
   IconArrowRight, IconSparkles,
   IconLayoutDashboard, IconHeartRateMonitor,
   IconBook2, IconAlertTriangle, IconBuildingBank, IconCreditCard,
+  IconMenu2, IconX,
 } from "@tabler/icons-react";
 import { T, type Lang, type Translations } from "./translations";
 
@@ -467,7 +468,7 @@ function StepCard({ step, title, desc, color, isLast }: { step: string; title: s
       <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color, transition: "color 0.25s ease" }}>{title}</div>
       <div style={{ fontSize: 12, lineHeight: 1.7, color: hovered ? "var(--color-f2)" : "var(--color-f3)", transition: "color 0.25s ease" }}>{desc}</div>
       {!isLast && (
-        <div style={{ position: "absolute", right: 12, bottom: 12, opacity: hovered ? 1 : 0, transform: hovered ? "translateX(0)" : "translateX(-6px)", transition: "opacity 0.25s ease, transform 0.25s ease", color }}>
+        <div className="step-arrow" style={{ opacity: hovered ? 1 : 0, transform: hovered ? "translateX(0)" : "translateX(-6px)", transition: "opacity 0.25s ease, transform 0.25s ease", color }}>
           <IconChevronRight size={20} />
         </div>
       )}
@@ -491,6 +492,7 @@ function detectLang(): Lang {
 export function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [lang, setLang] = useState<Lang>("pt");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     setLang(detectLang());
@@ -519,16 +521,79 @@ export function LandingPage() {
     }}>
 
       <style>{`
-        .hero-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 64px;
-          align-items: center;
-        }
+        /* ── Hero ── */
+        .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+        .hero-spacer { height: 72px; }
+        .hero-section { padding: 0 48px; }
+
         @media (max-width: 900px) {
-          .hero-grid { grid-template-columns: 1fr; text-align: center; }
+          .hero-grid { grid-template-columns: 1fr; gap: 40px; text-align: center; }
           .hero-text { align-items: center !important; }
           .hero-ctas { justify-content: center !important; }
+          .hero-section { padding: 0 24px; }
+        }
+        @media (max-width: 640px) {
+          .hero-spacer { height: 88px; }
+          .hero-grid { gap: 32px; padding-bottom: 48px; }
+          .hero-section { padding: 0 16px; }
+        }
+
+        /* ── Section padding ── */
+        .section-pad { padding: 96px 48px; }
+        @media (max-width: 900px) { .section-pad { padding: 72px 24px; } }
+        @media (max-width: 640px) { .section-pad { padding: 56px 16px; } }
+
+        /* ── Navbar ── */
+        .nav-links { display: flex; align-items: center; gap: 32px; }
+        .nav-login-btn { display: flex; }
+        .nav-hamburger { display: none; background: var(--color-cyan); border: none; border-radius: 26px; padding: 0 16px; height: 42px; cursor: pointer; color: #083344; align-items: center; justify-content: center; transition: opacity 150ms; flex-shrink: 0; }
+        .nav-hamburger:hover { opacity: 0.85; }
+        .nav-mobile-overlay { display: none; }
+
+        @media (max-width: 768px) {
+          .nav-links { display: none; }
+          .nav-login-btn { display: none; }
+          .nav-hamburger { display: flex; }
+          .nav-mobile-overlay { display: flex; }
+        }
+
+        /* ── Sobre ── */
+        .sobre-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; column-gap: 64px; row-gap: 0; margin-bottom: 64px; }
+        .sobre-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+
+        @media (max-width: 768px) {
+          .sobre-grid { grid-template-columns: 1fr; column-gap: 0; margin-bottom: 40px; }
+          .sobre-grid > div { border-top: none !important; padding-top: 0 !important; }
+          .sobre-grid > div:nth-child(3),
+          .sobre-grid > div:nth-child(4) { border-top: 1px solid var(--color-border) !important; padding-top: 24px !important; }
+          .sobre-cards { grid-template-columns: 1fr; }
+        }
+        @media (min-width: 481px) and (max-width: 768px) {
+          .sobre-cards { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* ── Features ── */
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+        @media (max-width: 640px) { .features-grid { grid-template-columns: 1fr; } }
+
+        /* ── Steps ── */
+        .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        @media (max-width: 900px) { .steps-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 480px) { .steps-grid { grid-template-columns: 1fr; } }
+
+        /* ── Step arrow ── */
+        .step-arrow { position: absolute; right: 12px; bottom: 12px; }
+        @media (max-width: 480px) {
+          .step-arrow { right: auto; bottom: 10px; left: 50%; transform: translateX(-50%) !important; opacity: 1 !important; }
+          .step-arrow svg { transform: rotate(90deg); }
+        }
+
+        /* ── Footer ── */
+        .footer-top { display: flex; align-items: center; justify-content: space-between; padding: 28px 36px; border-bottom: 1px solid rgba(34,211,238,0.18); }
+        .footer-version { font-size: 11px; color: var(--color-f4); text-align: right; }
+        @media (max-width: 640px) {
+          .footer-top { flex-wrap: wrap; align-items: center; gap: 0; padding: 24px 20px 20px; }
+          .footer-version { width: 100%; margin-top: 16px; text-align: left !important; }
         }
       `}</style>
 
@@ -564,8 +629,8 @@ export function LandingPage() {
             Ly<span style={{ color: "var(--color-cyan)" }}>fx</span>
           </button>
 
-          {/* Nav links */}
-          <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+          {/* Nav links — hidden on mobile */}
+          <div className="nav-links">
             {[
               { label: t.nav.sobre,            anchor: "sobre"          },
               { label: t.nav.funcionalidades,  anchor: "funcionalidades"},
@@ -594,26 +659,76 @@ export function LandingPage() {
             ))}
           </div>
 
-          {/* Right side: lang selector + login */}
+          {/* Right side: lang selector + login + hamburger */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 4px 4px 0" }}>
             <LangSelector lang={lang} setLang={handleSetLang} />
-            <Link
-              href="/login"
-              style={{
-                display: "flex", alignItems: "center", gap: 6, alignSelf: "stretch",
-                fontSize: 13, fontWeight: 600,
-                background: "var(--color-cyan)", color: "#083344",
-                padding: "0 24px", borderRadius: 999,
-                textDecoration: "none", transition: "opacity 150ms",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
-              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+            <div className="nav-login-btn">
+              <Link
+                href="/login"
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, alignSelf: "stretch",
+                  fontSize: 13, fontWeight: 600,
+                  background: "var(--color-cyan)", color: "#083344",
+                  padding: "0 24px", borderRadius: 999,
+                  textDecoration: "none", transition: "opacity 150ms",
+                  height: 42,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
+                onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+              >
+                {t.nav.entrar} <IconArrowRight size={14} />
+              </Link>
+            </div>
+            <button
+              className="nav-hamburger"
+              onClick={() => setMenuOpen(o => !o)}
+              aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}
             >
-              {t.nav.entrar} <IconArrowRight size={14} />
-            </Link>
+              {menuOpen ? <IconX size={18} /> : <IconMenu2 size={18} />}
+            </button>
           </div>
         </nav>
       </div>
+
+      {/* ── Mobile menu overlay ── */}
+      {menuOpen && (
+        <div className="nav-mobile-overlay" style={{
+          position: "fixed", top: 76, left: 16, right: 16, zIndex: 48,
+          background: "rgba(10,10,10,0.97)",
+          backdropFilter: "blur(24px)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: 16, padding: "8px 8px 16px",
+          flexDirection: "column", gap: 2,
+          boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+        }}>
+          {[
+            { label: t.nav.sobre,            anchor: "sobre"          },
+            { label: t.nav.funcionalidades,  anchor: "funcionalidades"},
+            { label: t.nav.comoFunciona,     anchor: "como-funciona"  },
+            { label: t.nav.precos,           anchor: "precos"         },
+            { label: t.nav.faq,              anchor: "faq"            },
+          ].map(item => (
+            <a
+              key={item.anchor}
+              href={`#${item.anchor}`}
+              onClick={() => setMenuOpen(false)}
+              style={{ display: "block", padding: "13px 16px", fontSize: 15, color: "var(--color-f2)", textDecoration: "none", borderRadius: 10, transition: "background 150ms, color 150ms" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "var(--color-f1)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--color-f2)"; }}
+            >
+              {item.label}
+            </a>
+          ))}
+          <div style={{ height: 1, background: "var(--color-border)", margin: "8px 0" }} />
+          <Link
+            href="/login"
+            onClick={() => setMenuOpen(false)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px 16px", margin: "0 0", background: "var(--color-cyan)", color: "#083344", borderRadius: 10, fontSize: 14, fontWeight: 700, textDecoration: "none" }}
+          >
+            {t.nav.entrar} <IconArrowRight size={14} />
+          </Link>
+        </div>
+      )}
 
       {/* ── Hero zone ── */}
       <div style={{ position: "relative" }}>
@@ -624,9 +739,9 @@ export function LandingPage() {
             linear-gradient(to bottom, var(--color-bg) 0%, rgba(10,10,10,0) 10%, rgba(10,10,10,0) 82%, var(--color-bg) 100%)
           `,
         }} />
-        <div style={{ height: 72, position: "relative", zIndex: 1 }} />
+        <div className="hero-spacer" style={{ position: "relative", zIndex: 1 }} />
 
-        <section style={{ position: "relative", zIndex: 1, padding: "0 48px", maxWidth: 1200, margin: "0 auto", minHeight: "calc(100vh - 116px)", display: "flex", alignItems: "center", width: "100%" }}>
+        <section className="hero-section" style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", minHeight: "calc(100vh - 116px)", display: "flex", alignItems: "center", width: "100%" }}>
           <div className="hero-grid" style={{ width: "100%", position: "relative" }}>
 
             <div className="hero-text" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
@@ -675,11 +790,11 @@ export function LandingPage() {
       <Marquee items={t.marquee} />
 
       {/* ── Sobre ── */}
-      <section id="sobre" style={{ padding: "96px 48px", background: "var(--color-bg2)", borderTop: "1px solid var(--color-border)", borderBottom: "1px solid var(--color-border)", position: "relative", overflow: "hidden" }}>
+      <section id="sobre" className="section-pad" style={{ background: "var(--color-bg2)", borderTop: "1px solid var(--color-border)", borderBottom: "1px solid var(--color-border)", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", right: "-16px", top: "50%", transform: "translateY(-50%)", fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: "clamp(180px, 24vw, 300px)", color: "rgba(34,211,238,0.035)", lineHeight: 1, pointerEvents: "none", userSelect: "none" }}>f(x)</div>
 
         <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "auto auto", columnGap: 64, rowGap: 0, marginBottom: 64 }}>
+          <div className="sobre-grid">
 
             {/* [1,1] Label + título */}
             <div style={{ paddingBottom: 20 }}>
@@ -719,7 +834,7 @@ export function LandingPage() {
           </div>
 
           {/* Cards f(x) */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+          <div className="sobre-cards">
             {t.sobre.cards.map(card => (
               <div key={card.label} style={{ background: card.highlight ? "rgba(34,211,238,0.06)" : "var(--color-bg3)", border: `1px solid ${card.highlight ? "rgba(34,211,238,0.2)" : "var(--color-border)"}`, borderRadius: 14, padding: "22px 20px", textAlign: "center" }}>
                 <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontSize: "clamp(24px, 3vw, 34px)", color: "var(--color-cyan)", lineHeight: 1, marginBottom: 12 }}>{card.symbol}</div>
@@ -743,7 +858,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Features ── */}
-      <section id="funcionalidades" style={{ padding: "96px 48px", maxWidth: 1200, margin: "0 auto" }}>
+      <section id="funcionalidades" className="section-pad" style={{ maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 64 }}>
           <div style={{ fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 14 }}>{t.features.label}</div>
           <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: "clamp(28px, 4vw, 42px)", letterSpacing: "-1px", lineHeight: 1.2 }}>
@@ -751,7 +866,7 @@ export function LandingPage() {
             <span style={{ color: "var(--color-cyan)" }}>{t.features.h2b}</span>
           </h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+        <div className="features-grid">
           {features.map(f => (
             <div
               key={f.title}
@@ -773,13 +888,13 @@ export function LandingPage() {
       </section>
 
       {/* ── How it works ── */}
-      <section id="como-funciona" style={{ padding: "96px 48px", background: "var(--color-bg2)", borderTop: "1px solid var(--color-border)", borderBottom: "1px solid var(--color-border)" }}>
+      <section id="como-funciona" className="section-pad" style={{ background: "var(--color-bg2)", borderTop: "1px solid var(--color-border)", borderBottom: "1px solid var(--color-border)" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
           <div style={{ fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 14 }}>{t.howItWorks.label}</div>
           <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: "clamp(28px, 4vw, 40px)", letterSpacing: "-1px", marginBottom: 56 }}>
             {t.howItWorks.h2}
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+          <div className="steps-grid">
             {t.howItWorks.steps.map((s, i) => (
               <StepCard key={s.step} step={s.step} title={s.title} desc={s.desc} color={s.color} isLast={i === 3} />
             ))}
@@ -788,7 +903,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Pricing ── */}
-      <section id="precos" style={{ padding: "96px 48px", borderTop: "1px solid var(--color-border)" }}>
+      <section id="precos" className="section-pad" style={{ borderTop: "1px solid var(--color-border)" }}>
         <div style={{ maxWidth: 860, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <div style={{ fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 14 }}>{t.pricing.label}</div>
@@ -839,7 +954,7 @@ export function LandingPage() {
       </section>
 
       {/* ── FAQ ── */}
-      <section id="faq" style={{ padding: "96px 48px", maxWidth: 860, margin: "0 auto" }}>
+      <section id="faq" className="section-pad" style={{ maxWidth: 860, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
           <div style={{ fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 14 }}>{t.faq.label}</div>
           <h2 style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: "clamp(28px, 4vw, 40px)", letterSpacing: "-1px" }}>
@@ -853,7 +968,7 @@ export function LandingPage() {
       <footer style={{ padding: "0 16px 16px" }}>
         <div style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 32, overflow: "hidden" }}>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 36px", borderBottom: "1px solid rgba(34, 211, 238, 0.18)" }}>
+          <div className="footer-top">
             <div style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 700, fontSize: 18 }}>
               Ly<span style={{ color: "var(--color-cyan)" }}>fx</span>
               <span style={{ fontFamily: "var(--font-body)", fontStyle: "normal", fontSize: 11, color: "var(--color-f4)", marginLeft: 8, letterSpacing: "1px" }}>LIFE FIXED</span>
@@ -866,9 +981,9 @@ export function LandingPage() {
             >
               {t.footer.backToTop}
             </button>
-            <div style={{ fontSize: 11, color: "var(--color-f4)", textAlign: "right" }}>
-              v1.6.5 · © 2026 Lyfx<br />
-              <span style={{ color: "var(--color-f4)", opacity: 0.6 }}>{t.footer.rights}</span>
+            <div className="footer-version">
+              v1.6.6 · © 2026 Lyfx<br />
+              <span style={{ opacity: 0.6 }}>{t.footer.rights}</span>
             </div>
           </div>
 
