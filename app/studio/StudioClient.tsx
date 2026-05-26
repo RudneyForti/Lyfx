@@ -167,7 +167,7 @@ export function StudioMain({ data, docs, liveSchema }: { data: StudioData; docs:
       </div>
 
       {/* Content */}
-      <div style={{ padding: tab === "docs" ? 0 : 28, maxWidth: tab === "docs" ? "none" : 900 }}>
+      <div style={{ padding: tab === "docs" ? 0 : 28, maxWidth: tab === "docs" ? "none" : tab === "schema" ? 1140 : 900 }}>
         {tab === "schema" && <SchemaTab expanded={expanded} setExpanded={setExpanded} liveSchema={liveSchema} />}
         {tab === "users"  && <UsersTab users={data.users} plans={data.plans} />}
         {tab === "plans"  && <PlansTab plans={data.plans} users={data.users} />}
@@ -178,181 +178,212 @@ export function StudioMain({ data, docs, liveSchema }: { data: StudioData; docs:
   );
 }
 
-/* ── ERD Diagram ── */
+/* ── ERD Diagram — responsive, full fields, column-level FK arrows ── */
 
-// Palette: one color per table (deterministic)
 const TABLE_COLORS: Record<string, string> = {
-  User:            "#22D3EE",
-  Plan:            "#A78BFA",
-  PlanModule:      "#818CF8",
-  Transaction:     "#A3E635",
-  Tag:             "#FBBF24",
-  TransactionTag:  "#FB923C",
-  Budget:          "#F472B6",
-  Goal:            "#34D399",
-  GoalPayment:     "#6EE7B7",
-  Institution:     "#60A5FA",
-  Account:         "#93C5FD",
-  Asset:           "#FCA5A5",
-  AssetExpense:    "#F87171",
-  Liability:       "#E879F9",
-  PillProgress:    "#FDE68A",
-  Settings:        "#94A3B8",
+  User: "#22D3EE", Plan: "#A78BFA", PlanModule: "#818CF8",
+  Transaction: "#A3E635", Tag: "#FBBF24", TransactionTag: "#FB923C",
+  Budget: "#F472B6", Goal: "#34D399", GoalPayment: "#6EE7B7",
+  Institution: "#60A5FA", Account: "#93C5FD",
+  Asset: "#FCA5A5", AssetExpense: "#F87171",
+  Liability: "#E879F9", PillProgress: "#FDE68A", Settings: "#94A3B8",
+};
+function tableColor(name: string) { return TABLE_COLORS[name] ?? "#64748B"; }
+
+// Logical column grouping — columns with semantic FK proximity
+const COL_ASSIGN: Record<string, number> = {
+  Transaction: 0, TransactionTag: 0, Tag: 0,
+  Budget: 1, Liability: 1, Institution: 1,
+  User: 2, Settings: 2, PillProgress: 2,
+  Asset: 3, AssetExpense: 3, Account: 3,
+  Plan: 4, PlanModule: 4, Goal: 4, GoalPayment: 4,
 };
 
-function tableColor(name: string) {
-  return TABLE_COLORS[name] ?? "#64748B";
+const ERD_BOX_W    = 175;
+const ERD_HEADER_H = 26;
+const ERD_ROW_H    = 16;
+const ERD_COL_GAP  = 28;
+const ERD_ROW_GAP  = 12;
+const ERD_PAD      = 16;
+const ERD_N_COLS   = 5;
+
+function erdType(t: string): string {
+  if (t.includes("character") || t === "text") return "str";
+  if (t === "integer") return "int";
+  if (t === "bigint") return "i64";
+  if (t.includes("double") || t === "numeric") return "flt";
+  if (t === "boolean") return "bool";
+  if (t.includes("timestamp")) return "dt";
+  if (t === "uuid") return "uuid";
+  if (t === "jsonb") return "json";
+  return t.slice(0, 4);
 }
+function trunc(s: string, n = 17) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 
-// Fixed layout positions for the ERD canvas (x, y in a 900×540 virtual space)
-const TABLE_POSITIONS: Record<string, { x: number; y: number }> = {
-  User:            { x: 360, y: 20  },
-  Plan:            { x: 580, y: 20  },
-  PlanModule:      { x: 720, y: 140 },
-  Settings:        { x: 160, y: 20  },
-  Transaction:     { x: 20,  y: 160 },
-  Tag:             { x: 260, y: 280 },
-  TransactionTag:  { x: 80,  y: 370 },
-  Budget:          { x: 300, y: 160 },
-  Goal:            { x: 500, y: 240 },
-  GoalPayment:     { x: 620, y: 360 },
-  Institution:     { x: 160, y: 440 },
-  Account:         { x: 320, y: 440 },
-  Asset:           { x: 480, y: 440 },
-  AssetExpense:    { x: 640, y: 460 },
-  Liability:       { x: 20,  y: 300 },
-  PillProgress:    { x: 460, y: 140 },
-};
+type BoxPos = { col: number; x: number; y: number; height: number };
 
-const BOX_W = 130;
-const BOX_H = 28; // header only (we show just the table name in diagram)
+function computeErdLayout(tables: LiveSchema["tables"]) {
+  // Group by column
+  const cols = new Map<number, typeof tables>();
+  for (let i = 0; i < ERD_N_COLS; i++) cols.set(i, []);
+  for (const t of tables) cols.get(COL_ASSIGN[t.name] ?? 0)!.push(t);
+  // Sort each col: tallest first for visual balance
+  for (const [, arr] of cols) arr.sort((a, b) => b.columns.length - a.columns.length);
+
+  const colY = Array(ERD_N_COLS).fill(ERD_PAD);
+  const positions = new Map<string, BoxPos>();
+
+  for (const [colIdx, arr] of cols) {
+    for (const t of arr) {
+      const height = ERD_HEADER_H + t.columns.length * ERD_ROW_H;
+      const x = ERD_PAD + colIdx * (ERD_BOX_W + ERD_COL_GAP);
+      positions.set(t.name, { col: colIdx, x, y: colY[colIdx], height });
+      colY[colIdx] += height + ERD_ROW_GAP;
+    }
+  }
+
+  const CANVAS_W = ERD_PAD * 2 + ERD_N_COLS * ERD_BOX_W + (ERD_N_COLS - 1) * ERD_COL_GAP;
+  const CANVAS_H = Math.max(...colY) + ERD_PAD;
+  return { positions, CANVAS_W, CANVAS_H };
+}
 
 function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTableClick: (name: string) => void }) {
   const [hovered, setHovered] = useState<string | null>(null);
-  const CANVAS_W = 860;
-  const CANVAS_H = 560;
+  const { positions, CANVAS_W, CANVAS_H } = computeErdLayout(liveSchema.tables);
 
-  // Deduplicate FK arrows (some PKs have multiple columns → same table pair appears twice)
-  const drawnPairs = new Set<string>();
-  const arrows: { x1: number; y1: number; x2: number; y2: number; color: string }[] = [];
+  // Build column-level FK arrows
+  const drawnKeys = new Set<string>();
+  const arrows: React.ReactElement[] = [];
 
   for (const fk of liveSchema.foreignKeys) {
-    const key = `${fk.table_name}→${fk.foreign_table_name}`;
-    if (drawnPairs.has(key)) continue;
-    drawnPairs.add(key);
+    const key = `${fk.table_name}.${fk.column_name}→${fk.foreign_table_name}.${fk.foreign_column_name}`;
+    if (drawnKeys.has(key) || fk.table_name === fk.foreign_table_name) continue;
+    drawnKeys.add(key);
 
-    const src = TABLE_POSITIONS[fk.table_name];
-    const dst = TABLE_POSITIONS[fk.foreign_table_name];
+    const src = positions.get(fk.table_name);
+    const dst = positions.get(fk.foreign_table_name);
     if (!src || !dst) continue;
 
-    arrows.push({
-      x1: src.x + BOX_W / 2,
-      y1: src.y + BOX_H / 2,
-      x2: dst.x + BOX_W / 2,
-      y2: dst.y + BOX_H / 2,
-      color: tableColor(fk.table_name),
-    });
+    const srcTable = liveSchema.tables.find(t => t.name === fk.table_name);
+    const dstTable = liveSchema.tables.find(t => t.name === fk.foreign_table_name);
+    const srcColIdx = srcTable?.columns.findIndex(c => c.column_name === fk.column_name) ?? 0;
+    const dstColIdx = dstTable?.columns.findIndex(c => c.column_name === fk.foreign_column_name) ?? 0;
+
+    const srcRowY = src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
+    const dstRowY = dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
+    const color = tableColor(fk.table_name);
+
+    let x1: number, x2: number;
+    let cp1x: number, cp2x: number;
+
+    if (src.col === dst.col) {
+      // Same column — arc to the right
+      x1 = src.x + ERD_BOX_W; x2 = dst.x + ERD_BOX_W;
+      const cx = src.x + ERD_BOX_W + 44;
+      arrows.push(
+        <g key={key}>
+          <path d={`M ${x1} ${srcRowY} C ${cx} ${srcRowY} ${cx} ${dstRowY} ${x2} ${dstRowY}`}
+            stroke={color} strokeOpacity={0.5} strokeWidth={1.5} fill="none" strokeDasharray="4 3" />
+          <circle cx={x2} cy={dstRowY} r={3} fill={color} fillOpacity={0.8} />
+        </g>
+      );
+      continue;
+    }
+
+    const goRight = src.col < dst.col;
+    x1 = goRight ? src.x + ERD_BOX_W : src.x;
+    x2 = goRight ? dst.x             : dst.x + ERD_BOX_W;
+    const dist = Math.abs(x2 - x1);
+    cp1x = goRight ? x1 + dist * 0.45 : x1 - dist * 0.45;
+    cp2x = goRight ? x2 - dist * 0.45 : x2 + dist * 0.45;
+
+    arrows.push(
+      <g key={key}>
+        <path d={`M ${x1} ${srcRowY} C ${cp1x} ${srcRowY} ${cp2x} ${dstRowY} ${x2} ${dstRowY}`}
+          stroke={color} strokeOpacity={0.45} strokeWidth={1.5} fill="none" />
+        <circle cx={x2} cy={dstRowY} r={3} fill={color} fillOpacity={0.8} />
+      </g>
+    );
   }
 
   return (
-    <div style={{ position: "relative", background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
+    <div style={{ background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
       <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontSize: 10, color: "var(--color-f4)", letterSpacing: 1, textTransform: "uppercase" }}>
-          Diagrama ER · {liveSchema.tables.length} tabelas · {liveSchema.foreignKeys.length} foreign keys
+          Diagrama ER · {liveSchema.tables.length} tabelas · {liveSchema.foreignKeys.length} foreign keys · gerado em tempo real
         </span>
         <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 4 }}>
-          <IconZoomIn size={10} /> clique numa tabela para ver campos
+          <IconZoomIn size={10} /> clique para ver campos
         </span>
       </div>
 
+      {/* SVG scales to 100% container width, height follows aspect ratio */}
       <svg
         viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
         style={{ width: "100%", height: "auto", display: "block" }}
+        preserveAspectRatio="xMinYMin meet"
       >
-        {/* Arrows */}
-        <defs>
-          {liveSchema.tables.map(t => (
-            <marker
-              key={`arrow-${t.name}`}
-              id={`arrow-${t.name}`}
-              viewBox="0 0 6 6"
-              refX="5" refY="3"
-              markerWidth="6" markerHeight="6"
-              orient="auto"
-            >
-              <path d="M 0 0 L 6 3 L 0 6 z" fill={tableColor(t.name)} fillOpacity={0.6} />
-            </marker>
-          ))}
-        </defs>
-
-        {arrows.map((a, i) => (
-          <line
-            key={i}
-            x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2}
-            stroke={a.color}
-            strokeOpacity={0.35}
-            strokeWidth={1.5}
-            strokeDasharray="4 3"
-          />
-        ))}
+        {/* Arrows behind boxes */}
+        {arrows}
 
         {/* Table boxes */}
         {liveSchema.tables.map(t => {
-          const pos = TABLE_POSITIONS[t.name] ?? { x: 400, y: 260 };
+          const pos = positions.get(t.name);
+          if (!pos) return null;
           const color = tableColor(t.name);
-          const isHovered = hovered === t.name;
+          const isHov = hovered === t.name;
+          const boxH = ERD_HEADER_H + t.columns.length * ERD_ROW_H;
 
           return (
-            <g
-              key={t.name}
-              transform={`translate(${pos.x}, ${pos.y})`}
+            <g key={t.name} transform={`translate(${pos.x},${pos.y})`}
               style={{ cursor: "pointer" }}
               onMouseEnter={() => setHovered(t.name)}
               onMouseLeave={() => setHovered(null)}
               onClick={() => onTableClick(t.name)}
             >
-              {/* Shadow / glow on hover */}
-              {isHovered && (
-                <rect
-                  x={-2} y={-2}
-                  width={BOX_W + 4} height={BOX_H + 4}
-                  rx={7}
-                  fill={color}
-                  fillOpacity={0.15}
-                />
-              )}
-              {/* Box */}
-              <rect
-                width={BOX_W} height={BOX_H}
-                rx={5}
-                fill="var(--color-bg2)"
-                stroke={isHovered ? color : color + "55"}
-                strokeWidth={isHovered ? 1.5 : 1}
+              {/* Glow on hover */}
+              {isHov && <rect x={-2} y={-2} width={ERD_BOX_W + 4} height={boxH + 4} rx={5} fill={color} fillOpacity={0.1} />}
+
+              {/* Body */}
+              <rect width={ERD_BOX_W} height={boxH} rx={4}
+                fill="#0d1117"
+                stroke={isHov ? color : color + "55"}
+                strokeWidth={isHov ? 1.5 : 1}
               />
-              {/* Color stripe */}
-              <rect width={4} height={BOX_H} rx={5} fill={color} fillOpacity={0.9} />
-              <rect x={2} width={2} height={BOX_H} fill={color} fillOpacity={0.9} />
-              {/* Label */}
-              <text
-                x={12} y={18}
-                fontSize={11}
-                fontWeight={600}
-                fill={isHovered ? color : "var(--color-f2)"}
-                fontFamily="var(--font-body)"
-              >
-                {t.name}
-              </text>
-              {/* Field count badge */}
-              <text
-                x={BOX_W - 6} y={18}
-                fontSize={9}
-                fill={color}
-                fillOpacity={0.7}
-                textAnchor="end"
-                fontFamily="var(--font-body)"
-              >
-                {t.columns.length}f
-              </text>
+
+              {/* Header bar */}
+              <rect width={ERD_BOX_W} height={ERD_HEADER_H} rx={4} fill={color + "28"} />
+              <rect y={ERD_HEADER_H - 1} width={ERD_BOX_W} height={1} fill={color + "66"} />
+              {/* Top color stripe */}
+              <rect width={ERD_BOX_W} height={3} rx={4} fill={color} />
+
+              {/* Table name */}
+              <text x={8} y={18} fontSize={11} fontWeight={700} fill={color} fontFamily="monospace">{trunc(t.name, 19)}</text>
+              {/* Field count */}
+              <text x={ERD_BOX_W - 5} y={18} fontSize={8.5} fill={color} fillOpacity={0.65} textAnchor="end" fontFamily="monospace">{t.columns.length}f</text>
+
+              {/* Rows */}
+              {t.columns.map((c, i) => {
+                const ry = ERD_HEADER_H + i * ERD_ROW_H;
+                const isPk = c.is_pk, isFk = c.is_fk;
+                const textColor = isPk ? "#22D3EE" : isFk ? "#A78BFA" : "rgba(255,255,255,0.6)";
+
+                return (
+                  <g key={c.column_name} transform={`translate(0,${ry})`}>
+                    {i % 2 !== 0 && <rect width={ERD_BOX_W} height={ERD_ROW_H} fill="rgba(255,255,255,0.022)" />}
+                    {/* PK dot — filled cyan */}
+                    {isPk  && <circle cx={8} cy={ERD_ROW_H / 2} r={3.5} fill="#22D3EE" />}
+                    {/* FK dot — outlined purple */}
+                    {!isPk && isFk && <circle cx={8} cy={ERD_ROW_H / 2} r={3} fill="none" stroke="#A78BFA" strokeWidth={1.2} />}
+                    {/* Regular dot */}
+                    {!isPk && !isFk && <circle cx={8} cy={ERD_ROW_H / 2} r={1.5} fill="rgba(255,255,255,0.18)" />}
+                    {/* Column name */}
+                    <text x={18} y={ERD_ROW_H - 4} fontSize={9.5} fill={textColor} fontFamily="monospace">{trunc(c.column_name, 16)}</text>
+                    {/* Type */}
+                    <text x={ERD_BOX_W - 5} y={ERD_ROW_H - 4} fontSize={8} fill="rgba(255,255,255,0.3)" textAnchor="end" fontFamily="monospace">{erdType(c.data_type)}</text>
+                  </g>
+                );
+              })}
             </g>
           );
         })}
@@ -431,16 +462,28 @@ function SchemaTab({ expanded, setExpanded, liveSchema }: {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "var(--color-bg3)" }}>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "28%" }}>Campo</th>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "22%" }}>Tipo</th>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "10%" }}>Nullable</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "8%" }}></th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "26%" }}>Campo</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "20%" }}>Tipo</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "12%" }}>Nullable</th>
                       <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500 }}>Default</th>
                     </tr>
                   </thead>
                   <tbody>
                     {t.columns.map((c, i) => (
                       <tr key={c.column_name} style={{ borderTop: "1px solid var(--color-border)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
-                        <td style={{ padding: "7px 16px", fontFamily: "monospace", color }}>{c.column_name}</td>
+                        {/* PK / FK badges */}
+                        <td style={{ padding: "6px 16px" }}>
+                          <div style={{ display: "flex", gap: 3 }}>
+                            {c.is_pk && (
+                              <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 999, background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.4)", color: "#22D3EE", fontWeight: 700, letterSpacing: 0.3 }}>PK</span>
+                            )}
+                            {c.is_fk && (
+                              <span title={`→ ${c.fk_ref}`} style={{ fontSize: 9, padding: "1px 5px", borderRadius: 999, background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.4)", color: "#A78BFA", fontWeight: 700, letterSpacing: 0.3, cursor: "help" }}>FK</span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: "7px 16px", fontFamily: "monospace", color: c.is_pk ? "#22D3EE" : c.is_fk ? "#A78BFA" : color }}>{c.column_name}</td>
                         <td style={{ padding: "7px 16px", fontFamily: "monospace", color: "var(--color-f3)", fontSize: 11 }}>{pgTypeLabel(c.data_type)}</td>
                         <td style={{ padding: "7px 16px", color: c.is_nullable === "YES" ? "var(--color-f4)" : "var(--color-cyan)", fontSize: 11 }}>
                           {c.is_nullable === "YES" ? "nullable" : "required"}
