@@ -233,3 +233,10 @@ model Settings {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
+
+// Global application config — key/value store managed via Studio
+model AppConfig {
+  key       String   @id
+  value     String   @default("")
+  updatedAt DateTime @updatedAt
+}
