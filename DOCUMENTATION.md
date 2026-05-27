@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.7.2 · Maio 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.8.0 · Maio 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -321,6 +321,36 @@ Tipos de AssetExpense: "iptu" | "ipva" | "itr" | "dpvat" | "seguro" | "licenciam
 │                 │ Unique       │ @@unique([userId, pillId])      │
 └─────────────────┴──────────────┴────────────────────────────────┘
 Nota: pílulas são conteúdo estático (lib/pills-data.json). Apenas o progresso é persistido.
+
+┌─────────────────────────────────────────────────────────────────┐
+│                           PLAN                                  │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ name            │ String       │ Ex: "Full", "Insider"          │
+│ description     │ String?      │ Descrição do plano             │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+│ modules         │ Relation     │ → PlanModule[]                 │
+└─────────────────┴──────────────┴────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        PLAN_MODULE (pivot)                      │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ planId          │ String (FK)  │ → Plan.id (cascade)            │
+│ moduleKey       │ String       │ Chave do módulo (lib/modules)  │
+│                 │ Unique       │ @@unique([planId, moduleKey])   │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Nota: módulos são entidades estáticas definidas em lib/modules.ts — apenas os vínculos com planos são persistidos.
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         APP_CONFIG                              │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ key             │ String (PK)  │ Chave de configuração global   │
+│ value           │ String       │ Valor (string, JSON ou bool)   │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Chaves conhecidas: "maintenanceMode" ("true"/"false"), "maintenanceBanner" (mensagem), "betaModules" (JSON array de chaves), "adminNotes" (Markdown livre). Lido via lib/config.ts sem autenticação de admin.
 ```
 
 ### Diagrama de relações
@@ -748,13 +778,25 @@ Painel administrativo protegido por senha separada da sessão do usuário.
 - **Logout**: limpa `lyfx_admin` (com `path: "/studio"`) **e** `lyfx_session` (com `path: "/"`) simultaneamente → redireciona para `/` via `redirect()` no server action (sem flash de tela)
 - **Login form**: botão `← Login` no topo esquerdo navega para `/login`
 
-#### Aba Schema
+#### Abas (ordem)
 
-Visualização de todas as tabelas do banco com campos, tipos e descrições. Expansível por tabela. Mostra relações entre modelos.
+`Painel → Usuários → Planos → Módulos → Notas → Dados → Schema → Documentação`
 
-#### Aba Docs
+#### Aba Painel
 
-Renderização em Markdown do arquivo `DOCUMENTATION.md`. TOC lateral clicável com h2, h3 e h4 (h3 indentado 20px, h4 indentado 32px, tamanhos decrescentes). Clique em qualquer item do TOC faz scroll suave até o heading correspondente (slugify do texto).
+Dashboard de gestão do software com duas seções:
+
+**Cards de métricas** (6 cards):
+- Usuários cadastrados (contagem total)
+- Registros no banco (soma de todas as tabelas de dados)
+- Espaço em disco (tamanho do arquivo de banco via `fs/promises stat()`, formatado em B/KB/MB/GB)
+- Planos ativos (contagem de planos cadastrados)
+- Versão dev (lida de `lyfx/package.json`)
+- Versão prod (lida de `lyfx-production/package.json`; exibe `—` se o worktree não existir)
+
+**Configurações globais**:
+- **Modo manutenção**: toggle que ativa/desativa o banner amarelo de manutenção exibido no topo de todas as rotas do app (`AppLayout` lê via `getConfigBool("maintenanceMode")`)
+- **Banner de manutenção**: campo de texto editável com a mensagem exibida no banner (salvo em `AppConfig` como `maintenanceBanner`)
 
 #### Aba Usuários
 
@@ -763,12 +805,53 @@ Renderização em Markdown do arquivo `DOCUMENTATION.md`. TOC lateral clicável 
 - **Criar usuário**: formulário inline — nome, e-mail, senha. `revalidatePath("/studio")` + `router.refresh()` para atualização imediata sem reload
 - **Deletar usuário**: botão vermelho com painel de confirmação inline. Cascade manual na ordem: transactions → tags → budgets → goals → liabilities → settings → user (sem FK do User para os modelos de dados)
 
+#### Aba Planos
+
+- **Lista de planos**: exibe planos cadastrados com nome, descrição e contagem de módulos vinculados
+- **Criar plano Full**: seed automático de todos os módulos com `isBeta: false` (módulos estáveis)
+- **Criar plano Insider**: seed automático de **todos** os módulos incluindo betas — derivado de `ALL_MODULE_KEYS` em `lib/modules.ts`
+- **Botões de seed** aparecem apenas quando o respectivo plano ainda não existe
+
+#### Aba Módulos
+
+- Lista todos os 17 módulos do sistema com chave, rótulo e status beta
+- **Toggle Beta**: botão por módulo para marcar/desmarcar como beta em tempo real. Estado salvo no `AppConfig` como `betaModules` (JSON array de chaves). A sidebar do app lê esse valor via `getConfigValue` no `AppLayout` — sem reiniciar o servidor
+- Módulos marcados como beta exibem o chip amarelo "Beta" na sidebar para todos os usuários
+
+#### Aba Notas
+
+Editor Markdown com persistência em `AppConfig` (chave `adminNotes`). Funcionalidades:
+
+**Toolbar** (5 grupos):
+1. Cabeçalhos: H1, H2, H3
+2. Ênfase: Negrito (`**`), Itálico (`_`)
+3. Listas: Lista (` - `), Lista numerada (`1. `), Checklist (` - [ ] `)
+4. Blocos: Citação (`> `), Código (inline \`\` ou bloco fenced)
+5. Ação: Salvar
+
+**Slash commands** (Notion-like): digitar `/` no início de uma linha abre menu flutuante com 10 comandos (`/h1`, `/h2`, `/h3`, `/bold`, `/italic`, `/list`, `/ordered`, `/todo`, `/quote`, `/code`). Teclas ↑/↓ navegam; Enter/Tab confirma; Esc fecha.
+
+**Auto-continuação de listas**: ao pressionar Enter em uma linha com ` - `, `1. ` ou ` - [ ] `, a próxima linha começa com o mesmo padrão (listas ordenadas incrementam o número).
+
+**Atalhos de teclado**: `Ctrl+B` (negrito), `Ctrl+I` (itálico), `Ctrl+S` (salvar).
+
 #### Aba Dados
 
-- **Seção Sistema** (topo): 3 cards — Usuários (contagem), Registros totais (soma de todas as tabelas), Tamanho do banco (leitura de `dev.db` via `fs/promises stat()`, formatado em B/KB/MB/GB)
 - **Seção Usuários**: combobox digitável para filtrar usuários por nome ou e-mail (dropdown com busca, destaque cyan no item selecionado, fecha ao clicar fora via `useRef + useEffect`)
 - **Dados por usuário**: ao selecionar, exibe contadores (transações, tags, orçamentos, metas) e tabela das 10 transações mais recentes do usuário
 - **Dados globais** (sem filtro): exibe as 10 transações mais recentes do sistema
+
+#### Aba Schema
+
+Duas visualizações do schema:
+
+**ERD visual**: diagrama UML com todas as tabelas e suas colunas. Tabelas iniciam **colapsadas** — clique no cabeçalho expande/colapsa individualmente. Linhas de relação entre tabelas (via campos de FK). Container com `width: 90vw`.
+
+**Tabela descritiva**: lista todas as tabelas com nome, número de campos e descrição textual do que cada tabela armazena. Clicar em uma linha do ERD visual expande a tabela correspondente.
+
+#### Aba Documentação
+
+Renderização em Markdown do arquivo `DOCUMENTATION.md`. TOC lateral clicável com h2, h3 e h4 (h3 indentado 20px, h4 indentado 32px, tamanhos decrescentes). Clique em qualquer item do TOC faz scroll suave até o heading correspondente (slugify do texto).
 
 ---
 
@@ -820,10 +903,15 @@ USER
   └── exibido → SIDEBAR (nome + avatar via AppLayout)
 
 STUDIO
-  ├── lê → USER (lista, reset de senha)
-  ├── lê → TRANSACTION (contagem + recentes)
-  ├── lê → TAG (contagem)
-  └── lê → BUDGET (contagem)
+  ├── lê → USER (lista, reset de senha, criação, exclusão cascade)
+  ├── lê → TRANSACTION (contagem + recentes por usuário)
+  ├── lê → TAG, BUDGET, GOAL (contagens globais e por usuário)
+  ├── lê/escreve → APP_CONFIG (toggles de manutenção, betaModules, notas admin)
+  └── lê/escreve → PLAN + PLAN_MODULE (seed Full/Insider, listagem)
+
+APP_CONFIG
+  ├── lido por → SIDEBAR (betaModules via AppLayout → getConfigValue)
+  └── lido por → APP_LAYOUT (maintenanceMode → banner global)
 ```
 
 ### Fluxo de dados — criação de transação recorrente
@@ -1135,8 +1223,8 @@ lyfx/
 | Arquivo | O que faz |
 |---|---|
 | `page.tsx` | Server Component: verifica cookie `lyfx_admin`; renderiza `StudioLoginForm` ou o painel completo `StudioClient` passando os dados buscados. |
-| `StudioClient.tsx` | Client Component com toda a UI do Studio: abas Schema/Docs/Usuários/Dados, formulário de login, criação/exclusão de usuários com confirmação inline, combobox digitável de filtro por usuário, cards de sistema, renderização Markdown da documentação com TOC clicável (h2/h3/h4). |
-| `actions.ts` | `adminLogin`, `adminLogout` (limpa ambos os cookies + redireciona), `getStudioData`, `getStudioDataForUser`, `adminResetPassword`, `adminCreateUser`, `adminDeleteUser` (cascade manual), `getDocumentation`. |
+| `StudioClient.tsx` | Client Component com toda a UI do Studio: 8 abas (Painel, Usuários, Planos, Módulos, Notas, Dados, Schema, Documentação), formulário de login, gerenciamento de usuários com confirmação inline, toggle de beta por módulo, editor Markdown com toolbar + slash commands, dashboard de métricas, ERD colapsável com descrições de tabelas. |
+| `actions.ts` | `adminLogin`, `adminLogout` (limpa ambos os cookies + redireciona), `getStudioData` (inclui versões dev/prod), `getStudioDataForUser`, `adminResetPassword`, `adminCreateUser`, `adminDeleteUser` (cascade manual), `getDocumentation`, `getLiveSchema`, `getAppConfig`, `setAppConfig`, `saveAdminNotes`, `ensureInsiderPlan`. |
 
 #### `app/api/`
 
@@ -1222,12 +1310,14 @@ lyfx/
 | `liabilities.ts` | Função pura `monthsToPayoff(balance, monthlyRate, payment)` — calcula meses até quitação de uma dívida pela fórmula de amortização. Separada do arquivo `"use server"` por limitação do Turbopack. |
 | `institutions.ts` | Tipos e constantes de instituições (`InstitutionType`, `AccountType`, `INSTITUTION_TYPE_LABELS`, `ACCOUNT_TYPE_LABELS`, interfaces `Institution`, `Account`, `AccountForSelect`) — separados do arquivo `"use server"` por limitação do Turbopack. |
 | `assets.ts` | Tipos e constantes de bens (`AssetType`, `AssetExpenseType`, `ASSET_TYPE_LABELS`, `ASSET_EXPENSE_TYPE_LABELS`, `EXPENSE_SUGGESTIONS`, interfaces `Asset`, `AssetExpense`) — separados do arquivo `"use server"` por limitação do Turbopack. |
+| `modules.ts` | Array `ALL_MODULES` com os 17 módulos do sistema — cada entrada tem `key`, `label`, `summary` (descrição curta) e `isBeta?: boolean`. `ALL_MODULE_KEYS` é o array só de chaves. Fonte de verdade para seeds de planos e para a Sidebar exibir o chip "Beta". |
+| `config.ts` | Helpers `getConfigValue(key, fallback)` e `getConfigBool(key, fallback)` — leem `AppConfig` via Prisma sem exigir autenticação de admin. Usados em Server Components (`AppLayout`, `layout.tsx`) para ler `maintenanceMode` e `betaModules` em cada request. |
 
 #### `prisma/`
 
 | Arquivo | O que faz |
 |---|---|
-| `schema.prisma` | Fonte de verdade do banco: define todos os modelos (User, Transaction, Tag, TransactionTag, Budget, Goal, GoalPayment, Settings, Liability, Institution, Account, Asset, AssetExpense) com campos, tipos, defaults, constraints únicas compostas e relações. |
+| `schema.prisma` | Fonte de verdade do banco: define todos os modelos (User, Transaction, Tag, TransactionTag, Budget, Goal, GoalPayment, Settings, Liability, Institution, Account, Asset, AssetExpense, Plan, PlanModule, AppConfig) com campos, tipos, defaults, constraints únicas compostas e relações. |
 
 #### `.claude/`
 
@@ -1330,6 +1420,7 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **Auditoria** | ✅ v1.3.1 | Revisão completa de segurança e bugs: IDOR em `markPayment` corrigido, tipos `"income"/"expense"` → `"credit"/"debit"` em `getMonthlyBalance`, `requireAdmin()` interno em todas as actions do Studio, `delete()` → `deleteMany()` em goals/liabilities/institutions/transactions, parsing `parseBR()` para valores em formato brasileiro, `useEffect` substituindo `useState` como efeito colateral, verificação de ownership em `createAssetExpense`. |
 | **Fase F** | ✅ v1.4.0 | Correções críticas (análise de consultor financeiro): (1) `reserveBalance` adicionado ao modelo `Settings` — usuário declara o saldo real do fundo de reserva via editor inline no card de Saúde Financeira; fallback automático para proxy (`debit_longterm`) se o campo não foi preenchido; (2) Alerta proativo de passivo crítico — `cheque_especial` e `rotativo` ativos geram alerta `danger` com taxa a.m. + equivalente a.a. calculado; novo tipo `"liability"` em `AlertsView`. Correções TypeScript pré-existentes: `reimbursedAt` adicionado à interface `Transaction`, `AnyTransaction` corrigido em `MonthlyCalendar`, `useState<string>` em `TagPicker` e `TagsManager`. |
 | **Fase G** | ✅ v1.5.0 | Educação financeira (`/education`): 85 pílulas pedagógicas organizadas em 5 perfis de saúde financeira (`critical`, `serious`, `unstable`, `stable`, `healthy`), leitura com timer silencioso, quiz de fixação com feedback visual, streak semanal de 12 semanas, progresso persistido em `PillProgress` via `better-sqlite3` direto (contorno para cache persistente do Turbopack). |
+| **Studio G2** | ✅ v1.8.0 | Studio Grupo 2: Aba Painel com dashboard de métricas (6 cards: usuários, registros, espaço em disco, planos, versões dev/prod) + toggles de configuração global (modo manutenção + texto do banner). Aba Módulos com toggle de beta por módulo em tempo real via `AppConfig`. Aba Notas com editor Markdown, toolbar completa e slash commands Notion-like. ERD colapsável por tabela com descrições. Seeds Full/Insider derivados automaticamente de `isBeta` em `lib/modules.ts`. Modelo `AppConfig` no banco. `lib/config.ts` para leitura sem auth. |
 
 ### Próximas evoluções sugeridas
 
@@ -1339,4 +1430,4 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 
 ---
 
-*Última atualização: 22/05/2026. Versão atual: 1.5.0.*
+*Última atualização: 27/05/2026. Versão atual: 1.8.0.*

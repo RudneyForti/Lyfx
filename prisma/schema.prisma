@@ -156,6 +156,26 @@ model AssetExpense {
   updatedAt DateTime  @updatedAt
 }
 
+model Plan {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  description String?
+  color       String       @default("#22D3EE")
+  isDefault   Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  modules     PlanModule[]
+  users       User[]
+}
+
+model PlanModule {
+  planId  String
+  module  String
+  plan    Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@id([planId, module])
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -170,6 +190,8 @@ model User {
   street       String?
   streetNumber String?
   country      String?
+  planId    String?
+  plan      Plan?    @relation(fields: [planId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -210,4 +232,11 @@ model Settings {
   reserveBalance        Float    @default(0)  // saldo real do fundo de reserva declarado pelo usuário
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+// Global application config — key/value store managed via Studio
+model AppConfig {
+  key       String   @id
+  value     String   @default("")
+  updatedAt DateTime @updatedAt
 }
