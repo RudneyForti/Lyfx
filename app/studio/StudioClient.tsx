@@ -13,7 +13,7 @@ import {
   IconLock, IconLoader2, IconX, IconLogout, IconDatabase,
   IconUsers, IconTable, IconKey, IconTrash, IconChevronDown, IconChevronRight,
   IconFileDescription, IconUserPlus, IconFilter, IconPackage, IconPlus, IconEdit,
-  IconCheck, IconZoomIn,
+  IconCheck,
 } from "@tabler/icons-react";
 
 /* ── Login gate ── */
@@ -190,13 +190,14 @@ const TABLE_COLORS: Record<string, string> = {
 };
 function tableColor(name: string) { return TABLE_COLORS[name] ?? "#64748B"; }
 
-// Logical column grouping — columns with semantic FK proximity
+// Logical column grouping — FK arrows only cross adjacent columns (no long jumps)
+// Account→Institution (col2→col1 | 1 step), Goal→User (col3→col2 | 1 step)
 const COL_ASSIGN: Record<string, number> = {
   Transaction: 0, TransactionTag: 0, Tag: 0,
-  Budget: 1, Liability: 1, Institution: 1,
-  User: 2, Settings: 2, PillProgress: 2,
-  Asset: 3, AssetExpense: 3, Account: 3,
-  Plan: 4, PlanModule: 4, Goal: 4, GoalPayment: 4,
+  Institution: 1, Liability: 1, Budget: 1,
+  User: 2, Account: 2, Settings: 2, PillProgress: 2,
+  Asset: 3, AssetExpense: 3, Goal: 3, GoalPayment: 3,
+  Plan: 4, PlanModule: 4,
 };
 
 const ERD_BOX_W    = 175;
@@ -247,17 +248,9 @@ function computeErdLayout(tables: LiveSchema["tables"], effectiveHeights?: Map<s
   return { positions, CANVAS_W, CANVAS_H };
 }
 
-function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTableClick: (name: string) => void }) {
+function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
   const [hovered, setHovered] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-
-  // Effective heights: collapsed tables show header only
-  const effectiveHeights = new Map<string, number>();
-  for (const t of liveSchema.tables) {
-    effectiveHeights.set(t.name, collapsed.has(t.name) ? ERD_HEADER_H : ERD_HEADER_H + t.columns.length * ERD_ROW_H);
-  }
-
-  const { positions, CANVAS_W, CANVAS_H } = computeErdLayout(liveSchema.tables, effectiveHeights);
+  const { positions, CANVAS_W, CANVAS_H } = computeErdLayout(liveSchema.tables);
 
   // Build column-level FK arrows
   const drawnKeys = new Set<string>();
@@ -277,15 +270,8 @@ function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTa
     const srcColIdx = srcTable?.columns.findIndex(c => c.column_name === fk.column_name) ?? 0;
     const dstColIdx = dstTable?.columns.findIndex(c => c.column_name === fk.foreign_column_name) ?? 0;
 
-    // When collapsed, point to header center instead of a specific row
-    const isSrcCollapsed = collapsed.has(fk.table_name);
-    const isDstCollapsed = collapsed.has(fk.foreign_table_name);
-    const srcRowY = isSrcCollapsed
-      ? src.y + ERD_HEADER_H / 2
-      : src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
-    const dstRowY = isDstCollapsed
-      ? dst.y + ERD_HEADER_H / 2
-      : dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
+    const srcRowY = src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
+    const dstRowY = dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
     const color = tableColor(fk.table_name);
 
     let x1: number, x2: number;
@@ -321,34 +307,21 @@ function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTa
     );
   }
 
-  function toggleCollapse(name: string) {
-    const isCurrentlyCollapsed = collapsed.has(name);
-    setCollapsed(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
-      return next;
-    });
-    // Scroll to detail card when expanding
-    if (isCurrentlyCollapsed) onTableClick(name);
-  }
-
   return (
     <div style={{ background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
       <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontSize: 10, color: "var(--color-f4)", letterSpacing: 1, textTransform: "uppercase" }}>
           Diagrama ER · {liveSchema.tables.length} tabelas · {liveSchema.foreignKeys.length} foreign keys · gerado em tempo real
         </span>
-        <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 4 }}>
-          <IconZoomIn size={10} /> clique para colapsar · expandir
-        </span>
       </div>
 
-      {/* Horizontal scroll on small screens; fills full width on large screens */}
+      {/* Horizontal scroll on narrow screens; fixed natural size on wide screens */}
       <div style={{ overflowX: "auto" }}>
         <svg
           viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
-          style={{ width: "100%", minWidth: CANVAS_W, height: "auto", display: "block" }}
-          preserveAspectRatio="xMinYMin meet"
+          width={CANVAS_W}
+          height={CANVAS_H}
+          style={{ display: "block" }}
         >
           {/* Arrows behind boxes */}
           {arrows}
@@ -359,15 +332,12 @@ function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTa
             if (!pos) return null;
             const color = tableColor(t.name);
             const isHov = hovered === t.name;
-            const isCollapsed = collapsed.has(t.name);
-            const boxH = isCollapsed ? ERD_HEADER_H : ERD_HEADER_H + t.columns.length * ERD_ROW_H;
+            const boxH = ERD_HEADER_H + t.columns.length * ERD_ROW_H;
 
             return (
               <g key={t.name} transform={`translate(${pos.x},${pos.y})`}
-                style={{ cursor: "pointer" }}
                 onMouseEnter={() => setHovered(t.name)}
                 onMouseLeave={() => setHovered(null)}
-                onClick={() => toggleCollapse(t.name)}
               >
                 {/* Glow on hover */}
                 {isHov && <rect x={-2} y={-2} width={ERD_BOX_W + 4} height={boxH + 4} rx={5} fill={color} fillOpacity={0.1} />}
@@ -381,19 +351,17 @@ function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTa
 
                 {/* Header bar */}
                 <rect width={ERD_BOX_W} height={ERD_HEADER_H} rx={4} fill={color + "28"} />
-                {!isCollapsed && <rect y={ERD_HEADER_H - 1} width={ERD_BOX_W} height={1} fill={color + "66"} />}
+                <rect y={ERD_HEADER_H - 1} width={ERD_BOX_W} height={1} fill={color + "66"} />
                 {/* Top color stripe */}
                 <rect width={ERD_BOX_W} height={3} rx={4} fill={color} />
 
                 {/* Table name */}
                 <text x={8} y={18} fontSize={11} fontWeight={700} fill={color} fontFamily="monospace">{trunc(t.name, 19)}</text>
-                {/* Collapse indicator + field count */}
-                <text x={ERD_BOX_W - 5} y={18} fontSize={8.5} fill={color} fillOpacity={0.65} textAnchor="end" fontFamily="monospace">
-                  {isCollapsed ? "▶ " : "▼ "}{t.columns.length}f
-                </text>
+                {/* Field count */}
+                <text x={ERD_BOX_W - 5} y={18} fontSize={8.5} fill={color} fillOpacity={0.65} textAnchor="end" fontFamily="monospace">{t.columns.length}f</text>
 
-                {/* Rows — hidden when collapsed */}
-                {!isCollapsed && t.columns.map((c, i) => {
+                {/* Rows */}
+                {t.columns.map((c, i) => {
                   const ry = ERD_HEADER_H + i * ERD_ROW_H;
                   const isPk = c.is_pk, isFk = c.is_fk;
                   const textColor = isPk ? "#22D3EE" : isFk ? "#A78BFA" : "rgba(255,255,255,0.6)";
@@ -401,15 +369,10 @@ function ErdDiagram({ liveSchema, onTableClick }: { liveSchema: LiveSchema; onTa
                   return (
                     <g key={c.column_name} transform={`translate(0,${ry})`}>
                       {i % 2 !== 0 && <rect width={ERD_BOX_W} height={ERD_ROW_H} fill="rgba(255,255,255,0.022)" />}
-                      {/* PK dot — filled cyan */}
                       {isPk  && <circle cx={8} cy={ERD_ROW_H / 2} r={3.5} fill="#22D3EE" />}
-                      {/* FK dot — outlined purple */}
                       {!isPk && isFk && <circle cx={8} cy={ERD_ROW_H / 2} r={3} fill="none" stroke="#A78BFA" strokeWidth={1.2} />}
-                      {/* Regular dot */}
                       {!isPk && !isFk && <circle cx={8} cy={ERD_ROW_H / 2} r={1.5} fill="rgba(255,255,255,0.18)" />}
-                      {/* Column name */}
                       <text x={18} y={ERD_ROW_H - 4} fontSize={9.5} fill={textColor} fontFamily="monospace">{trunc(c.column_name, 16)}</text>
-                      {/* Type */}
                       <text x={ERD_BOX_W - 5} y={ERD_ROW_H - 4} fontSize={8} fill="rgba(255,255,255,0.3)" textAnchor="end" fontFamily="monospace">{erdType(c.data_type)}</text>
                     </g>
                   );
@@ -429,14 +392,6 @@ function SchemaTab({ expanded, setExpanded, liveSchema }: {
   setExpanded: (v: string | null) => void;
   liveSchema: LiveSchema;
 }) {
-  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  function handleTableClick(name: string) {
-    setExpanded(name);
-    setTimeout(() => {
-      cardRefs.current[name]?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-  }
 
   // Type label mapping
   function pgTypeLabel(t: string) {
@@ -464,18 +419,17 @@ function SchemaTab({ expanded, setExpanded, liveSchema }: {
         </div>
       </div>
 
-      {/* ERD Diagram — full width */}
-      <ErdDiagram liveSchema={liveSchema} onTableClick={handleTableClick} />
+      {/* ERD Diagram */}
+      <ErdDiagram liveSchema={liveSchema} />
 
-      {/* Table cards — constrained for readability */}
-      <div style={{ maxWidth: 900 }}>
+      {/* Table cards — constrained for readability, with consistent spacing */}
+      <div style={{ maxWidth: 900, display: "flex", flexDirection: "column", gap: 10 }}>
       {liveSchema.tables.map(t => {
         const open = expanded === t.name;
         const color = tableColor(t.name);
         return (
           <div
             key={t.name}
-            ref={el => { cardRefs.current[t.name] = el; }}
             style={{ background: "var(--color-bg2)", border: `1px solid ${open ? color + "55" : "var(--color-border)"}`, borderRadius: 10, overflow: "hidden", transition: "border-color 200ms" }}
           >
             <button
