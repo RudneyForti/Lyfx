@@ -90,6 +90,7 @@ Exemplo:
 | `1.7.0` | MINOR | Migração de banco de dados: SQLite → PostgreSQL 18 local. schema.prisma provider atualizado, lib/db.ts sem adapter externo (singleton HMR-safe), bancos lyfx_dev e lyfx_prod criados localmente. |
 | `1.7.1` | PATCH | Fix: Prisma v7 com provider=prisma-client exige adapter explícito — instala @prisma/adapter-pg + pg, lib/db.ts usa PrismaPg. |
 | `1.7.2` | PATCH | Landing page: versão do footer lida dinamicamente do package.json via prop — zero manutenção manual a cada release. |
+| `1.8.0` | MINOR | Studio Grupo 2: Painel dashboard (6 cards de métricas + toggles de configuração), Módulos com toggle de beta por módulo (AppConfig), Notas com toolbar Markdown + slash commands Notion-like, ERD colapsável por tabela, descrições nas tabelas do schema, seeds Full/Insider derivados de `isBeta`, banner de manutenção global, `lib/config.ts` + modelo `AppConfig` |
 
 ---
 
@@ -97,7 +98,6 @@ Exemplo:
 
 | Versão | Tipo | Conteúdo previsto |
 |---|---|---|
-| `1.7.0` | MINOR | Onboarding wizard + importação OFX/CSV |
 | `2.0.0` | MAJOR | Deploy em produção: PostgreSQL, domínio próprio, HTTPS |
 
 ---
