@@ -13,7 +13,7 @@ import {
   IconLock, IconLoader2, IconX, IconLogout, IconDatabase,
   IconUsers, IconTable, IconKey, IconTrash, IconChevronDown, IconChevronRight,
   IconFileDescription, IconUserPlus, IconFilter, IconPackage, IconPlus, IconEdit,
-  IconCheck,
+  IconCheck, IconZoomIn,
 } from "@tabler/icons-react";
 
 /* ── Login gate ── */
@@ -203,7 +203,7 @@ const COL_ASSIGN: Record<string, number> = {
 const ERD_BOX_W    = 175;
 const ERD_HEADER_H = 26;
 const ERD_ROW_H    = 16;
-const ERD_COL_GAP  = 28;
+const ERD_COL_GAP  = 50; // must be > 44 so same-column arcs (cx+44) don't invade next column
 const ERD_ROW_GAP  = 12;
 const ERD_PAD      = 16;
 const ERD_N_COLS   = 5;
@@ -250,7 +250,15 @@ function computeErdLayout(tables: LiveSchema["tables"], effectiveHeights?: Map<s
 
 function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
   const [hovered, setHovered] = useState<string | null>(null);
-  const { positions, CANVAS_W, CANVAS_H } = computeErdLayout(liveSchema.tables);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  // Collapsed tables render header-only — recompute layout on every toggle
+  const effectiveHeights = new Map<string, number>();
+  for (const t of liveSchema.tables) {
+    effectiveHeights.set(t.name, collapsed.has(t.name) ? ERD_HEADER_H : ERD_HEADER_H + t.columns.length * ERD_ROW_H);
+  }
+
+  const { positions, CANVAS_W, CANVAS_H } = computeErdLayout(liveSchema.tables, effectiveHeights);
 
   // Build column-level FK arrows
   const drawnKeys = new Set<string>();
@@ -270,15 +278,21 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
     const srcColIdx = srcTable?.columns.findIndex(c => c.column_name === fk.column_name) ?? 0;
     const dstColIdx = dstTable?.columns.findIndex(c => c.column_name === fk.foreign_column_name) ?? 0;
 
-    const srcRowY = src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
-    const dstRowY = dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
+    // When collapsed, point to header centre instead of the now-hidden row
+    const srcRowY = collapsed.has(fk.table_name)
+      ? src.y + ERD_HEADER_H / 2
+      : src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
+    const dstRowY = collapsed.has(fk.foreign_table_name)
+      ? dst.y + ERD_HEADER_H / 2
+      : dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
     const color = tableColor(fk.table_name);
 
     let x1: number, x2: number;
     let cp1x: number, cp2x: number;
 
     if (src.col === dst.col) {
-      // Same column — arc to the right
+      // Same column — arc to the right.
+      // ERD_COL_GAP=50 ensures the 44px arc never enters the next column's area.
       x1 = src.x + ERD_BOX_W; x2 = dst.x + ERD_BOX_W;
       const cx = src.x + ERD_BOX_W + 44;
       arrows.push(
@@ -307,15 +321,26 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
     );
   }
 
+  function toggleCollapse(name: string) {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }
+
   return (
     <div style={{ background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
       <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontSize: 10, color: "var(--color-f4)", letterSpacing: 1, textTransform: "uppercase" }}>
           Diagrama ER · {liveSchema.tables.length} tabelas · {liveSchema.foreignKeys.length} foreign keys · gerado em tempo real
         </span>
+        <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 4 }}>
+          <IconZoomIn size={10} /> clique para colapsar · expandir
+        </span>
       </div>
 
-      {/* Horizontal scroll on narrow screens; fixed natural size on wide screens */}
+      {/* Horizontal scroll on narrow screens; natural fixed size on wide screens */}
       <div style={{ overflowX: "auto" }}>
         <svg
           viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
@@ -323,7 +348,7 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
           height={CANVAS_H}
           style={{ display: "block" }}
         >
-          {/* Arrows behind boxes */}
+          {/* Arrows drawn first — behind table boxes */}
           {arrows}
 
           {/* Table boxes */}
@@ -332,17 +357,18 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
             if (!pos) return null;
             const color = tableColor(t.name);
             const isHov = hovered === t.name;
-            const boxH = ERD_HEADER_H + t.columns.length * ERD_ROW_H;
+            const isCollapsed = collapsed.has(t.name);
+            const boxH = isCollapsed ? ERD_HEADER_H : ERD_HEADER_H + t.columns.length * ERD_ROW_H;
 
             return (
               <g key={t.name} transform={`translate(${pos.x},${pos.y})`}
+                style={{ cursor: "pointer" }}
                 onMouseEnter={() => setHovered(t.name)}
                 onMouseLeave={() => setHovered(null)}
+                onClick={() => toggleCollapse(t.name)}
               >
-                {/* Glow on hover */}
                 {isHov && <rect x={-2} y={-2} width={ERD_BOX_W + 4} height={boxH + 4} rx={5} fill={color} fillOpacity={0.1} />}
 
-                {/* Body */}
                 <rect width={ERD_BOX_W} height={boxH} rx={4}
                   fill="#0d1117"
                   stroke={isHov ? color : color + "55"}
@@ -351,21 +377,20 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
 
                 {/* Header bar */}
                 <rect width={ERD_BOX_W} height={ERD_HEADER_H} rx={4} fill={color + "28"} />
-                <rect y={ERD_HEADER_H - 1} width={ERD_BOX_W} height={1} fill={color + "66"} />
-                {/* Top color stripe */}
+                {!isCollapsed && <rect y={ERD_HEADER_H - 1} width={ERD_BOX_W} height={1} fill={color + "66"} />}
+                {/* Top colour stripe */}
                 <rect width={ERD_BOX_W} height={3} rx={4} fill={color} />
 
-                {/* Table name */}
                 <text x={8} y={18} fontSize={11} fontWeight={700} fill={color} fontFamily="monospace">{trunc(t.name, 19)}</text>
-                {/* Field count */}
-                <text x={ERD_BOX_W - 5} y={18} fontSize={8.5} fill={color} fillOpacity={0.65} textAnchor="end" fontFamily="monospace">{t.columns.length}f</text>
+                <text x={ERD_BOX_W - 5} y={18} fontSize={8.5} fill={color} fillOpacity={0.65} textAnchor="end" fontFamily="monospace">
+                  {isCollapsed ? "▶ " : "▼ "}{t.columns.length}f
+                </text>
 
-                {/* Rows */}
-                {t.columns.map((c, i) => {
+                {/* Field rows — hidden when collapsed */}
+                {!isCollapsed && t.columns.map((c, i) => {
                   const ry = ERD_HEADER_H + i * ERD_ROW_H;
                   const isPk = c.is_pk, isFk = c.is_fk;
                   const textColor = isPk ? "#22D3EE" : isFk ? "#A78BFA" : "rgba(255,255,255,0.6)";
-
                   return (
                     <g key={c.column_name} transform={`translate(0,${ry})`}>
                       {i % 2 !== 0 && <rect width={ERD_BOX_W} height={ERD_ROW_H} fill="rgba(255,255,255,0.022)" />}
