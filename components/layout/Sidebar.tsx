@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import { ALL_MODULES } from "@/lib/modules";
 import {
   IconLayoutDashboard,
   IconArrowsExchange,
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   collapsed?: boolean;
   allowedModules?: string[]; // if provided, filter nav items by module key
+  betaModules?: string[];    // runtime beta overrides from AppConfig (undefined = use static ALL_MODULES.isBeta)
 }
 
 const navGroups = [
@@ -67,7 +69,7 @@ const navGroups = [
   },
 ];
 
-export function Sidebar({ allowedModules }: Props) {
+export function Sidebar({ allowedModules, betaModules }: Props) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -129,8 +131,11 @@ export function Sidebar({ allowedModules }: Props) {
             >
               {group.label}
             </div>
-            {group.items.map(({ href, label, icon: Icon }) => {
+            {group.items.map(({ href, label, icon: Icon, moduleKey }) => {
               const active = pathname === href;
+              const isBeta = betaModules
+                ? betaModules.includes(moduleKey)
+                : ALL_MODULES.find(m => m.key === moduleKey)?.isBeta;
               return (
                 <Link
                   key={href}
@@ -154,9 +159,18 @@ export function Sidebar({ allowedModules }: Props) {
                   >
                     {label}
                   </span>
+                  {!collapsed && isBeta && (
+                    <span style={{
+                      fontSize: 8, padding: "1px 5px", borderRadius: 999, flexShrink: 0,
+                      background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.3)",
+                      color: "#FBBF24", fontWeight: 700, letterSpacing: 0.3, lineHeight: 1,
+                    }}>
+                      Beta
+                    </span>
+                  )}
                   {collapsed && (
                     <div className="pointer-events-none absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 bg-[var(--color-bg4)] border border-[var(--color-border2)] rounded-[6px] px-2.5 py-1 text-[11px] text-[var(--color-f1)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100 z-50">
-                      {label}
+                      {label}{isBeta ? " (Beta)" : ""}
                     </div>
                   )}
                 </Link>

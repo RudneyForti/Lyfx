@@ -5,6 +5,7 @@ import { getSessionUserId } from "@/lib/session";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { ALL_MODULE_KEYS } from "@/lib/modules";
+import { getConfigBool, getConfigValue } from "@/lib/config";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const userId = await getSessionUserId();
@@ -16,10 +17,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
   }
 
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    include: { plan: { include: { modules: true } } },
-  });
+  const [user, maintenanceMode, maintenanceBanner, betaModulesRaw] = await Promise.all([
+    db.user.findUnique({
+      where: { id: userId },
+      include: { plan: { include: { modules: true } } },
+    }),
+    getConfigBool("maintenanceMode"),
+    getConfigValue("maintenanceBanner", "O sistema está temporariamente indisponível para manutenção."),
+    getConfigValue("betaModules", ""),
+  ]);
+
+  let betaModules: string[] | undefined;
+  if (betaModulesRaw) {
+    try { betaModules = JSON.parse(betaModulesRaw); } catch { /* ignore */ }
+  }
   if (!user) redirect("/api/clear-session");
 
   // Resolve allowed modules: plan modules if assigned, all modules otherwise
@@ -29,13 +40,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar allowedModules={allowedModules} />
+      <Sidebar allowedModules={allowedModules} betaModules={betaModules} />
       <UserMenu name={user.name} avatar={user.avatar ?? null} />
       <main
         className="flex-1 min-h-screen transition-all duration-200"
         style={{ marginLeft: "var(--sidebar-width)" }}
         id="main-content"
       >
+        {maintenanceMode && (
+          <div style={{
+            background: "rgba(251,191,36,0.08)",
+            borderBottom: "1px solid rgba(251,191,36,0.25)",
+            padding: "10px 20px",
+            fontSize: 12,
+            color: "#FBBF24",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}>
+            <span>⚠️</span>
+            {maintenanceBanner}
+          </div>
+        )}
         {children}
       </main>
     </div>

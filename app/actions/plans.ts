@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { ALL_MODULE_KEYS } from "@/lib/modules";
+import { ALL_MODULE_KEYS, ALL_MODULES } from "@/lib/modules";
 import { revalidatePath } from "next/cache";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -210,6 +210,31 @@ export async function assignUserToPlan(
   }
 }
 
+// ── Seed Insider plan ─────────────────────────────────────────────────────────
+
+export async function ensureInsiderPlan(): Promise<{ ok: boolean; created: boolean; error?: string }> {
+  try {
+    const existing = await db.plan.findFirst({ where: { name: "Insider" } });
+    if (existing) return { ok: true, created: false };
+
+    // Insider = todos os módulos, inclusive os betas
+    await db.plan.create({
+      data: {
+        name: "Insider",
+        description: "Acesso antecipado a tudo — inclui funcionalidades beta",
+        color: "#A78BFA",
+        isDefault: false,
+        modules: { create: ALL_MODULE_KEYS.map((k) => ({ module: k })) },
+      },
+    });
+
+    revalidatePath("/studio");
+    return { ok: true, created: true };
+  } catch (e: unknown) {
+    return { ok: false, created: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 // ── Seed default plan ─────────────────────────────────────────────────────────
 
 export async function ensureDefaultPlan(): Promise<{ ok: boolean; created: boolean; error?: string }> {
@@ -217,14 +242,17 @@ export async function ensureDefaultPlan(): Promise<{ ok: boolean; created: boole
     const existing = await db.plan.findFirst({ where: { isDefault: true } });
     if (existing) return { ok: true, created: false };
 
+    // Full = todos os módulos estáveis (sem beta)
+    const stableKeys = ALL_MODULES.filter(m => !m.isBeta).map(m => m.key);
+
     await db.plan.create({
       data: {
         name: "Full",
-        description: "Acesso completo a todos os módulos",
+        description: "Acesso completo a todos os módulos estáveis",
         color: "#22D3EE",
         isDefault: true,
         modules: {
-          create: ALL_MODULE_KEYS.map((k) => ({ module: k })),
+          create: stableKeys.map((k) => ({ module: k })),
         },
       },
     });
