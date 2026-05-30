@@ -32,7 +32,7 @@ function ContextBanner({ mode, tx }: { mode: Mode; tx: Transaction }) {
     : null;
 
   return (
-    <div className="flex items-start gap-2 px-4 py-3 rounded-[8px] border text-[11px] leading-relaxed"
+    <div className="flex items-start gap-2 px-4 py-3 rounded-[12px] border text-[11px] leading-relaxed"
       style={{
         background: "rgba(251,191,36,0.06)",
         borderColor: "rgba(251,191,36,0.2)",
@@ -148,7 +148,7 @@ export function EditTransactionModal({ transaction, allTags, onClose }: Props) {
           <ContextBanner mode={mode} tx={transaction} />
 
           {/* Tipo */}
-          <div className="flex gap-2 bg-[var(--color-bg3)] p-[3px] rounded-[10px]">
+          <div className="flex gap-2 bg-[var(--color-bg3)] p-[3px] rounded-[12px]">
             {(["credit", "debit"] as const).map((t) => (
               <button key={t} type="button" onClick={() => handleTypeChange(t)}
                 className={cn(
@@ -171,7 +171,7 @@ export function EditTransactionModal({ transaction, allTags, onClose }: Props) {
                 </label>
                 <input type="date" value={form.date}
                   onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                  className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[10px] text-[13px] text-[var(--color-f1)] outline-none h-[40px] focus:border-[var(--color-cyan-border)] transition-all" />
+                  className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[10px] text-[13px] text-[var(--color-f1)] outline-none h-[40px] focus:border-[var(--color-cyan-border)] transition-all" />
               </div>
             )}
             <div className="flex flex-col gap-1">
@@ -182,7 +182,7 @@ export function EditTransactionModal({ transaction, allTags, onClose }: Props) {
                 <IconCurrencyReal size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)] pointer-events-none" />
                 <input type="number" step="0.01" min="0" value={form.amount}
                   onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                  className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] pl-8 pr-3 py-[10px] text-[13px] text-[var(--color-f1)] outline-none h-[40px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]" />
+                  className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] pl-8 pr-3 py-[10px] text-[13px] text-[var(--color-f1)] outline-none h-[40px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]" />
               </div>
             </div>
           </div>
@@ -194,7 +194,7 @@ export function EditTransactionModal({ transaction, allTags, onClose }: Props) {
             </label>
             <input type="text" value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[10px] text-[13px] text-[var(--color-f1)] outline-none h-[40px] focus:border-[var(--color-cyan-border)] transition-all" />
+              className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[10px] text-[13px] text-[var(--color-f1)] outline-none h-[40px] focus:border-[var(--color-cyan-border)] transition-all" />
           </div>
 
           {/* Categoria */}
@@ -205,7 +205,7 @@ export function EditTransactionModal({ transaction, allTags, onClose }: Props) {
                 <button key={cat.value} type="button"
                   onClick={() => setForm((f) => ({ ...f, category: cat.value }))}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-[8px] text-left border transition-all duration-150 cursor-pointer",
+                    "flex items-center gap-2 px-3 py-2 rounded-[12px] text-left border transition-all duration-150 cursor-pointer",
                     form.category === cat.value
                       ? "bg-[var(--color-cyan-faint)] border-[var(--color-cyan-border)]"
                       : "bg-[var(--color-bg3)] border-[var(--color-border)] hover:border-[var(--color-border2)]"
@@ -256,11 +256,11 @@ export function EditTransactionModal({ transaction, allTags, onClose }: Props) {
           {/* Footer */}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose}
-              className="flex-1 py-2.5 rounded-[8px] text-[13px] font-medium bg-transparent border border-[var(--color-border2)] text-[var(--color-f2)] hover:bg-[rgba(255,255,255,0.05)] transition-all cursor-pointer">
+              className="flex-1 py-2.5 rounded-full text-[13px] font-medium bg-transparent border border-[var(--color-border2)] text-[var(--color-f2)] hover:bg-[rgba(255,255,255,0.05)] transition-all cursor-pointer">
               Cancelar
             </button>
             <button type="submit" disabled={isPending}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer disabled:opacity-50">
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer disabled:opacity-50">
               <IconCheck size={14} />
               {isPending ? "Salvando..." : "Salvar alterações"}
             </button>

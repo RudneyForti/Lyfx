@@ -53,7 +53,7 @@ function TagForm({
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSave()}
           autoFocus
-          className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
+          className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
         />
       </div>
 
@@ -88,7 +88,7 @@ function TagForm({
               onClick={() => setIcon(key)}
               title={key}
               className={cn(
-                "w-9 h-9 rounded-[8px] flex items-center justify-center border transition-all cursor-pointer",
+                "w-9 h-9 rounded-[12px] flex items-center justify-center border transition-all cursor-pointer",
                 icon === key
                   ? "border-[var(--color-cyan-border)] bg-[var(--color-cyan-faint)]"
                   : "border-transparent bg-[var(--color-bg3)] hover:border-[var(--color-border2)]"
@@ -119,7 +119,7 @@ function TagForm({
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 py-2.5 rounded-[8px] text-[13px] font-medium bg-transparent border border-[var(--color-border2)] text-[var(--color-f2)] hover:bg-[rgba(255,255,255,0.05)] transition-all cursor-pointer"
+          className="flex-1 py-2.5 rounded-full text-[13px] font-medium bg-transparent border border-[var(--color-border2)] text-[var(--color-f2)] hover:bg-[rgba(255,255,255,0.05)] transition-all cursor-pointer"
         >
           Cancelar
         </button>
@@ -127,7 +127,7 @@ function TagForm({
           type="button"
           onClick={handleSave}
           disabled={isPending}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer disabled:opacity-50"
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer disabled:opacity-50"
         >
           <IconCheck size={14} />
           {isPending ? "Salvando..." : mode === "create" ? "Criar tag" : "Salvar"}
@@ -217,7 +217,7 @@ export function TagsManager({ initialTags }: Props) {
               >
                 {/* Icon preview */}
                 <div
-                  className="w-8 h-8 rounded-[8px] flex items-center justify-center flex-shrink-0 border"
+                  className="w-8 h-8 rounded-[12px] flex items-center justify-center flex-shrink-0 border"
                   style={{ color: tag.color, borderColor: `${tag.color}44`, backgroundColor: `${tag.color}14` }}
                 >
                   <Icon size={15} />
@@ -294,7 +294,7 @@ export function TagsManager({ initialTags }: Props) {
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[13px] font-medium bg-[var(--color-bg2)] border border-dashed border-[var(--color-border2)] text-[var(--color-f3)] hover:border-[var(--color-cyan-border)] hover:text-[var(--color-cyan)] hover:bg-[var(--color-cyan-faint)] transition-all cursor-pointer w-fit"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] text-[13px] font-medium bg-[var(--color-bg2)] border border-dashed border-[var(--color-border2)] text-[var(--color-f3)] hover:border-[var(--color-cyan-border)] hover:text-[var(--color-cyan)] hover:bg-[var(--color-cyan-faint)] transition-all cursor-pointer w-fit"
           >
             <IconPlus size={15} />
             Nova tag

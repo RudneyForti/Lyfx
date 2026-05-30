@@ -51,7 +51,7 @@ const inputStyle: React.CSSProperties = {
   height: 40,
   background: "var(--color-bg3)",
   border: "1px solid var(--color-border2)",
-  borderRadius: 8,
+  borderRadius: 12,
   padding: "0 12px",
   fontSize: 13,
   color: "var(--color-f1)",
@@ -139,7 +139,7 @@ function LiabilityForm({
         style={{
           background: "var(--color-bg2)",
           border: "1px solid var(--color-border2)",
-          borderRadius: 18,
+          borderRadius: 24,
           padding: 28,
           width: 480,
           maxHeight: "90vh",
@@ -384,7 +384,7 @@ function LiabilityForm({
               background: "var(--color-cyan)",
               color: "#083344",
               border: "none",
-              borderRadius: 8,
+              borderRadius: 12,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
@@ -642,7 +642,7 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
             style={{
               marginTop: 10,
               padding: "8px 12px",
-              borderRadius: 8,
+              borderRadius: 12,
               background:
                 payoff === null
                   ? "rgba(248,113,113,0.06)"
@@ -714,7 +714,7 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
             style={{
               marginTop: 12,
               padding: "10px 14px",
-              borderRadius: 8,
+              borderRadius: 12,
               background: "rgba(163,230,53,0.06)",
               border: "1px solid rgba(163,230,53,0.2)",
               display: "flex",
@@ -1155,7 +1155,7 @@ function ModoRecuperacao({ liabilities }: { liabilities: Liability[] }) {
             style={{
               marginTop: 16,
               padding: "10px 14px",
-              borderRadius: 8,
+              borderRadius: 12,
               background: "rgba(34,211,238,0.05)",
               border: "1px solid var(--color-cyan-border)",
               fontSize: 11,
@@ -1205,7 +1205,7 @@ export function LiabilitiesView({ liabilities, institutions = [] }: { liabilitie
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(34,211,238,0.25)] border-none cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(34,211,238,0.25)] border-none cursor-pointer"
         >
           <IconPlus size={15} /> Registrar dívida
         </button>

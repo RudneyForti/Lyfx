@@ -125,7 +125,7 @@ export function MonthlyCalendar({ transactions }: Props) {
         <div className="flex items-center gap-4">
           <button
             onClick={prevMonth}
-            className="w-8 h-8 rounded-[8px] bg-[var(--color-bg3)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg4)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
+            className="w-8 h-8 rounded-[12px] bg-[var(--color-bg3)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg4)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
           >
             <IconChevronLeft size={15} />
           </button>
@@ -134,7 +134,7 @@ export function MonthlyCalendar({ transactions }: Props) {
           </h2>
           <button
             onClick={nextMonth}
-            className="w-8 h-8 rounded-[8px] bg-[var(--color-bg3)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg4)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
+            className="w-8 h-8 rounded-[12px] bg-[var(--color-bg3)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg4)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
           >
             <IconChevronRight size={15} />
           </button>
@@ -277,7 +277,7 @@ export function MonthlyCalendar({ transactions }: Props) {
               return (
                 <div key={tx.id} className={cn("flex items-center gap-3 py-2.5 border-b border-[var(--color-border)] last:border-0", isProj && "opacity-60")}>
                   <div className={cn(
-                    "w-7 h-7 rounded-[8px] flex items-center justify-center flex-shrink-0 border",
+                    "w-7 h-7 rounded-[12px] flex items-center justify-center flex-shrink-0 border",
                     isProj ? "border-dashed" : "",
                     isCredit
                       ? "bg-[var(--color-green-dim)] border-[var(--color-green-border)] text-[var(--color-green)]"

@@ -107,7 +107,7 @@ export function Sidebar({ allowedModules, betaModules }: Props) {
         )}
       >
         {collapsed ? (
-          <div className="w-8 h-8 rounded-[8px] bg-[var(--color-cyan-dim)] border border-[var(--color-cyan-border)] flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-[12px] bg-[var(--color-cyan-dim)] border border-[var(--color-cyan-border)] flex items-center justify-center flex-shrink-0">
             <span className="font-[family-name:var(--font-display)] italic text-[11px] font-bold text-[var(--color-cyan)]">
               f(x)
             </span>
@@ -141,7 +141,7 @@ export function Sidebar({ allowedModules, betaModules }: Props) {
                   key={href}
                   href={href}
                   className={cn(
-                    "group flex items-center gap-2 px-2.5 py-[7px] rounded-[10px] mb-px",
+                    "group flex items-center gap-2 px-2.5 py-[7px] rounded-[12px] mb-px",
                     "text-[12.5px] cursor-pointer no-underline whitespace-nowrap overflow-hidden",
                     "border transition-all duration-150 relative",
                     active
