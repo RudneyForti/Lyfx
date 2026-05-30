@@ -46,7 +46,7 @@ function Field({
           value={value}
           autoComplete={autoComplete}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full h-[44px] bg-[var(--color-bg3)] border border-[rgba(255,255,255,0.13)] rounded-[8px] pl-10 pr-10 text-[13px] text-[var(--color-f1)] outline-none transition-all duration-150 placeholder:text-[var(--color-f4)] hover:border-[rgba(255,255,255,0.22)] focus:border-[rgba(34,211,238,0.28)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] focus:bg-[rgba(17,17,17,0.9)]"
+          className="w-full h-[44px] bg-[var(--color-bg3)] border border-[rgba(255,255,255,0.13)] rounded-[12px] pl-10 pr-10 text-[13px] text-[var(--color-f1)] outline-none transition-all duration-150 placeholder:text-[var(--color-f4)] hover:border-[rgba(255,255,255,0.22)] focus:border-[rgba(34,211,238,0.28)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] focus:bg-[rgba(17,17,17,0.9)]"
         />
         {rightSlot && (
           <span className="absolute right-[13px] top-1/2 -translate-y-1/2 z-10">
@@ -137,15 +137,15 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
   ];
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", overflow: "hidden" }}>
+    <div style={{
+      display: "flex", height: "100vh", overflow: "hidden",
+      backgroundImage: "radial-gradient(circle, rgba(34,211,238,0.07) 1px, transparent 1px)",
+      backgroundSize: "32px 32px",
+    }}>
 
       {/* ── LEFT PANEL ── */}
       <div
         className="flex-1 flex-col items-center justify-center p-12 relative overflow-hidden hidden md:flex"
-        style={{
-          backgroundImage: "radial-gradient(circle, rgba(34,211,238,0.12) 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-        }}
       >
         {/* Radial vignette overlay */}
         <div
@@ -226,37 +226,49 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
 
       {/* ── RIGHT PANEL ── */}
       <div
-        className="flex flex-col justify-center relative overflow-y-auto w-full md:w-[420px] md:min-w-[420px] px-11 py-12"
-        style={{ background: "var(--color-bg2)" }}
+        className="flex flex-col items-center justify-center relative overflow-hidden w-full md:w-[480px] md:min-w-[480px] px-6"
+        style={{ background: "transparent" }}
       >
+        {/* Floating card */}
+        <div
+          className="w-full max-w-[400px] relative"
+          style={{
+            background: "rgba(12,12,12,0.82)",
+            backdropFilter: "blur(24px) saturate(160%)",
+            WebkitBackdropFilter: "blur(24px) saturate(160%)",
+            borderRadius: 24,
+            border: "1px solid rgba(255,255,255,0.1)",
+            padding: "22px 36px 18px",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+          }}
+        >
         {/* back to landing */}
         <Link
           href="/"
-          className="absolute top-5 left-5 flex items-center gap-1.5 text-[11px] text-[var(--color-f4)] hover:text-[var(--color-f2)] transition-colors no-underline"
+          className="flex items-center gap-1.5 text-[11px] text-[var(--color-f4)] hover:text-[var(--color-f2)] transition-colors no-underline mb-3"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           Início
         </Link>
 
         {/* Logo */}
-        <FadeUp delay={0} className="mb-9">
+        <FadeUp delay={0} className="mb-4 flex justify-center">
           <div
             className="font-[family-name:var(--font-display)] italic font-bold text-[var(--color-f1)] leading-none"
             style={{ fontSize: 32, letterSpacing: "-1px" }}
           >
             Ly<span className="text-[var(--color-cyan)]">fx</span>
           </div>
-          <div className="text-[9px] tracking-[3px] uppercase text-[var(--color-f4)] mt-1">Life Fixed</div>
         </FadeUp>
 
         {/* Title */}
         <FadeUp delay={0.05}>
-          <h2 className="text-[22px] font-semibold text-[var(--color-f1)] mb-1" style={{ letterSpacing: "-0.4px" }}>
+          <h2 className="text-[20px] font-semibold text-[var(--color-f1)] mb-1" style={{ letterSpacing: "-0.4px" }}>
             {mode === "login" ? "Entrar na sua conta" : "Criar sua conta"}
           </h2>
         </FadeUp>
 
-        <FadeUp delay={0.1} className="mb-7">
+        <FadeUp delay={0.1} className="mb-4">
           <p className="text-[13px] text-[var(--color-f3)]">
             {mode === "login"
               ? <span>Não tem conta? <button type="button" onClick={() => switchMode("setup")} className="text-[var(--color-cyan)] cursor-pointer hover:opacity-80 transition-opacity bg-none border-none p-0">Criar conta</button></span>
@@ -267,7 +279,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          <FadeUp delay={0.15} className="flex flex-col gap-3.5 mb-4">
+          <FadeUp delay={0.15} className="flex flex-col gap-3 mb-3">
 
             {/* Name — setup only */}
             {mode === "setup" && (
@@ -322,7 +334,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
 
           {/* Remember + Forgot — login only */}
           {mode === "login" && (
-            <FadeUp delay={0.2} className="flex items-center justify-between mb-5">
+            <FadeUp delay={0.2} className="flex items-center justify-between mb-3">
               <button
                 type="button"
                 onClick={() => setRemember(!remember)}
@@ -372,7 +384,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
             <button
               type="submit"
               disabled={isPending}
-              className="w-full h-[44px] rounded-[8px] text-[14px] font-semibold flex items-center justify-center gap-2 transition-all duration-150 mb-4 cursor-pointer border-none disabled:opacity-70"
+              className="w-full h-[44px] rounded-full text-[14px] font-semibold flex items-center justify-center gap-2 transition-all duration-150 mb-3 cursor-pointer border-none disabled:opacity-70"
               onAnimationEnd={() => setShaking(false)}
               style={{
                 background: success ? "#A3E635" : "var(--color-cyan)",
@@ -393,13 +405,13 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
           {/* OR + Social — login only */}
           {mode === "login" && (
             <>
-              <FadeUp delay={0.3} className="flex items-center gap-3 mb-4">
+              <FadeUp delay={0.3} className="flex items-center gap-3 mb-3">
                 <span className="flex-1 h-px bg-[rgba(255,255,255,0.13)]" />
                 <span className="text-[11px] text-[var(--color-f4)] whitespace-nowrap">ou continue com</span>
                 <span className="flex-1 h-px bg-[rgba(255,255,255,0.13)]" />
               </FadeUp>
 
-              <FadeUp delay={0.35} className="flex flex-col gap-2 mb-4">
+              <FadeUp delay={0.35} className="flex flex-col gap-2 mb-3">
                 {[
                   {
                     label: "Continuar com Google",
@@ -428,14 +440,14 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
                     key={label}
                     type="button"
                     onClick={() => showToast("Login social em breve!")}
-                    className="w-full h-[44px] rounded-[8px] text-[13px] text-[var(--color-f2)] flex items-center gap-2.5 px-4 border border-[rgba(255,255,255,0.13)] bg-[var(--color-bg3)] hover:bg-[var(--color-bg4)] hover:border-[rgba(255,255,255,0.22)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
+                    className="w-full h-[44px] rounded-[12px] text-[13px] text-[var(--color-f2)] flex items-center gap-2.5 px-4 border border-[rgba(255,255,255,0.13)] bg-[var(--color-bg3)] hover:bg-[var(--color-bg4)] hover:border-[rgba(255,255,255,0.22)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
                   >
                     <span className="flex-shrink-0">{icon}</span>
                     {label}
                   </button>
                 ))}
               </FadeUp>
-              <FadeUp delay={0.4} className="flex justify-center mb-2">
+              <FadeUp delay={0.4} className="flex justify-center mb-1">
                 <Link
                   href="/studio"
                   className="text-[10px] text-[var(--color-f4)] hover:text-[var(--color-f3)] transition-colors no-underline tracking-wide"
@@ -456,6 +468,9 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
             <button type="button" className="text-[var(--color-cyan)] hover:opacity-80 cursor-pointer bg-none border-none p-0 text-[11px]" onClick={() => showToast("Política em breve.")}>Privacidade</button>
           </p>
         </FadeUp>
+
+        {/* close card */}
+        </div>
       </div>
 
       {/* ── TOAST ── */}
@@ -476,12 +491,12 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm"
           onClick={(e) => e.target === e.currentTarget && setForgotOpen(false)}
         >
-          <div className="bg-[var(--color-bg2)] border border-[rgba(255,255,255,0.13)] rounded-[18px] p-7 w-[360px] shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
+          <div className="border p-7 w-[360px]" style={{ background: "rgba(12,12,12,0.9)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderRadius: 24, borderColor: "rgba(255,255,255,0.1)", boxShadow: "0 24px_60px rgba(0,0,0,0.7)" }}>
             <div className="flex items-center justify-between mb-4">
               <span className="text-[16px] font-semibold text-[var(--color-f1)]">Recuperar acesso</span>
               <button
                 onClick={() => setForgotOpen(false)}
-                className="w-7 h-7 rounded-[6px] bg-[var(--color-bg4)] border border-[rgba(255,255,255,0.07)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg5)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
+                className="w-7 h-7 rounded-[10px] bg-[var(--color-bg4)] border border-[rgba(255,255,255,0.07)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg5)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
               >
                 <IconX size={14} />
               </button>
@@ -492,13 +507,13 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setForgotOpen(false)}
-                className="px-4 py-2 rounded-[8px] text-[13px] text-[var(--color-f2)] border border-[rgba(255,255,255,0.13)] hover:bg-[rgba(255,255,255,0.05)] transition-all cursor-pointer"
+                className="px-4 py-2 rounded-full text-[13px] text-[var(--color-f2)] border border-[rgba(255,255,255,0.13)] hover:bg-[rgba(255,255,255,0.05)] transition-all cursor-pointer"
               >
                 Fechar
               </button>
               <button
                 onClick={() => { setForgotOpen(false); showToast("Acesse /profile após entrar para redefinir."); }}
-                className="px-4 py-2 rounded-[8px] text-[13px] font-semibold bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 rounded-full text-[13px] font-semibold bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <IconSend size={13} />
                 Entendido
