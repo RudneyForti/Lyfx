@@ -98,6 +98,7 @@ Exemplo:
 
 | Versão | Tipo | Conteúdo previsto |
 |---|---|---|
+| `1.9.0` | MINOR | **CS-15** Consistência visual rounded (landing → app). **CS-16** Login i18n — herdar idioma da landing via localStorage. **CS-17** Módulo beta de Reembolso KM: controle interno de períodos de reembolso (trajetos manuais, múltiplas notas com média ponderada, regra dos 15%, despesas extras com tetos configuráveis, histórico anual com totalizadores, exportação PDF para Drive com Anexo II quando múltiplas notas; integração D+5 cria transação de crédito automática na aprovação; export de prints de mapa fica para CS-17b). **CS-18** Sistema de notificações: sino no UserMenu, badge de não lidas, Notification no schema, Studio para envio por plano/usuário, alertas críticos (danger) convertidos em notificação via fingerprint+TTL 7 dias |
 | `2.0.0` | MAJOR | Deploy em produção: PostgreSQL, domínio próprio, HTTPS |
 
 ---
