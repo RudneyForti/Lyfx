@@ -36,7 +36,7 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
 // ── Input helpers ─────────────────────────────────────────────────────────────
 
 function inputCls(extra = "") {
-  return `w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[9px] text-[13px] text-[var(--color-f1)] outline-none h-[38px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)] ${extra}`;
+  return `w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[9px] text-[13px] text-[var(--color-f1)] outline-none h-[38px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)] ${extra}`;
 }
 function selectCls() {
   return inputCls("cursor-pointer");
@@ -187,18 +187,18 @@ function AssetModal({
 
           <div className="flex flex-col gap-1">
             <Label>Observações</Label>
-            <textarea className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-2 text-[13px] text-[var(--color-f1)] outline-none focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)] resize-none"
+            <textarea className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-2 text-[13px] text-[var(--color-f1)] outline-none focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)] resize-none"
               rows={2} value={form.notes} onChange={set("notes")} placeholder="Matrícula, detalhes, observações…" />
           </div>
 
           <div className="flex gap-2 pt-1">
             <button type="submit" disabled={isPending}
-              className="flex items-center gap-2 px-4 py-2 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer disabled:opacity-50">
               <IconCheck size={14} />
               {isPending ? "Salvando…" : editing ? "Salvar" : "Adicionar bem"}
             </button>
             <button type="button" onClick={onClose}
-              className="px-4 py-2 rounded-[8px] text-[13px] text-[var(--color-f3)] hover:text-[var(--color-f2)] transition-colors cursor-pointer">
+              className="px-4 py-2 rounded-[12px] text-[13px] text-[var(--color-f3)] hover:text-[var(--color-f2)] transition-colors cursor-pointer">
               Cancelar
             </button>
           </div>
@@ -338,7 +338,7 @@ function ExpenseRow({ expense, assetType }: { expense: AssetExpense; assetType: 
 
   return (
     <div className={cn(
-      "flex items-center gap-3 py-2.5 px-3 rounded-[8px] transition-colors group",
+      "flex items-center gap-3 py-2.5 px-3 rounded-[12px] transition-colors group",
       expense.paid ? "opacity-50" : overdue ? "bg-[var(--color-red-dim)]" : "hover:bg-white/[0.03]",
     )}>
       {/* Toggle pago */}
@@ -430,7 +430,7 @@ function AssetCard({ asset }: { asset: Asset }) {
           className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-white/[0.02] transition-colors select-none"
           onClick={() => setExpanded((o) => !o)}
         >
-          <div className="w-9 h-9 rounded-[8px] bg-[var(--color-bg4)] flex items-center justify-center text-[var(--color-cyan)] shrink-0">
+          <div className="w-9 h-9 rounded-[12px] bg-[var(--color-bg4)] flex items-center justify-center text-[var(--color-cyan)] shrink-0">
             {TYPE_ICON[asset.type] ?? <IconBox size={16} />}
           </div>
 
@@ -629,7 +629,7 @@ export function AssetsView({ assets }: Props) {
         <button
           type="button"
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer shrink-0"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer shrink-0"
         >
           <IconPlus size={15} /> Novo bem
         </button>
@@ -668,7 +668,7 @@ export function AssetsView({ assets }: Props) {
           <button
             type="button"
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer"
           >
             <IconPlus size={15} /> Cadastrar primeiro bem
           </button>

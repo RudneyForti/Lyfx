@@ -290,14 +290,14 @@ export function BudgetView({ initialBudgets, allTransactions, initialExpectedInc
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={prevMonth}
-            className="w-8 h-8 rounded-[8px] bg-[var(--color-bg3)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg4)] hover:text-[var(--color-f1)] transition-all cursor-pointer">
+            className="w-8 h-8 rounded-[12px] bg-[var(--color-bg3)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg4)] hover:text-[var(--color-f1)] transition-all cursor-pointer">
             <IconChevronLeft size={15} />
           </button>
           <h2 className="font-[family-name:var(--font-display)] italic text-[20px] font-bold text-[var(--color-f1)] w-44 text-center">
             <span className="text-[var(--color-cyan)]">{MONTHS[viewMonth]}</span> {viewYear}
           </h2>
           <button onClick={nextMonth}
-            className="w-8 h-8 rounded-[8px] bg-[var(--color-bg3)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg4)] hover:text-[var(--color-f1)] transition-all cursor-pointer">
+            className="w-8 h-8 rounded-[12px] bg-[var(--color-bg3)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg4)] hover:text-[var(--color-f1)] transition-all cursor-pointer">
             <IconChevronRight size={15} />
           </button>
         </div>

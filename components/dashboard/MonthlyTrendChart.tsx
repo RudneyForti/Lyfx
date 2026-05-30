@@ -42,7 +42,7 @@ export function MonthlyTrendChart({ months }: Props) {
             >
               {/* Tooltip */}
               {isHov && (
-                <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-20 bg-[var(--color-bg4)] border border-[var(--color-border2)] rounded-[8px] px-3 py-2 text-[11px] shadow-xl pointer-events-none whitespace-nowrap">
+                <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-20 bg-[var(--color-bg4)] border border-[var(--color-border2)] rounded-[12px] px-3 py-2 text-[11px] shadow-xl pointer-events-none whitespace-nowrap">
                   <div className="font-semibold text-[var(--color-f1)] mb-1">{m.label}</div>
                   <div className="text-[var(--color-green)]">+ {fmt(m.income)}</div>
                   <div className="text-[var(--color-red)]">− {fmt(m.expense)}</div>

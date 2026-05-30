@@ -36,7 +36,7 @@ export function TransactionMonthNav({ currentMonth }: Props) {
     <div className="flex items-center gap-2 mt-1">
       <button
         onClick={() => navigate(-1)}
-        className="w-8 h-8 flex items-center justify-center rounded-[8px] border border-[var(--color-border2)] bg-[var(--color-bg3)] text-[var(--color-f3)] hover:text-[var(--color-f1)] hover:border-[var(--color-cyan-border)] transition-all cursor-pointer"
+        className="w-8 h-8 flex items-center justify-center rounded-[12px] border border-[var(--color-border2)] bg-[var(--color-bg3)] text-[var(--color-f3)] hover:text-[var(--color-f1)] hover:border-[var(--color-cyan-border)] transition-all cursor-pointer"
         aria-label="Mês anterior"
       >
         <IconChevronLeft size={14} />
@@ -48,7 +48,7 @@ export function TransactionMonthNav({ currentMonth }: Props) {
 
       <button
         onClick={() => navigate(1)}
-        className="w-8 h-8 flex items-center justify-center rounded-[8px] border border-[var(--color-border2)] bg-[var(--color-bg3)] text-[var(--color-f3)] hover:text-[var(--color-f1)] hover:border-[var(--color-cyan-border)] transition-all cursor-pointer"
+        className="w-8 h-8 flex items-center justify-center rounded-[12px] border border-[var(--color-border2)] bg-[var(--color-bg3)] text-[var(--color-f3)] hover:text-[var(--color-f1)] hover:border-[var(--color-cyan-border)] transition-all cursor-pointer"
         aria-label="Próximo mês"
       >
         <IconChevronRight size={14} />

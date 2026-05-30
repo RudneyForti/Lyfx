@@ -68,14 +68,14 @@ function NewGoalForm({ avgBalance, onClose }: { avgBalance: number; onClose: () 
 
   const inputStyle: React.CSSProperties = {
     height: 40, background: "var(--color-bg3)", border: "1px solid var(--color-border2)",
-    borderRadius: 8, padding: "0 12px", fontSize: 13, color: "var(--color-f1)",
+    borderRadius: 12, padding: "0 12px", fontSize: 13, color: "var(--color-f1)",
     outline: "none", width: "100%",
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border2)", borderRadius: 18, padding: 28, width: 460, boxShadow: "0 24px 60px rgba(0,0,0,0.6)" }}>
+      <div style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border2)", borderRadius: 24, padding: 28, width: 460, boxShadow: "0 24px 60px rgba(0,0,0,0.6)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <span style={{ fontSize: 16, fontWeight: 600 }}>Nova meta</span>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--color-f3)", cursor: "pointer" }}>
@@ -137,7 +137,7 @@ function NewGoalForm({ avgBalance, onClose }: { avgBalance: number; onClose: () 
           {error && <div style={{ fontSize: 11, color: "var(--color-red)", display: "flex", alignItems: "center", gap: 5 }}><IconX size={11} />{error}</div>}
 
           <button type="submit" disabled={isPending}
-            style={{ height: 40, background: color, color: "#083344", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 4 }}>
+            style={{ height: 40, background: color, color: "#083344", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 4 }}>
             {isPending ? <IconLoader2 size={15} className="animate-spin" /> : <IconTarget size={15} />}
             Criar meta
           </button>
@@ -222,7 +222,7 @@ function GoalCard({ goal, avgBalance }: { goal: Goal; avgBalance: number }) {
               return (
                 <div key={p.id} style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "8px 10px", borderRadius: 8,
+                  padding: "8px 10px", borderRadius: 12,
                   background: p.paid ? "rgba(163,230,53,0.06)" : overdue ? "rgba(248,113,113,0.06)" : "var(--color-bg3)",
                   border: `1px solid ${p.paid ? "rgba(163,230,53,0.15)" : overdue ? "rgba(248,113,113,0.15)" : "var(--color-border)"}`,
                 }}>
@@ -298,7 +298,7 @@ export function GoalsView({
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(34,211,238,0.25)] border-none cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(34,211,238,0.25)] border-none cursor-pointer"
         >
           <IconPlus size={15} /> Nova meta
         </button>
@@ -356,7 +356,7 @@ export function GoalsView({
           padding: "10px 14px",
           background: "rgba(34,211,238,0.04)",
           border: "1px solid var(--color-cyan-border)",
-          borderRadius: 8,
+          borderRadius: 12,
           marginBottom: 20,
           fontSize: 11,
           color: "var(--color-f3)",
@@ -385,7 +385,7 @@ export function GoalsView({
 
       {/* Avg balance info */}
       {avgMonthlyBalance > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(34,211,238,0.06)", border: "1px solid var(--color-cyan-border)", borderRadius: 8, fontSize: 12, color: "var(--color-f3)", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(34,211,238,0.06)", border: "1px solid var(--color-cyan-border)", borderRadius: 12, fontSize: 12, color: "var(--color-f3)", marginBottom: 20 }}>
           <IconSparkles size={13} style={{ color: "var(--color-cyan)", flexShrink: 0 }} />
           Sobra média dos últimos 3 meses: <strong style={{ color: "var(--color-cyan)", marginLeft: 4 }}>{fmt(avgMonthlyBalance)}</strong>
         </div>

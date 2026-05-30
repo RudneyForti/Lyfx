@@ -26,7 +26,7 @@ export default async function PlanningPage() {
         </div>
         <Link
           href="/transactions"
-          className="flex items-center gap-2 px-5 py-2.5 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(34,211,238,0.25)] no-underline"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(34,211,238,0.25)] no-underline"
         >
           <IconPlus size={15} />
           Nova transação
@@ -42,7 +42,7 @@ export default async function PlanningPage() {
           </div>
           <Link
             href="/transactions"
-            className="flex items-center gap-2 px-4 py-2 rounded-[8px] text-[12px] font-medium bg-[var(--color-cyan-dim)] text-[var(--color-cyan)] border border-[var(--color-cyan-border)] hover:bg-[rgba(34,211,238,0.2)] transition-all no-underline"
+            className="flex items-center gap-2 px-4 py-2 rounded-[12px] text-[12px] font-medium bg-[var(--color-cyan-dim)] text-[var(--color-cyan)] border border-[var(--color-cyan-border)] hover:bg-[rgba(34,211,238,0.2)] transition-all no-underline"
           >
             <IconPlus size={13} />
             Registrar primeira transação

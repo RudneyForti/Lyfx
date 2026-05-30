@@ -128,7 +128,7 @@ export function CountrySelect({ value, onChange, placeholder = "Ex: Brasil" }: P
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 pr-16 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
+          className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 pr-16 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
           style={{ borderColor: open ? "var(--color-cyan-border)" : undefined }}
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
