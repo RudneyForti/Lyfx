@@ -82,26 +82,35 @@ export function Sidebar({ allowedModules, betaModules }: Props) {
   })).filter(group => group.items.length > 0);
 
   useEffect(() => {
+    // 12px left margin + sidebar width + 12px gap to content
     document.documentElement.style.setProperty(
       "--sidebar-width",
-      collapsed ? "60px" : "220px"
+      collapsed ? "84px" : "244px"
     );
   }, [collapsed]);
 
   return (
     <nav
       className={cn(
-        "fixed top-0 left-0 bottom-0 z-50 flex flex-col transition-all duration-200",
-        "bg-[var(--color-bg2)] border-r border-[var(--color-border)]",
+        "fixed top-3 left-3 bottom-3 z-50 flex flex-col transition-all duration-200",
         collapsed ? "w-[60px]" : "w-[220px]"
       )}
+      style={{
+        background: "rgba(18,18,18,0.92)",
+        backdropFilter: "blur(20px) saturate(160%)",
+        WebkitBackdropFilter: "blur(20px) saturate(160%)",
+        border: "1px solid rgba(255,255,255,0.10)",
+        borderRadius: 18,
+        boxShadow: "0 4px 40px rgba(0,0,0,0.5)",
+        overflow: "hidden",
+      }}
     >
       {/* Header — toggle collapse */}
       <div
         onClick={() => setCollapsed(!collapsed)}
         title={collapsed ? "Expandir" : "Colapsar"}
         className={cn(
-          "flex items-center border-b border-[var(--color-border)] overflow-hidden flex-shrink-0 cursor-pointer",
+          "flex items-center border-b border-[rgba(255,255,255,0.07)] flex-shrink-0 cursor-pointer",
           "hover:bg-[rgba(255,255,255,0.03)] transition-colors duration-150",
           collapsed ? "justify-center px-0 py-4" : "px-5 py-[18px]"
         )}
