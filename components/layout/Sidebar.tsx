@@ -129,7 +129,15 @@ export function Sidebar({ allowedModules, betaModules }: Props) {
       </div>
 
       {/* Nav */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2.5">
+      <div className={cn(
+        "flex-1 overflow-y-auto overflow-x-hidden px-2.5 pt-3 pb-5",
+        // scrollbar fino dentro do container — não é clipado pelo overflow:hidden do nav
+        "[&::-webkit-scrollbar]:w-[3px]",
+        "[&::-webkit-scrollbar-track]:bg-transparent",
+        "[&::-webkit-scrollbar-thumb]:bg-[rgba(255,255,255,0.12)]",
+        "[&::-webkit-scrollbar-thumb]:rounded-full",
+        "[&::-webkit-scrollbar-thumb:hover]:bg-[rgba(255,255,255,0.25)]",
+      )}>
         {visibleGroups.map((group) => (
           <div key={group.label} className="mb-4">
             <div
