@@ -6,9 +6,205 @@ import Link from "next/link";
 import { IconLogin, IconX, IconEye, IconEyeOff, IconBrain, IconSend, IconLoader2 } from "@tabler/icons-react";
 import { setup, login } from "./actions";
 
+/* ── i18n ── */
+type Lang = "pt" | "en" | "es";
+
+const MONTHS: Record<Lang, string[]> = {
+  pt: ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"],
+  en: ["January","February","March","April","May","June","July","August","September","October","November","December"],
+  es: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
+};
+
+const TRANSLATIONS: Record<Lang, {
+  headLoginL1: string; headLoginL2: string;
+  headSetupL1: string; headSetupL2: string;
+  subLogin: string; subSetup: string;
+  kpiReserve: string; kpiBalance: string; kpiGoals: string;
+  insight: string;
+  back: string;
+  titleLogin: string; titleSetup: string;
+  subLinkLogin: string; subLinkLoginCta: string;
+  subLinkSetup: string; subLinkSetupCta: string;
+  labelName: string; placeholderName: string;
+  labelEmail: string;
+  labelPassword: string; phPasswordLogin: string; phPasswordSetup: string;
+  labelConfirm: string; phConfirm: string;
+  remember: string; forgot: string;
+  errName: string; errEmail: string; errPassword: string;
+  errPasswordMin: string; errPasswordMatch: string;
+  submitting: string; successMsg: string;
+  ctaLogin: string; ctaSetup: string;
+  orContinue: string; continueGoogle: string; continueMicrosoft: string;
+  accessStudio: string;
+  footerStorage: string; footerTerms: string; footerPrivacy: string;
+  toastSocial: string; toastTerms: string; toastPrivacy: string; toastProfile: string;
+  forgotTitle: string; forgotBody: string; forgotClose: string; forgotConfirm: string;
+}> = {
+  pt: {
+    headLoginL1: "Bem-vindo",
+    headLoginL2: "de volta.",
+    headSetupL1: "Crie sua",
+    headSetupL2: "conta.",
+    subLogin: "Sua função continua rodando enquanto você estava fora. Entre e veja onde você está na curva.",
+    subSetup: "Comece a transformar o caos financeiro em uma equação com solução.",
+    kpiReserve: "Reserva",
+    kpiBalance: "Saldo",
+    kpiGoals: "Metas ativas",
+    insight: "Você está 3 meses mais perto da meta de reserva do que em janeiro.",
+    back: "Início",
+    titleLogin: "Entrar na sua conta",
+    titleSetup: "Criar sua conta",
+    subLinkLogin: "Não tem conta?",
+    subLinkLoginCta: "Criar conta",
+    subLinkSetup: "Já tem conta?",
+    subLinkSetupCta: "Entrar",
+    labelName: "Nome",
+    placeholderName: "Como quer ser chamado?",
+    labelEmail: "E-mail",
+    labelPassword: "Senha",
+    phPasswordLogin: "••••••••",
+    phPasswordSetup: "Mínimo 6 caracteres",
+    labelConfirm: "Confirmar senha",
+    phConfirm: "Repita a senha",
+    remember: "Lembrar de mim",
+    forgot: "Esqueci a senha",
+    errName: "Nome obrigatório.",
+    errEmail: "E-mail obrigatório.",
+    errPassword: "Senha obrigatória.",
+    errPasswordMin: "Senha deve ter ao menos 6 caracteres.",
+    errPasswordMatch: "As senhas não coincidem.",
+    submitting: "Entrando…",
+    successMsg: "Bem-vindo de volta!",
+    ctaLogin: "Entrar na Lyfx",
+    ctaSetup: "Criar conta",
+    orContinue: "ou continue com",
+    continueGoogle: "Continuar com Google",
+    continueMicrosoft: "Continuar com Microsoft",
+    accessStudio: "Acessar Studio",
+    footerStorage: "Dados armazenados localmente no seu dispositivo.",
+    footerTerms: "Termos de uso",
+    footerPrivacy: "Privacidade",
+    toastSocial: "Login social em breve!",
+    toastTerms: "Termos em breve.",
+    toastPrivacy: "Política em breve.",
+    toastProfile: "Acesse /profile após entrar para redefinir.",
+    forgotTitle: "Recuperar acesso",
+    forgotBody: "Como o Lyfx roda localmente, não há envio de e-mail. Entre com outra senha ou redefina diretamente na tela de perfil após recuperar o acesso via banco de dados.",
+    forgotClose: "Fechar",
+    forgotConfirm: "Entendido",
+  },
+  en: {
+    headLoginL1: "Welcome",
+    headLoginL2: "back.",
+    headSetupL1: "Create your",
+    headSetupL2: "account.",
+    subLogin: "Your function kept running while you were away. Sign in and see where you stand on the curve.",
+    subSetup: "Start transforming financial chaos into a solvable equation.",
+    kpiReserve: "Reserve",
+    kpiBalance: "Balance",
+    kpiGoals: "Active goals",
+    insight: "You're 3 months closer to your savings goal than in January.",
+    back: "Home",
+    titleLogin: "Sign in to your account",
+    titleSetup: "Create your account",
+    subLinkLogin: "Don't have an account?",
+    subLinkLoginCta: "Create account",
+    subLinkSetup: "Already have an account?",
+    subLinkSetupCta: "Sign in",
+    labelName: "Name",
+    placeholderName: "What should we call you?",
+    labelEmail: "E-mail",
+    labelPassword: "Password",
+    phPasswordLogin: "••••••••",
+    phPasswordSetup: "Minimum 6 characters",
+    labelConfirm: "Confirm password",
+    phConfirm: "Repeat password",
+    remember: "Remember me",
+    forgot: "Forgot password",
+    errName: "Name is required.",
+    errEmail: "Email is required.",
+    errPassword: "Password is required.",
+    errPasswordMin: "Password must be at least 6 characters.",
+    errPasswordMatch: "Passwords don't match.",
+    submitting: "Signing in…",
+    successMsg: "Welcome back!",
+    ctaLogin: "Sign in to Lyfx",
+    ctaSetup: "Create account",
+    orContinue: "or continue with",
+    continueGoogle: "Continue with Google",
+    continueMicrosoft: "Continue with Microsoft",
+    accessStudio: "Access Studio",
+    footerStorage: "Data stored locally on your device.",
+    footerTerms: "Terms of use",
+    footerPrivacy: "Privacy",
+    toastSocial: "Social login coming soon!",
+    toastTerms: "Terms coming soon.",
+    toastPrivacy: "Policy coming soon.",
+    toastProfile: "Go to /profile after signing in to reset.",
+    forgotTitle: "Recover access",
+    forgotBody: "Since Lyfx runs locally, there's no email recovery. Sign in with another password or reset it directly on the profile page after recovering access via the database.",
+    forgotClose: "Close",
+    forgotConfirm: "Got it",
+  },
+  es: {
+    headLoginL1: "Bienvenido",
+    headLoginL2: "de vuelta.",
+    headSetupL1: "Crea tu",
+    headSetupL2: "cuenta.",
+    subLogin: "Tu función siguió ejecutándose mientras estabas fuera. Inicia sesión y ve dónde estás en la curva.",
+    subSetup: "Empieza a transformar el caos financiero en una ecuación con solución.",
+    kpiReserve: "Reserva",
+    kpiBalance: "Saldo",
+    kpiGoals: "Metas activas",
+    insight: "Estás 3 meses más cerca de tu meta de ahorro que en enero.",
+    back: "Inicio",
+    titleLogin: "Inicia sesión en tu cuenta",
+    titleSetup: "Crea tu cuenta",
+    subLinkLogin: "¿No tienes cuenta?",
+    subLinkLoginCta: "Crear cuenta",
+    subLinkSetup: "¿Ya tienes cuenta?",
+    subLinkSetupCta: "Iniciar sesión",
+    labelName: "Nombre",
+    placeholderName: "¿Cómo quieres que te llamemos?",
+    labelEmail: "Correo",
+    labelPassword: "Contraseña",
+    phPasswordLogin: "••••••••",
+    phPasswordSetup: "Mínimo 6 caracteres",
+    labelConfirm: "Confirmar contraseña",
+    phConfirm: "Repite la contraseña",
+    remember: "Recuérdame",
+    forgot: "Olvidé mi contraseña",
+    errName: "El nombre es obligatorio.",
+    errEmail: "El correo es obligatorio.",
+    errPassword: "La contraseña es obligatoria.",
+    errPasswordMin: "La contraseña debe tener al menos 6 caracteres.",
+    errPasswordMatch: "Las contraseñas no coinciden.",
+    submitting: "Entrando…",
+    successMsg: "¡Bienvenido de vuelta!",
+    ctaLogin: "Ingresar a Lyfx",
+    ctaSetup: "Crear cuenta",
+    orContinue: "o continúa con",
+    continueGoogle: "Continuar con Google",
+    continueMicrosoft: "Continuar con Microsoft",
+    accessStudio: "Acceder al Studio",
+    footerStorage: "Datos almacenados localmente en tu dispositivo.",
+    footerTerms: "Términos de uso",
+    footerPrivacy: "Privacidad",
+    toastSocial: "Inicio de sesión social próximamente.",
+    toastTerms: "Términos próximamente.",
+    toastPrivacy: "Política próximamente.",
+    toastProfile: "Ve a /profile después de iniciar sesión para restablecer.",
+    forgotTitle: "Recuperar acceso",
+    forgotBody: "Como Lyfx funciona localmente, no hay recuperación por correo. Inicia sesión con otra contraseña o restablécela directamente en tu perfil tras recuperar el acceso desde la base de datos.",
+    forgotClose: "Cerrar",
+    forgotConfirm: "Entendido",
+  },
+};
+
 interface Props {
   hasUser: boolean;
-  monthLabel: string; // "Maio 2026"
+  monthIndex: number;
+  year: number;
 }
 
 /* ── helpers ── */
@@ -58,7 +254,7 @@ function Field({
   );
 }
 
-export function LoginForm({ hasUser, monthLabel }: Props) {
+export function LoginForm({ hasUser, monthIndex, year }: Props) {
   const [isPending, startTransition] = useTransition();
   const [mode, setMode] = useState<"login" | "setup">(hasUser ? "login" : "setup");
   const [showPw, setShowPw] = useState(false);
@@ -75,6 +271,16 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
   const [toast, setToast] = useState<{ show: boolean; msg: string }>({ show: false, msg: "" });
   const [forgotOpen, setForgotOpen] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // CS-16: detectar idioma do localStorage (set pela LandingPage)
+  const [lang, setLang] = useState<Lang>("pt");
+  useEffect(() => {
+    const stored = localStorage.getItem("lyfx-lang");
+    if (stored === "pt" || stored === "en" || stored === "es") setLang(stored);
+  }, []);
+
+  const t = TRANSLATIONS[lang];
+  const monthLabel = `${MONTHS[lang][monthIndex]} ${year}`;
 
   function switchMode(next: "login" | "setup") {
     setMode(next);
@@ -101,17 +307,17 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
     setError("");
 
     if (mode === "setup") {
-      if (!name.trim()) { setError("Nome obrigatório."); shake(); return; }
-      if (!email.trim()) { setError("E-mail obrigatório."); shake(); return; }
-      if (password.length < 6) { setError("Senha deve ter ao menos 6 caracteres."); shake(); return; }
-      if (password !== confirm) { setError("As senhas não coincidem."); shake(); return; }
+      if (!name.trim()) { setError(t.errName); shake(); return; }
+      if (!email.trim()) { setError(t.errEmail); shake(); return; }
+      if (password.length < 6) { setError(t.errPasswordMin); shake(); return; }
+      if (password !== confirm) { setError(t.errPasswordMatch); shake(); return; }
       startTransition(async () => {
         const result = await setup({ name, email, password });
         if (result?.error) { setError(result.error); shake(); }
       });
     } else {
-      if (!email.trim()) { setError("E-mail obrigatório."); shake(); return; }
-      if (!password) { setError("Senha obrigatória."); shake(); return; }
+      if (!email.trim()) { setError(t.errEmail); shake(); return; }
+      if (!password) { setError(t.errPassword); shake(); return; }
       startTransition(async () => {
         // CS-13: passa remember e redirectTo para a action
         const result = await login({ email, password, remember, redirectTo });
@@ -123,17 +329,15 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
 
   /* ── Left panel content ── */
   const leftHeading = mode === "login"
-    ? (<>Bem-vindo<br />de <em className="text-[var(--color-cyan)] not-italic">volta.</em></>)
-    : (<>Crie sua<br /><em className="text-[var(--color-cyan)] not-italic">conta.</em></>);
+    ? (<>{t.headLoginL1}<br /><em className="text-[var(--color-cyan)] not-italic">{t.headLoginL2}</em></>)
+    : (<>{t.headSetupL1}<br /><em className="text-[var(--color-cyan)] not-italic">{t.headSetupL2}</em></>);
 
-  const leftSub = mode === "login"
-    ? "Sua função continua rodando enquanto você estava fora. Entre e veja onde você está na curva."
-    : "Comece a transformar o caos financeiro em uma equação com solução.";
+  const leftSub = mode === "login" ? t.subLogin : t.subSetup;
 
   const kpis = [
-    { val: "68%", lbl: "Reserva" },
-    { val: "R$ 4,8k", lbl: "Saldo" },
-    { val: "4", lbl: "Metas ativas" },
+    { val: "68%", lbl: t.kpiReserve },
+    { val: "R$ 4,8k", lbl: t.kpiBalance },
+    { val: "4", lbl: t.kpiGoals },
   ];
 
   return (
@@ -209,7 +413,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
               style={{ background: "rgba(34,211,238,0.06)" }}
             >
               <IconBrain size={15} className="text-[var(--color-cyan)] flex-shrink-0" />
-              <span>Você está 3 meses mais perto da meta de reserva do que em janeiro.</span>
+              <span>{t.insight}</span>
             </div>
           </FadeUp>
         </div>
@@ -248,7 +452,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
           className="flex items-center gap-1.5 text-[11px] text-[var(--color-f4)] hover:text-[var(--color-f2)] transition-colors no-underline mb-3"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          Início
+          {t.back}
         </Link>
 
         {/* Logo */}
@@ -264,15 +468,15 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
         {/* Title */}
         <FadeUp delay={0.05}>
           <h2 className="text-[20px] font-semibold text-[var(--color-f1)] mb-1" style={{ letterSpacing: "-0.4px" }}>
-            {mode === "login" ? "Entrar na sua conta" : "Criar sua conta"}
+            {mode === "login" ? t.titleLogin : t.titleSetup}
           </h2>
         </FadeUp>
 
         <FadeUp delay={0.1} className="mb-4">
           <p className="text-[13px] text-[var(--color-f3)]">
             {mode === "login"
-              ? <span>Não tem conta? <button type="button" onClick={() => switchMode("setup")} className="text-[var(--color-cyan)] cursor-pointer hover:opacity-80 transition-opacity bg-none border-none p-0">Criar conta</button></span>
-              : <span>Já tem conta? <button type="button" onClick={() => switchMode("login")} className="text-[var(--color-cyan)] cursor-pointer hover:opacity-80 transition-opacity bg-none border-none p-0">Entrar</button></span>
+              ? <span>{t.subLinkLogin}{" "}<button type="button" onClick={() => switchMode("setup")} className="text-[var(--color-cyan)] cursor-pointer hover:opacity-80 transition-opacity bg-none border-none p-0">{t.subLinkLoginCta}</button></span>
+              : <span>{t.subLinkSetup}{" "}<button type="button" onClick={() => switchMode("login")} className="text-[var(--color-cyan)] cursor-pointer hover:opacity-80 transition-opacity bg-none border-none p-0">{t.subLinkSetupCta}</button></span>
             }
           </p>
         </FadeUp>
@@ -284,7 +488,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
             {/* Name — setup only */}
             {mode === "setup" && (
               <Field
-                id="name" label="Nome" placeholder="Como quer ser chamado?"
+                id="name" label={t.labelName} placeholder={t.placeholderName}
                 value={name} onChange={setName}
                 autoComplete="name"
                 icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}
@@ -293,7 +497,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
 
             {/* E-mail */}
             <Field
-              id="email" label="E-mail" type="email" placeholder="seu@email.com"
+              id="email" label={t.labelEmail} type="email" placeholder="seu@email.com"
               value={email} onChange={setEmail}
               autoComplete="email"
               icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>}
@@ -301,9 +505,9 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
 
             {/* Password */}
             <Field
-              id="password" label="Senha"
+              id="password" label={t.labelPassword}
               type={showPw ? "text" : "password"}
-              placeholder={mode === "login" ? "••••••••" : "Mínimo 6 caracteres"}
+              placeholder={mode === "login" ? t.phPasswordLogin : t.phPasswordSetup}
               value={password} onChange={setPassword}
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
@@ -322,9 +526,9 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
             {/* Confirm — setup only */}
             {mode === "setup" && (
               <Field
-                id="confirm" label="Confirmar senha"
+                id="confirm" label={t.labelConfirm}
                 type={showPw ? "text" : "password"}
-                placeholder="Repita a senha"
+                placeholder={t.phConfirm}
                 value={confirm} onChange={setConfirm}
                 autoComplete="new-password"
                 icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
@@ -360,14 +564,14 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
                     />
                   )}
                 </span>
-                Lembrar de mim
+                {t.remember}
               </button>
               <button
                 type="button"
                 onClick={() => setForgotOpen(true)}
                 className="text-[12px] text-[var(--color-cyan)] hover:opacity-80 transition-opacity cursor-pointer"
               >
-                Esqueci a senha
+                {t.forgot}
               </button>
             </FadeUp>
           )}
@@ -393,11 +597,11 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
               } as React.CSSProperties}
             >
               {isPending ? (
-                <><IconLoader2 size={17} className="animate-spin" /> Entrando…</>
+                <><IconLoader2 size={17} className="animate-spin" /> {t.submitting}</>
               ) : success ? (
-                <><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Bem-vindo de volta!</>
+                <><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {t.successMsg}</>
               ) : (
-                <><IconLogin size={17} /> {mode === "login" ? "Entrar na Lyfx" : "Criar conta"}</>
+                <><IconLogin size={17} /> {mode === "login" ? t.ctaLogin : t.ctaSetup}</>
               )}
             </button>
           </FadeUp>
@@ -407,14 +611,14 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
             <>
               <FadeUp delay={0.3} className="flex items-center gap-3 mb-3">
                 <span className="flex-1 h-px bg-[rgba(255,255,255,0.13)]" />
-                <span className="text-[11px] text-[var(--color-f4)] whitespace-nowrap">ou continue com</span>
+                <span className="text-[11px] text-[var(--color-f4)] whitespace-nowrap">{t.orContinue}</span>
                 <span className="flex-1 h-px bg-[rgba(255,255,255,0.13)]" />
               </FadeUp>
 
               <FadeUp delay={0.35} className="flex flex-col gap-2 mb-3">
                 {[
                   {
-                    label: "Continuar com Google",
+                    label: t.continueGoogle,
                     icon: (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -425,7 +629,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
                     ),
                   },
                   {
-                    label: "Continuar com Microsoft",
+                    label: t.continueMicrosoft,
                     icon: (
                       <svg width="16" height="16" viewBox="0 0 21 21">
                         <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
@@ -439,7 +643,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
                   <button
                     key={label}
                     type="button"
-                    onClick={() => showToast("Login social em breve!")}
+                    onClick={() => showToast(t.toastSocial)}
                     className="w-full h-[44px] rounded-[12px] text-[13px] text-[var(--color-f2)] flex items-center gap-2.5 px-4 border border-[rgba(255,255,255,0.13)] bg-[var(--color-bg3)] hover:bg-[var(--color-bg4)] hover:border-[rgba(255,255,255,0.22)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
                   >
                     <span className="flex-shrink-0">{icon}</span>
@@ -452,7 +656,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
                   href="/studio"
                   className="text-[10px] text-[var(--color-f4)] hover:text-[var(--color-f3)] transition-colors no-underline tracking-wide"
                 >
-                  Acessar Studio
+                  {t.accessStudio}
                 </Link>
               </FadeUp>
             </>
@@ -462,10 +666,10 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
         {/* Footer */}
         <FadeUp delay={0.4}>
           <p className="text-[11px] text-[var(--color-f4)] text-center leading-[1.8]">
-            Dados armazenados localmente no seu dispositivo.<br />
-            <button type="button" className="text-[var(--color-cyan)] hover:opacity-80 cursor-pointer bg-none border-none p-0 text-[11px]" onClick={() => showToast("Termos em breve.")}>Termos de uso</button>
+            {t.footerStorage}<br />
+            <button type="button" className="text-[var(--color-cyan)] hover:opacity-80 cursor-pointer bg-none border-none p-0 text-[11px]" onClick={() => showToast(t.toastTerms)}>{t.footerTerms}</button>
             {" · "}
-            <button type="button" className="text-[var(--color-cyan)] hover:opacity-80 cursor-pointer bg-none border-none p-0 text-[11px]" onClick={() => showToast("Política em breve.")}>Privacidade</button>
+            <button type="button" className="text-[var(--color-cyan)] hover:opacity-80 cursor-pointer bg-none border-none p-0 text-[11px]" onClick={() => showToast(t.toastPrivacy)}>{t.footerPrivacy}</button>
           </p>
         </FadeUp>
 
@@ -493,7 +697,7 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
         >
           <div className="border p-7 w-[360px]" style={{ background: "rgba(12,12,12,0.9)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderRadius: 24, borderColor: "rgba(255,255,255,0.1)", boxShadow: "0 24px_60px rgba(0,0,0,0.7)" }}>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-[16px] font-semibold text-[var(--color-f1)]">Recuperar acesso</span>
+              <span className="text-[16px] font-semibold text-[var(--color-f1)]">{t.forgotTitle}</span>
               <button
                 onClick={() => setForgotOpen(false)}
                 className="w-7 h-7 rounded-[10px] bg-[var(--color-bg4)] border border-[rgba(255,255,255,0.07)] flex items-center justify-center text-[var(--color-f3)] hover:bg-[var(--color-bg5)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
@@ -502,21 +706,21 @@ export function LoginForm({ hasUser, monthLabel }: Props) {
               </button>
             </div>
             <p className="text-[13px] text-[var(--color-f3)] leading-[1.7] mb-5">
-              Como o Lyfx roda localmente, não há envio de e-mail. Entre com outra senha ou redefina diretamente na tela de perfil após recuperar o acesso via banco de dados.
+              {t.forgotBody}
             </p>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setForgotOpen(false)}
                 className="px-4 py-2 rounded-full text-[13px] text-[var(--color-f2)] border border-[rgba(255,255,255,0.13)] hover:bg-[rgba(255,255,255,0.05)] transition-all cursor-pointer"
               >
-                Fechar
+                {t.forgotClose}
               </button>
               <button
-                onClick={() => { setForgotOpen(false); showToast("Acesse /profile após entrar para redefinir."); }}
+                onClick={() => { setForgotOpen(false); showToast(t.toastProfile); }}
                 className="px-4 py-2 rounded-full text-[13px] font-semibold bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <IconSend size={13} />
-                Entendido
+                {t.forgotConfirm}
               </button>
             </div>
           </div>
