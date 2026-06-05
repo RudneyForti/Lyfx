@@ -61,7 +61,7 @@ export function MonthPicker({ value, onChange, placeholder = "Selecione o mês",
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-2 bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 outline-none transition-all cursor-pointer"
+        className="w-full flex items-center justify-between gap-2 bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 outline-none transition-all cursor-pointer"
         style={{
           height,
           fontSize,

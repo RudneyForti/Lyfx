@@ -39,12 +39,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : ALL_MODULE_KEYS;
 
   return (
-    <div className="flex min-h-screen">
+    <div
+      className="flex min-h-screen"
+      style={{
+        backgroundImage: "radial-gradient(circle, rgba(34,211,238,0.07) 1px, transparent 1px)",
+        backgroundSize: "32px 32px",
+      }}
+    >
       <Sidebar allowedModules={allowedModules} betaModules={betaModules} />
       <UserMenu name={user.name} avatar={user.avatar ?? null} />
       <main
         className="flex-1 min-h-screen transition-all duration-200"
-        style={{ marginLeft: "var(--sidebar-width)" }}
+        style={{ marginLeft: "var(--sidebar-width)", paddingTop: "48px" }}
         id="main-content"
       >
         {maintenanceMode && (

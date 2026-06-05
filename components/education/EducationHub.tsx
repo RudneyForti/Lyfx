@@ -311,7 +311,7 @@ export function EducationHub({ completedMap, userProfile, streak }: Props) {
               key={p}
               onClick={() => setActiveProfile(p)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-medium border transition-all cursor-pointer shrink-0",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] text-[11px] font-medium border transition-all cursor-pointer shrink-0",
                 isActive
                   ? "border text-[var(--color-f1)]"
                   : "border-transparent text-[var(--color-f4)] hover:text-[var(--color-f2)] hover:bg-white/[0.04]"
@@ -394,7 +394,7 @@ export function EducationHub({ completedMap, userProfile, streak }: Props) {
           href="/education/platform"
           className="flex items-center gap-3 px-4 py-3 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-bg2)] hover:border-[var(--color-border2)] transition-all cursor-pointer group"
         >
-          <div className="w-8 h-8 rounded-[8px] bg-[var(--color-bg3)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-[12px] bg-[var(--color-bg3)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
             <IconBook2 size={15} className="text-[var(--color-f3)]" />
           </div>
           <div className="flex-1">

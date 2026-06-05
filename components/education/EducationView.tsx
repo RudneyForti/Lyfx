@@ -51,7 +51,7 @@ const CategoryCard = ({
 }) => (
   <div className="bg-[var(--color-bg3)] border border-[var(--color-border)] rounded-[12px] p-4">
     <div className="flex items-center gap-2.5 mb-2">
-      <div className="w-7 h-7 rounded-[8px] flex items-center justify-center flex-shrink-0" style={{ background: `${color}18`, border: `1px solid ${color}30` }}>
+      <div className="w-7 h-7 rounded-[12px] flex items-center justify-center flex-shrink-0" style={{ background: `${color}18`, border: `1px solid ${color}30` }}>
         <Icon size={14} style={{ color }} />
       </div>
       <div className="text-[13px] font-semibold text-[var(--color-f1)]">{name}</div>

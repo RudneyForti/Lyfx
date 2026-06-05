@@ -59,7 +59,7 @@ export function UserMenu({ name, avatar }: Props) {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute top-[calc(100%+8px)] right-0 w-[200px] bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+        <div className="absolute top-[calc(100%+8px)] right-0 w-[200px] bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[16px] shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden">
           {/* User info */}
           <div className="px-4 py-3 border-b border-[var(--color-border)]">
             <div className="text-[13px] font-semibold text-[var(--color-f1)] truncate">{name}</div>

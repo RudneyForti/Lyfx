@@ -76,7 +76,7 @@ function AccountIcon({ type, size = 14 }: { type: string; size?: number }) {
   return <IconCoin size={size} />;
 }
 
-const inputCls = "w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 h-[38px] text-[13px] text-[var(--color-f1)] outline-none focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]";
+const inputCls = "w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 h-[38px] text-[13px] text-[var(--color-f1)] outline-none focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]";
 const labelCls = "text-[11px] font-medium text-[var(--color-f2)] mb-1 block";
 
 // ── Institution form (modal) ──────────────────────────────────────────
@@ -170,12 +170,12 @@ function InstitutionModal({
             <button
               type="submit"
               disabled={isPending}
-              className="flex items-center gap-2 px-5 py-2 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2 rounded-full text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer disabled:opacity-50"
             >
               <IconCheck size={14} />
               {isPending ? "Salvando..." : initial ? "Salvar" : "Criar"}
             </button>
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-[8px] text-[13px] text-[var(--color-f3)] border border-[var(--color-border2)] hover:bg-white/5 cursor-pointer">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-[13px] text-[var(--color-f3)] border border-[var(--color-border2)] hover:bg-white/5 cursor-pointer">
               Cancelar
             </button>
           </div>
@@ -309,7 +309,7 @@ function AccountRow({
   }
 
   return (
-    <div className="flex items-center gap-3 py-2 px-3 rounded-[8px] hover:bg-white/[0.03] group/acc transition-colors">
+    <div className="flex items-center gap-3 py-2 px-3 rounded-[12px] hover:bg-white/[0.03] group/acc transition-colors">
       <AccountIcon type={account.type} size={14} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -499,7 +499,7 @@ function InstitutionCard({
                 Serviços vinculados
               </div>
               {linkedLiabilities.map((l) => (
-                <div key={l.id} className="flex items-center gap-3 py-2 px-3 rounded-[8px] hover:bg-white/[0.03] transition-colors">
+                <div key={l.id} className="flex items-center gap-3 py-2 px-3 rounded-[12px] hover:bg-white/[0.03] transition-colors">
                   <IconAlertTriangle size={13} className="text-[var(--color-amber)] shrink-0" />
                   <span className="text-[12px] text-[var(--color-f2)] flex-1 truncate">{l.name}</span>
                   <span className="text-[10px] text-[var(--color-f4)] shrink-0">{l.type.replace("_", " ")}</span>

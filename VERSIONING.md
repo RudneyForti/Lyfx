@@ -91,6 +91,7 @@ Exemplo:
 | `1.7.1` | PATCH | Fix: Prisma v7 com provider=prisma-client exige adapter explícito — instala @prisma/adapter-pg + pg, lib/db.ts usa PrismaPg. |
 | `1.7.2` | PATCH | Landing page: versão do footer lida dinamicamente do package.json via prop — zero manutenção manual a cada release. |
 | `1.8.0` | MINOR | Studio Grupo 2: Painel dashboard (6 cards de métricas + toggles de configuração), Módulos com toggle de beta por módulo (AppConfig), Notas com toolbar Markdown + slash commands Notion-like, ERD colapsável por tabela, descrições nas tabelas do schema, seeds Full/Insider derivados de `isBeta`, banner de manutenção global, `lib/config.ts` + modelo `AppConfig` |
+| `1.8.1` | PATCH | CS-15 Consistência visual: login com viewport lock (100vh), identidade rounded unificada (botões CTA → full, inputs → 12px, modais → 24px), sidebar flutuante com glassmorphism + scroll interno, modo colapsado com espaçamento uniforme, padding-top 48px no main para pílula UserMenu não sobrepor conteúdo |
 
 ---
 
@@ -98,6 +99,7 @@ Exemplo:
 
 | Versão | Tipo | Conteúdo previsto |
 |---|---|---|
+| `1.9.0` | MINOR | **CS-15** Consistência visual rounded (landing → app). **CS-16** Login i18n — herdar idioma da landing via localStorage. **CS-17** Módulo beta de Reembolso KM: controle interno de períodos de reembolso (trajetos manuais, múltiplas notas com média ponderada, regra dos 15%, despesas extras com tetos configuráveis, histórico anual com totalizadores, exportação PDF para Drive com Anexo II quando múltiplas notas; integração D+5 cria transação de crédito automática na aprovação; export de prints de mapa fica para CS-17b). **CS-18** Sistema de notificações: sino no UserMenu, badge de não lidas, Notification no schema, Studio para envio por plano/usuário, alertas críticos (danger) convertidos em notificação via fingerprint+TTL 7 dias |
 | `2.0.0` | MAJOR | Deploy em produção: PostgreSQL, domínio próprio, HTTPS |
 
 ---

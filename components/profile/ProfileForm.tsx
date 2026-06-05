@@ -31,7 +31,7 @@ function Field({
           placeholder={placeholder}
           readOnly={readOnly}
           className={cn(
-            "w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]",
+            "w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]",
             readOnly && "opacity-60 cursor-default",
             suffix && "pr-9",
           )}
@@ -259,7 +259,7 @@ export function ProfileForm({ user }: Props) {
             <select
               value={form.gender}
               onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
-              className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all cursor-pointer"
+              className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all cursor-pointer"
             >
               <option value="">Prefiro não informar</option>
               <option value="male">Masculino</option>
@@ -290,7 +290,7 @@ export function ProfileForm({ user }: Props) {
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCepBlur(); } }}
                   placeholder="Ex: 01310-100"
                   maxLength={9}
-                  className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 pr-9 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
+                  className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 pr-9 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
                 />
                 <button
                   type="button"
@@ -352,7 +352,7 @@ export function ProfileForm({ user }: Props) {
           <button
             type="submit"
             disabled={isPending}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-[8px] text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-medium bg-[var(--color-cyan)] text-[#083344] hover:bg-[#38D9F0] transition-all cursor-pointer disabled:opacity-50"
           >
             <IconCheck size={14} />
             {isPending ? "Salvando..." : "Salvar perfil"}
@@ -388,7 +388,7 @@ export function ProfileForm({ user }: Props) {
                 value={pw[key]}
                 onChange={(e) => setPw((p) => ({ ...p, [key]: e.target.value }))}
                 placeholder={ph}
-                className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] pl-9 pr-10 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
+                className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] pl-9 pr-10 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
               />
               {key === "current" && (
                 <button
@@ -407,7 +407,7 @@ export function ProfileForm({ user }: Props) {
           <button
             type="submit"
             disabled={pwPending}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-[8px] text-[13px] font-medium bg-transparent border border-[var(--color-border2)] text-[var(--color-f2)] hover:bg-[rgba(255,255,255,0.05)] transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-medium bg-transparent border border-[var(--color-border2)] text-[var(--color-f2)] hover:bg-[rgba(255,255,255,0.05)] transition-all cursor-pointer disabled:opacity-50"
           >
             <IconLock size={14} />
             {pwPending ? "Alterando..." : "Alterar senha"}

@@ -170,7 +170,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
             type="date"
             value={form.date}
             onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-            className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all"
+            className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -186,7 +186,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
               placeholder="0,00"
               value={form.amount}
               onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-              className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] pl-9 pr-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
+              className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] pl-9 pr-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
             />
           </div>
         </div>
@@ -206,7 +206,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
                 placeholder="12"
                 value={installmentCount}
                 onChange={(e) => setInstallmentCount(e.target.value)}
-                className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] pl-9 pr-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
+                className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] pl-9 pr-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
               />
             </div>
             {perInstallment && (
@@ -231,7 +231,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
           placeholder="Ex: Salário, Aluguel, iFood..."
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
+          className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
         />
       </div>
 
@@ -245,7 +245,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
               type="button"
               onClick={() => setForm((f) => ({ ...f, category: cat.value }))}
               className={cn(
-                "flex items-start gap-3 px-3 py-2.5 rounded-[8px] text-left border transition-all duration-150 cursor-pointer",
+                "flex items-start gap-3 px-3 py-2.5 rounded-[12px] text-left border transition-all duration-150 cursor-pointer",
                 form.category === cat.value
                   ? "bg-[var(--color-cyan-faint)] border-[var(--color-cyan-border)]"
                   : "bg-[var(--color-bg3)] border-[var(--color-border)] hover:border-[var(--color-border2)]"
@@ -287,7 +287,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
           placeholder="Observação adicional..."
           value={form.notes}
           onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-          className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
+          className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] focus:shadow-[0_0_0_3px_rgba(34,211,238,0.08)] transition-all placeholder:text-[var(--color-f4)]"
         />
       </div>
 
@@ -377,7 +377,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
           <select
             value={form.accountId}
             onChange={(e) => setForm((f) => ({ ...f, accountId: e.target.value }))}
-            className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[8px] px-3 h-[38px] text-[13px] text-[var(--color-f1)] outline-none focus:border-[var(--color-cyan-border)] transition-all cursor-pointer"
+            className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 h-[38px] text-[13px] text-[var(--color-f1)] outline-none focus:border-[var(--color-cyan-border)] transition-all cursor-pointer"
           >
             <option value="">— Sem conta vinculada —</option>
             {accounts.map((a) => (
@@ -395,14 +395,14 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
           type="button"
           onClick={() => setForm((f) => ({ ...f, reimbursable: !f.reimbursable }))}
           className={cn(
-            "flex items-center gap-3 px-3.5 py-2.5 rounded-[8px] border text-left transition-all duration-150 cursor-pointer w-full",
+            "flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] border text-left transition-all duration-150 cursor-pointer w-full",
             form.reimbursable
               ? "bg-[rgba(34,211,238,0.06)] border-[var(--color-cyan-border)]"
               : "bg-[var(--color-bg3)] border-[var(--color-border)] hover:border-[var(--color-border2)]"
           )}
         >
           <div className={cn(
-            "w-8 h-8 rounded-[8px] flex items-center justify-center flex-shrink-0 border transition-all",
+            "w-8 h-8 rounded-[12px] flex items-center justify-center flex-shrink-0 border transition-all",
             form.reimbursable
               ? "bg-[var(--color-cyan-dim)] border-[var(--color-cyan-border)] text-[var(--color-cyan)]"
               : "bg-[var(--color-bg4)] border-[var(--color-border2)] text-[var(--color-f4)]"
@@ -438,7 +438,7 @@ export function TransactionForm({ allTags, accounts = [], onSuccess }: Props) {
         type="submit"
         disabled={isPending}
         className={cn(
-          "flex items-center justify-center gap-2 px-5 py-[10px] rounded-[8px] text-[13px] font-medium cursor-pointer border-none transition-all duration-150",
+          "flex items-center justify-center gap-2 px-5 py-[10px] rounded-full text-[13px] font-medium cursor-pointer border-none transition-all duration-150",
           "bg-[var(--color-cyan)] text-[#083344]",
           "hover:bg-[#38D9F0] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(34,211,238,0.25)]",
           "active:translate-y-0 active:shadow-none",
