@@ -139,11 +139,11 @@ export function Sidebar({ allowedModules, betaModules }: Props) {
         "[&::-webkit-scrollbar-thumb:hover]:bg-[rgba(255,255,255,0.25)]",
       )}>
         {visibleGroups.map((group) => (
-          <div key={group.label} className="mb-4">
+          <div key={group.label} className={cn("mb-4", collapsed && "mb-1")}>
             <div
               className={cn(
-                "text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] px-2 mb-1 whitespace-nowrap overflow-hidden transition-opacity duration-200",
-                collapsed && "opacity-0"
+                "text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] px-2 mb-1 whitespace-nowrap overflow-hidden transition-all duration-200",
+                collapsed ? "opacity-0 max-h-0 mb-0" : "opacity-100 max-h-[20px]"
               )}
             >
               {group.label}
