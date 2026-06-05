@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, getStudioDataForUser, setAppConfig, saveAdminNotes, adminSendNotification, adminGetManualNotifications, adminDeleteNotification, adminUpdateNotification } from "./actions";
-import type { LiveSchema, AppConfigEntry, NotifBroadcast } from "./actions";
+import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, setAppConfig, saveAdminNotes, adminSendNotification, adminGetManualNotifications, adminDeleteNotification, adminUpdateNotification, adminGetEventLog, getServerMetrics } from "./actions";
+import type { LiveSchema, AppConfigEntry, NotifBroadcast, AuditEvent, ServerMetrics } from "./actions";
 import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan, ensureInsiderPlan, migrateAndDeletePlan } from "@/app/actions/plans";
 import { ALL_MODULES } from "@/lib/modules";
 import {
@@ -122,7 +122,8 @@ type PlanItem = StudioData["plans"][number];
 
 export function StudioMain({ data, docs, liveSchema, appConfig }: { data: StudioData; docs: string; liveSchema: LiveSchema; appConfig: AppConfigEntry[] }) {
   const [tab, setTab] = useState<"schema" | "users" | "plans" | "modules" | "panel" | "notes" | "data" | "docs" | "notifications">("panel");
-  const [expanded, setExpanded] = useState<string | null>("Transaction");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
 
   const tabs = [
     { key: "panel",         label: "Painel",         icon: <IconAdjustments size={14} /> },
@@ -152,22 +153,30 @@ export function StudioMain({ data, docs, liveSchema, appConfig }: { data: Studio
 
       {/* Tabs */}
       <div style={{ borderBottom: "1px solid var(--color-border)", background: "var(--color-bg2)", padding: "0 28px", display: "flex", gap: 0 }}>
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "12px 16px", fontSize: 13, cursor: "pointer",
-              background: "none", border: "none",
-              color: tab === t.key ? "var(--color-f1)" : "var(--color-f3)",
-              borderBottom: tab === t.key ? "2px solid var(--color-cyan)" : "2px solid transparent",
-              transition: "all 150ms",
-            }}
-          >
-            {t.icon}{t.label}
-          </button>
-        ))}
+        {tabs.map(t => {
+          const isActive = tab === t.key;
+          const isHov   = hoveredTab === t.key && !isActive;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              onMouseEnter={() => setHoveredTab(t.key)}
+              onMouseLeave={() => setHoveredTab(null)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "12px 16px", fontSize: 13, cursor: "pointer",
+                background: isHov ? "rgba(255,255,255,0.03)" : "none",
+                border: "none",
+                color: isActive ? "var(--color-f1)" : isHov ? "var(--color-f2)" : "var(--color-f3)",
+                borderBottom: isActive ? "2px solid var(--color-cyan)" : "2px solid transparent",
+                transition: "all 150ms",
+                borderRadius: "6px 6px 0 0",
+              }}
+            >
+              {t.icon}{t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Content */}
@@ -1501,12 +1510,52 @@ function ModulesTab({ data, appConfig }: { data: StudioData; appConfig: AppConfi
   );
 }
 
+/* ── Half-circle gauge ── */
+function Gauge({ pct, color, label, sub }: { pct: number; color: string; label: string; sub: string }) {
+  const r = 38;
+  const cx = 50, cy = 52;
+  const circ = Math.PI * r; // half-circle arc length
+  const filled = Math.max(0, Math.min(1, pct)) * circ;
+  const dimColor = `${color}22`;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <svg viewBox="0 0 100 62" style={{ width: "100%", maxWidth: 140, overflow: "visible" }}>
+        {/* Track */}
+        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+          fill="none" stroke={dimColor} strokeWidth={9} strokeLinecap="round" />
+        {/* Progress */}
+        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+          fill="none" stroke={color} strokeWidth={9} strokeLinecap="round"
+          strokeDasharray={`${filled} ${circ}`}
+          style={{ filter: `drop-shadow(0 0 4px ${color}66)` }}
+        />
+        {/* Percentage */}
+        <text x={cx} y={cy - 6} textAnchor="middle" fill={color}
+          style={{ fontSize: 15, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)" }}>
+          {Math.round(pct * 100)}%
+        </text>
+        {/* Sub-label */}
+        <text x={cx} y={cy + 8} textAnchor="middle" fill="rgba(255,255,255,0.3)" style={{ fontSize: 7 }}>
+          {sub}
+        </text>
+      </svg>
+      <div style={{ fontSize: 11, fontWeight: 500, color: "var(--color-f2)", marginTop: -4 }}>{label}</div>
+    </div>
+  );
+}
+
 /* ── Control Panel Tab ── */
 function ControlPanelTab({ appConfig, data }: { appConfig: AppConfigEntry[]; data: StudioData }) {
   const router = useRouter();
-  const [savingKey, setSavingKey] = useState<string | null>(null);
-  const [msgs, setMsgs] = useState<Record<string, { ok: boolean; text: string }>>({});
-  const [banner, setBanner] = useState(appConfig.find(c => c.key === "maintenanceBanner")?.value ?? "");
+  const [savingKey, setSavingKey]   = useState<string | null>(null);
+  const [msgs, setMsgs]             = useState<Record<string, { ok: boolean; text: string }>>({});
+  const [banner, setBanner]         = useState(appConfig.find(c => c.key === "maintenanceBanner")?.value ?? "");
+  const [metrics, setMetrics]       = useState<ServerMetrics | null>(null);
+  const [, startMetrics]            = useTransition();
+
+  useEffect(() => {
+    startMetrics(async () => { setMetrics(await getServerMetrics()); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function getValue(key: string) { return appConfig.find(c => c.key === key)?.value ?? ""; }
   const allowUserCreation = getValue("allowUserCreation") === "true";
@@ -1538,41 +1587,133 @@ function ControlPanelTab({ appConfig, data }: { appConfig: AppConfigEntry[]; dat
     );
   }
 
-  // Format DB size
-  const dbSize = (() => {
-    const b = data.dbSizeBytes;
-    if (b >= 1024 * 1024 * 1024) return `${(b / 1024 ** 3).toFixed(2)} GB`;
-    if (b >= 1024 * 1024)        return `${(b / 1024 ** 2).toFixed(2)} MB`;
-    if (b >= 1024)               return `${(b / 1024).toFixed(1)} KB`;
+  // Helpers
+  function fmtBytes(b: number) {
+    if (b >= 1024 ** 3) return `${(b / 1024 ** 3).toFixed(1)} GB`;
+    if (b >= 1024 ** 2) return `${(b / 1024 ** 2).toFixed(0)} MB`;
+    return `${(b / 1024).toFixed(0)} KB`;
+  }
+  function fmtUptime(s: number) {
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h ${m}min` : `${m}min`;
+  }
+  function gaugeColor(pct: number, low = "#A3E635", mid = "#FBBF24", high = "#F87171") {
+    return pct > 0.85 ? high : pct > 0.65 ? mid : low;
+  }
+  function dbSize(b: number) {
+    if (b >= 1024 ** 3) return `${(b / 1024 ** 3).toFixed(2)} GB`;
+    if (b >= 1024 ** 2) return `${(b / 1024 ** 2).toFixed(2)} MB`;
+    if (b >= 1024)      return `${(b / 1024).toFixed(1)} KB`;
     return b ? `${b} B` : "—";
-  })();
+  }
 
-  const statCards = [
-    { label: "Usuários",         value: data.userCount,                            color: "#22D3EE", sub: "contas ativas" },
-    { label: "Total de registros", value: data.totalRecords.toLocaleString("pt-BR"), color: "#A78BFA", sub: "em todas as tabelas" },
-    { label: "Tamanho do banco",  value: dbSize,                                    color: "#FB923C", sub: "PostgreSQL" },
-    { label: "Planos ativos",    value: data.plans.length,                          color: "#34D399", sub: "planos configurados" },
-    { label: "Versão dev",       value: `v${data.appVersion}`,                      color: "#60A5FA", sub: "branch develop" },
-    { label: "Versão prod",      value: `v${data.prodVersion}`,                     color: "#A3E635", sub: "branch master" },
-  ];
+  const ramPct  = metrics ? metrics.memUsedBytes  / metrics.memTotalBytes  : 0;
+  const heapPct = metrics ? metrics.heapUsedBytes / metrics.heapTotalBytes : 0;
+  const cpuPct  = metrics ? Math.min(1, metrics.loadAvg1m / metrics.cpuCount) : 0;
+
+  const sectionLabel = (text: string) => (
+    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.8px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 14 }}>{text}</div>
+  );
+
+  const miniCard = (label: string, value: string | number, color: string, sub: string) => (
+    <div key={label} style={{ background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "12px 14px" }}>
+      <div style={{ fontSize: 18, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color, marginBottom: 1 }}>{value}</div>
+      <div style={{ fontSize: 11, color: "var(--color-f2)", fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: 10, color: "var(--color-f4)", marginTop: 1 }}>{sub}</div>
+    </div>
+  );
 
   const toggleRows = [
-    { key: "allowUserCreation", label: "Permitir criação de contas",  description: "Se desativado, o formulário de cadastro fica inacessível.",               on: allowUserCreation },
-    { key: "maintenanceMode",   label: "Modo manutenção",             description: "Exibe um banner de aviso para todos os usuários autenticados.",            on: maintenanceMode   },
+    { key: "allowUserCreation", label: "Permitir criação de contas",  description: "Se desativado, o formulário de cadastro fica inacessível.",    on: allowUserCreation },
+    { key: "maintenanceMode",   label: "Modo manutenção",             description: "Exibe um banner de aviso para todos os usuários autenticados.", on: maintenanceMode   },
   ];
 
   return (
-    <div style={{ padding: 28, maxWidth: 1100 }}>
-      {/* ── Métricas do sistema ── */}
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.8px", textTransform: "uppercase", color: "var(--color-f4)", marginBottom: 12 }}>Sistema</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 10, marginBottom: 32 }}>
-        {statCards.map(s => (
-          <div key={s.label} style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "14px 16px" }}>
-            <div style={{ fontSize: 22, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color: s.color, marginBottom: 2 }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: "var(--color-f2)", fontWeight: 500 }}>{s.label}</div>
-            <div style={{ fontSize: 10, color: "var(--color-f4)", marginTop: 2 }}>{s.sub}</div>
+    <div style={{ padding: 28, maxWidth: 1200 }}>
+
+      {/* ── Two-column dashboard ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28, marginBottom: 36, alignItems: "start" }}>
+
+        {/* ── Coluna esquerda: Sistema ── */}
+        <div>
+          {sectionLabel("Sistema")}
+          {/* Row 1: usuários + planos */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            {miniCard("Usuários", data.userCount, "#22D3EE", "contas ativas")}
+            {miniCard("Planos ativos", data.plans.length, "#34D399", "planos configurados")}
           </div>
-        ))}
+          {/* Row 2: registros totais */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "12px 14px" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color: "#A78BFA", marginBottom: 1 }}>{data.totalRecords.toLocaleString("pt-BR")}</div>
+              <div style={{ fontSize: 11, color: "var(--color-f2)", fontWeight: 500 }}>Total de registros</div>
+              <div style={{ fontSize: 10, color: "var(--color-f4)", marginTop: 1 }}>em todas as tabelas</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Coluna direita: Servidor ── */}
+        <div>
+          <div style={{ position: "relative" }}>
+            {sectionLabel("Servidor")}
+            <button type="button"
+              onClick={() => startMetrics(async () => { setMetrics(await getServerMetrics()); })}
+              style={{ position: "absolute", top: 0, right: 0, display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "var(--color-f4)", background: "none", border: "none", cursor: "pointer" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "var(--color-f2)")}
+              onMouseLeave={e => (e.currentTarget.style.color = "var(--color-f4)")}
+            >
+              <IconLoader2 size={11} />Atualizar
+            </button>
+          </div>
+
+          {!metrics ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-f4)", fontSize: 12, paddingTop: 20 }}>
+              <IconLoader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+              Coletando métricas…
+            </div>
+          ) : (
+            <>
+              {/* Gauges */}
+              <div style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 12, padding: "18px 12px 12px", marginBottom: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                  <Gauge pct={ramPct}  color={gaugeColor(ramPct)}           label="RAM" sub={`${fmtBytes(metrics.memUsedBytes)} / ${fmtBytes(metrics.memTotalBytes)}`} />
+                  <Gauge pct={heapPct} color={gaugeColor(heapPct, "#60A5FA", "#FBBF24", "#F87171")} label="Heap Node.js" sub={`${fmtBytes(metrics.heapUsedBytes)} / ${fmtBytes(metrics.heapTotalBytes)}`} />
+                  <Gauge pct={cpuPct}  color={gaugeColor(cpuPct, "#A78BFA", "#FBBF24", "#F87171")} label={`CPU load`} sub={`${metrics.loadAvg1m.toFixed(2)} · ${metrics.cpuCount} núcleos`} />
+                </div>
+              </div>
+
+              {/* Version cards — dev + prod */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                {/* Dev */}
+                <div style={{ background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "10px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color: "#60A5FA" }}>v{data.appVersion}</span>
+                    <span style={{ fontSize: 9, fontFamily: "monospace", color: "rgba(96,165,250,0.6)", background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)", borderRadius: 4, padding: "1px 5px" }}>{data.devCommit}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--color-f2)", fontWeight: 500 }}>Branch dev</div>
+                  <div style={{ fontSize: 10, color: "var(--color-f4)", marginTop: 1, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{data.devBranch}</div>
+                </div>
+                {/* Prod */}
+                <div style={{ background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "10px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 2 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color: "#A3E635" }}>v{data.prodVersion}</span>
+                    <span style={{ fontSize: 9, fontFamily: "monospace", color: "rgba(163,230,53,0.6)", background: "rgba(163,230,53,0.08)", border: "1px solid rgba(163,230,53,0.2)", borderRadius: 4, padding: "1px 5px" }}>{data.prodCommit}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--color-f2)", fontWeight: 500 }}>Branch prod</div>
+                  <div style={{ fontSize: 10, color: "var(--color-f4)", marginTop: 1, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{data.prodBranch}</div>
+                </div>
+              </div>
+
+              {/* Small info cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {miniCard("Banco",        dbSize(data.dbSizeBytes),    "#FB923C", "PostgreSQL")}
+                {miniCard("Uptime",       fmtUptime(metrics.uptimeSeconds), "#A78BFA", "processo Node")}
+                {miniCard("Online agora", metrics.onlineNow,           metrics.onlineNow > 0 ? "#A3E635" : "var(--color-f4)", "últimos 5 min")}
+                {miniCard("Ativos hoje",  metrics.activeToday,         "#22D3EE", "desde meia-noite")}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Configurações ── */}
@@ -1978,43 +2119,41 @@ function UserCombobox({ users, value, onChange }: {
 }
 
 /* ── Data Tab ── */
-type TxRow = { id: string; description: string; amount: number; type: string; category: string; date: Date };
-type DataView = { txCount: number; tagCount: number; budgetCount: number; goalCount: number; recentTx: TxRow[] };
+type EventTypeFilter = "all" | "transaction" | "education" | "goal" | "notification" | "system";
+
+const EVENT_FILTER_OPTIONS: { value: EventTypeFilter; label: string; color: string }[] = [
+  { value: "all",          label: "Todos",        color: "var(--color-f3)" },
+  { value: "transaction",  label: "Transações",   color: "#A3E635" },
+  { value: "education",    label: "Educação",     color: "#22D3EE" },
+  { value: "goal",         label: "Metas",        color: "#34D399" },
+  { value: "notification", label: "Alertas",      color: "#FBBF24" },
+  { value: "system",       label: "Sistema",      color: "#A78BFA" },
+];
+
+const EVENT_DOT: Record<string, string> = {
+  transaction:  "#A3E635",
+  education:    "#22D3EE",
+  goal:         "#34D399",
+  notification: "#FBBF24",
+  system:       "#A78BFA",
+};
+
+const EVENT_LABEL: Record<string, string> = {
+  transaction:  "Transação",
+  education:    "Educação",
+  goal:         "Meta",
+  notification: "Alerta",
+  system:       "Sistema",
+};
 
 function DataTab({ data }: { data: StudioData }) {
+  const [eventType, setEventType]     = useState<EventTypeFilter>("all");
+  const [selectedPlan, setSelectedPlan] = useState<string>("all");
   const [selectedUser, setSelectedUser] = useState<string>("all");
-  const [filtered, setFiltered] = useState<DataView | null>(null);
-  const [isLoading, startLoading] = useTransition();
+  const [events, setEvents]           = useState<AuditEvent[]>([]);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
+  const [isLoading, startLoading]     = useTransition();
 
-  function handleUserChange(userId: string) {
-    setSelectedUser(userId);
-    if (userId === "all") { setFiltered(null); return; }
-    startLoading(async () => {
-      const result = await getStudioDataForUser(userId);
-      setFiltered(result);
-    });
-  }
-
-  const view: DataView = filtered ?? {
-    txCount: data.txCount,
-    tagCount: data.tagCount,
-    budgetCount: data.budgetCount,
-    goalCount: data.goalCount,
-    recentTx: data.recentTx,
-  };
-
-  const stats = [
-    { label: "Transações", value: view.txCount, color: "#A3E635" },
-    { label: "Tags", value: view.tagCount, color: "#FBBF24" },
-    { label: "Orçamentos", value: view.budgetCount, color: "#FB923C" },
-    { label: "Metas", value: view.goalCount, color: "#22D3EE" },
-  ];
-
-  const selectedName = selectedUser === "all"
-    ? "Todos"
-    : data.users.find(u => u.id === selectedUser)?.name ?? "—";
-
-  // format DB size
   const dbSize = (() => {
     const b = data.dbSizeBytes;
     if (b >= 1024 * 1024 * 1024) return `${(b / (1024 ** 3)).toFixed(2)} GB`;
@@ -2023,27 +2162,68 @@ function DataTab({ data }: { data: StudioData }) {
     return `${b} B`;
   })();
 
+  function loadEvents(et: EventTypeFilter, planId: string, userId: string) {
+    startLoading(async () => {
+      const result = await adminGetEventLog({
+        eventType: et === "all" ? undefined : et,
+        planId:    planId === "all" ? undefined : planId,
+        userId:    userId === "all" ? undefined : userId,
+        limit: 100,
+      });
+      setEvents(result);
+      setEventsLoaded(true);
+    });
+  }
+
+  // Initial load on mount
+  useEffect(() => {
+    loadEvents("all", "all", "all");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleEventType(et: EventTypeFilter) {
+    setEventType(et);
+    loadEvents(et, selectedPlan, selectedUser);
+  }
+
+  function handlePlan(planId: string) {
+    setSelectedPlan(planId);
+    setSelectedUser("all");
+    loadEvents(eventType, planId, "all");
+  }
+
+  function handleUser(userId: string) {
+    setSelectedUser(userId);
+    loadEvents(eventType, selectedPlan, userId);
+  }
+
+  const planOptions: SelectOption[] = [
+    { value: "all", label: "Todos os planos" },
+    ...data.plans.map((p) => ({ value: p.id, label: p.name })),
+  ];
+
+  const filteredUsers = selectedPlan === "all"
+    ? data.users
+    : data.users.filter((u) => u.planId === selectedPlan);
+
+  const userOptions: SelectOption[] = [
+    { value: "all", label: "Todos os usuários" },
+    ...filteredUsers.map((u) => ({ value: u.id, label: u.name })),
+  ];
+
   return (
     <div>
-      {/* Page title + filter */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <div style={{ fontSize: 15, fontWeight: 600 }}>Visão geral dos dados</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <IconFilter size={13} style={{ color: "var(--color-f4)" }} />
-          <UserCombobox users={data.users} value={selectedUser} onChange={handleUserChange} />
-          {isLoading && <IconLoader2 size={13} style={{ color: "var(--color-f4)", animation: "spin 1s linear infinite" }} />}
-        </div>
-      </div>
-
-      {/* Sistema */}
+      {/* ── Stats: Sistema ── */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, color: "var(--color-f4)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 10 }}>Sistema</div>
+        <div style={{ fontSize: 11, color: "var(--color-f4)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 10 }}>
+          Sistema
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
           {[
-            { label: "Usuários", value: data.userCount, color: "#22D3EE", sub: "contas ativas" },
+            { label: "Usuários",         value: data.userCount,                           color: "#22D3EE", sub: "contas ativas" },
             { label: "Registros totais", value: data.totalRecords.toLocaleString("pt-BR"), color: "#A78BFA", sub: "em todas as tabelas" },
-            { label: "Tamanho do banco", value: dbSize, color: "#FB923C", sub: "banco PostgreSQL" },
-          ].map(s => (
+            { label: "Tamanho do banco", value: dbSize,                                   color: "#FB923C", sub: "banco PostgreSQL" },
+          ].map((s) => (
             <div key={s.label} style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "14px 16px" }}>
               <div style={{ fontSize: 22, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color: s.color, marginBottom: 2 }}>{s.value}</div>
               <div style={{ fontSize: 11, color: "var(--color-f2)", fontWeight: 500 }}>{s.label}</div>
@@ -2053,56 +2233,141 @@ function DataTab({ data }: { data: StudioData }) {
         </div>
       </div>
 
-      {/* Usuários */}
-      <div style={{ fontSize: 11, color: "var(--color-f4)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 10 }}>Usuários</div>
+      {/* ── Stats: Dados de usuários ── */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 11, color: "var(--color-f4)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 10 }}>
+          Dados de usuários
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          {[
+            { label: "Transações", value: data.txCount,     color: "#A3E635" },
+            { label: "Tags",       value: data.tagCount,    color: "#FBBF24" },
+            { label: "Orçamentos", value: data.budgetCount, color: "#FB923C" },
+            { label: "Metas",      value: data.goalCount,   color: "#22D3EE" },
+          ].map((s) => (
+            <div key={s.label} style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "14px 16px" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 11, color: "var(--color-f4)", marginTop: 2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
 
-      {selectedUser !== "all" && (
-        <div style={{ fontSize: 11, color: "var(--color-cyan)", marginBottom: 14, padding: "5px 10px", borderRadius: 6, background: "rgba(34,211,238,0.06)", border: "1px solid var(--color-cyan-border)", display: "inline-block" }}>
-          Filtrando por: {selectedName}
+      {/* ── Event log header ── */}
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 12, gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-f1)" }}>Log de eventos</span>
+        {isLoading && (
+          <IconLoader2 size={13} style={{ color: "var(--color-f4)", animation: "spin 1s linear infinite" }} />
+        )}
+      </div>
+
+      {/* ── Filter bar: pills + dropdowns on the same row ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {EVENT_FILTER_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => handleEventType(opt.value)}
+            style={{
+              padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 500,
+              cursor: "pointer", border: "1px solid",
+              background: eventType === opt.value ? `${opt.color}1A` : "transparent",
+              borderColor: eventType === opt.value ? opt.color : "var(--color-border2)",
+              color: eventType === opt.value ? opt.color : "var(--color-f4)",
+              transition: "all 150ms",
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+        </div>
+
+        {/* Dropdowns — right side, same row as pills */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <IconFilter size={12} style={{ color: "var(--color-f4)" }} />
+          <div style={{ width: 160 }}>
+            <StudioSelect value={selectedPlan} onChange={handlePlan} options={planOptions} placeholder="Todos os planos" />
+          </div>
+          <div style={{ width: 160 }}>
+            <StudioSelect value={selectedUser} onChange={handleUser} options={userOptions} placeholder="Todos os usuários" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── System events notice ── */}
+      {eventType === "system" && (selectedPlan !== "all" || selectedUser !== "all") && (
+        <div style={{ fontSize: 11, color: "var(--color-amber)", marginBottom: 14, padding: "6px 10px", borderRadius: 6, background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)" }}>
+          Eventos de sistema são globais e não aplicam filtros de plano ou usuário.
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 24 }}>
-        {stats.map(s => (
-          <div key={s.label} style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "14px 16px" }}>
-            <div style={{ fontSize: 24, fontWeight: 700, fontStyle: "italic", fontFamily: "var(--font-display)", color: s.color }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: "var(--color-f4)", marginTop: 2 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
+      {/* ── Event log timeline ── */}
+      {!eventsLoaded ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-f4)", fontSize: 12, padding: "32px 0" }}>
+          <IconLoader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+          Carregando eventos…
+        </div>
+      ) : events.length === 0 ? (
+        <div style={{ color: "var(--color-f4)", fontSize: 13, padding: "32px 0", textAlign: "center" }}>
+          Nenhum evento encontrado para os filtros selecionados.
+        </div>
+      ) : (
+        <div>
+          {events.map((ev, idx) => {
+            const dot = EVENT_DOT[ev.eventType] ?? "var(--color-f4)";
+            const planName = ev.userPlanId ? (data.plans.find((p) => p.id === ev.userPlanId)?.name ?? null) : null;
+            return (
+              <div
+                key={ev.id}
+                style={{
+                  display: "flex", alignItems: "flex-start", gap: 14,
+                  padding: "10px 0",
+                  borderBottom: idx < events.length - 1 ? "1px solid var(--color-border)" : "none",
+                }}
+              >
+                {/* Timeline dot */}
+                <div style={{ paddingTop: 5, flexShrink: 0 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: dot }} />
+                </div>
 
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Últimas transações</div>
-      {view.recentTx.length === 0 && (
-        <div style={{ color: "var(--color-f4)", fontSize: 13 }}>Nenhuma transação cadastrada.</div>
+                {/* Main content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginBottom: 2 }}>
+                    <span style={{ fontSize: 13, color: "var(--color-f1)", fontWeight: 500 }}>
+                      {ev.title}
+                    </span>
+                    <span style={{
+                      fontSize: 9, padding: "1px 6px", borderRadius: 999,
+                      background: `${dot}1A`, color: dot,
+                      fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px",
+                    }}>
+                      {EVENT_LABEL[ev.eventType] ?? ev.eventType}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--color-f3)" }}>{ev.detail}</div>
+                  {ev.userName && (
+                    <div style={{ fontSize: 10, color: "var(--color-f4)", marginTop: 2 }}>
+                      {ev.userName}
+                      {planName && (
+                        <span style={{ marginLeft: 5, opacity: 0.7 }}>· {planName}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Timestamp */}
+                <div style={{ fontSize: 10, color: "var(--color-f4)", whiteSpace: "nowrap", paddingTop: 3, flexShrink: 0 }}>
+                  {new Date(ev.timestamp).toLocaleString("pt-BR", {
+                    day: "2-digit", month: "2-digit", year: "2-digit",
+                    hour: "2-digit", minute: "2-digit",
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        {view.recentTx.length > 0 && (
-          <thead>
-            <tr style={{ background: "var(--color-bg2)" }}>
-              {["Data", "Descrição", "Categoria", "Tipo", "Valor"].map(h => (
-                <th key={h} style={{ padding: "7px 12px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, borderBottom: "1px solid var(--color-border)" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-        )}
-        <tbody>
-          {view.recentTx.map(tx => (
-            <tr key={tx.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
-              <td style={{ padding: "7px 12px", color: "var(--color-f3)" }}>{new Date(tx.date).toLocaleDateString("pt-BR")}</td>
-              <td style={{ padding: "7px 12px", color: "var(--color-f1)" }}>{tx.description}</td>
-              <td style={{ padding: "7px 12px", color: "var(--color-f3)" }}>{tx.category}</td>
-              <td style={{ padding: "7px 12px" }}>
-                <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: tx.type === "credit" ? "rgba(163,230,53,0.1)" : "rgba(248,113,113,0.1)", color: tx.type === "credit" ? "var(--color-green)" : "var(--color-red)" }}>
-                  {tx.type === "credit" ? "receita" : "despesa"}
-                </span>
-              </td>
-              <td style={{ padding: "7px 12px", color: tx.type === "credit" ? "var(--color-green)" : "var(--color-red)", fontWeight: 500 }}>
-                {tx.type === "debit" ? "-" : "+"}R$ {tx.amount.toFixed(2)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

@@ -61,7 +61,7 @@ function NewGoalForm({ avgBalance, onClose }: { avgBalance: number; onClose: () 
     setError("");
     startTransition(async () => {
       const result = await createGoal({ name, description, targetAmount: Number(targetAmount), deadline, color, icon: "target" });
-      if (result?.error) { setError(result.error); return; }
+      if (result && "error" in result) { setError(result.error); return; }
       onClose();
     });
   }

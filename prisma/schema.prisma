@@ -192,6 +192,7 @@ model User {
   country      String?
   planId    String?
   plan      Plan?    @relation(fields: [planId], references: [id])
+  lastSeenAt  DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

@@ -39,6 +39,7 @@ export function TagPicker({ initialTags, selectedTagIds, onChange }: Props) {
     if (!newName.trim()) return setError("Nome obrigatório.");
     startTransition(async () => {
       const tag = await createTag({ name: newName.trim(), color: newColor, icon: newIcon });
+      if (!tag || "error" in tag) return;
       const newTag: Tag = { ...tag };
       setAllTags((prev) => [...prev, newTag].sort((a, b) => a.name.localeCompare(b.name)));
       onChange([...selectedTagIds, tag.id]);

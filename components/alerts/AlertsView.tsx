@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { Alert } from "@/app/actions/alerts";
 import type { NotificationItem } from "@/app/actions/notifications";
-import { markAsRead, markAllAsRead } from "@/app/actions/notifications";
+import { markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } from "@/app/actions/notifications";
 import {
   IconAlertTriangle,
   IconAlertCircle,
@@ -20,6 +20,7 @@ import {
   IconCircleCheck,
   IconChecks,
   IconX,
+  IconTrash,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +119,16 @@ function NotificationsSection({ initial }: { initial: NotificationItem[] }) {
     startTransition(() => markAllAsRead());
   }
 
+  function handleDelete(id: string) {
+    setItems((prev) => prev.filter((n) => n.id !== id));
+    startTransition(() => deleteNotification(id));
+  }
+
+  function handleClearAll() {
+    setItems([]);
+    startTransition(() => deleteAllNotifications());
+  }
+
   if (items.length === 0) return null;
 
   return (
@@ -135,17 +146,28 @@ function NotificationsSection({ initial }: { initial: NotificationItem[] }) {
             </span>
           )}
         </div>
-        {unread.length > 0 && (
+        <div className="flex items-center gap-3">
+          {unread.length > 0 && (
+            <button
+              type="button"
+              onClick={handleMarkAll}
+              disabled={isPending}
+              className="flex items-center gap-1 text-[11px] text-[var(--color-f4)] hover:text-[var(--color-cyan)] transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <IconChecks size={13} />
+              Marcar todas como lidas
+            </button>
+          )}
           <button
             type="button"
-            onClick={handleMarkAll}
+            onClick={handleClearAll}
             disabled={isPending}
-            className="flex items-center gap-1 text-[11px] text-[var(--color-f4)] hover:text-[var(--color-cyan)] transition-colors cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1 text-[11px] text-[var(--color-f4)] hover:text-[var(--color-red)] transition-colors cursor-pointer disabled:opacity-50"
           >
-            <IconChecks size={13} />
-            Marcar todas como lidas
+            <IconTrash size={12} />
+            Limpar tudo
           </button>
-        )}
+        </div>
       </div>
 
       {/* Cards */}
@@ -208,7 +230,7 @@ function NotificationsSection({ initial }: { initial: NotificationItem[] }) {
                     <IconArrowRight size={11} />
                   </Link>
                 )}
-                {!isRead && (
+                {!isRead ? (
                   <button
                     type="button"
                     onClick={() => handleMarkOne(notif.id)}
@@ -216,6 +238,16 @@ function NotificationsSection({ initial }: { initial: NotificationItem[] }) {
                     className="w-6 h-6 flex items-center justify-center rounded-[6px] text-[var(--color-f4)] hover:text-[var(--color-f2)] hover:bg-white/[0.06] transition-all cursor-pointer"
                   >
                     <IconX size={13} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(notif.id)}
+                    title="Apagar notificação"
+                    disabled={isPending}
+                    className="w-6 h-6 flex items-center justify-center rounded-[6px] text-[var(--color-f4)] hover:text-[var(--color-red)] hover:bg-[rgba(248,113,113,0.08)] transition-all cursor-pointer disabled:opacity-40"
+                  >
+                    <IconTrash size={12} />
                   </button>
                 )}
               </div>
@@ -333,10 +365,10 @@ export function AlertsView({ alerts, notifications = [] }: Props) {
         Monitoramento
       </div>
       <h1 className="font-[family-name:var(--font-display)] italic text-[36px] font-bold tracking-tight text-[var(--color-f1)] mb-2 leading-tight">
-        Aler<span className="text-[var(--color-cyan)]">tas</span>
+        Alertas e <span className="text-[var(--color-cyan)]">Notificações</span>
       </h1>
       <p className="text-[var(--color-f3)] text-sm mb-8">
-        Tudo que merece a sua atenção agora: orçamentos, metas, projeções, passivos críticos e despesas sazonais.
+        Alertas financeiros gerados automaticamente e notificações do sistema.
       </p>
 
       {/* Notificações — sempre visíveis quando existem */}

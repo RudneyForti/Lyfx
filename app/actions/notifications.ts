@@ -16,25 +16,32 @@ export interface NotificationItem {
 
 /* ── Leitura ──────────────────────────────────────────────────────── */
 
-/** Badge count — chamado pelo layout (userId já resolvido, sem requireAuth). */
+/** Badge count — chamado pelo layout (userId já resolvido, sem requireAuth).
+ *  Conta apenas notificações manuais/sistema (fingerprint=null).
+ *  Alertas financeiros são computados em real-time por getAlerts() e não inflam o badge.
+ */
 export async function getUnreadCount(userId: string): Promise<number> {
   const now = new Date();
   return db.notification.count({
     where: {
       userId,
+      fingerprint: null,   // ← apenas notificações (não alertas automáticos)
       readAt: null,
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
   });
 }
 
-/** Lista completa — chamado pelo painel (client component via server action). */
+/** Lista completa de notificações (manual + Studio).
+ *  Exclui alertas automáticos (fingerprint != null) — esses são gerenciados por getAlerts().
+ */
 export async function getNotifications(): Promise<NotificationItem[]> {
   const userId = await requireAuth();
   const now = new Date();
   const rows = await db.notification.findMany({
     where: {
       userId,
+      fingerprint: null,   // ← apenas notificações
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
     orderBy: { createdAt: "desc" },
@@ -65,8 +72,26 @@ export async function markAsRead(id: string): Promise<void> {
 export async function markAllAsRead(): Promise<void> {
   const userId = await requireAuth();
   await db.notification.updateMany({
-    where: { userId, readAt: null },
+    where: { userId, fingerprint: null, readAt: null },
     data: { readAt: new Date() },
+  });
+  revalidatePath("/", "layout");
+}
+
+/** Remove uma notificação lida. Só remove se pertencer ao usuário autenticado. */
+export async function deleteNotification(id: string): Promise<void> {
+  const userId = await requireAuth();
+  await db.notification.deleteMany({
+    where: { id, userId, fingerprint: null }, // nunca apaga alertas automáticos
+  });
+  revalidatePath("/", "layout");
+}
+
+/** Remove todas as notificações do usuário (apenas manuais/sistema — fingerprint=null). */
+export async function deleteAllNotifications(): Promise<void> {
+  const userId = await requireAuth();
+  await db.notification.deleteMany({
+    where: { userId, fingerprint: null },
   });
   revalidatePath("/", "layout");
 }
