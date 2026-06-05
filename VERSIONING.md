@@ -91,6 +91,7 @@ Exemplo:
 | `1.7.1` | PATCH | Fix: Prisma v7 com provider=prisma-client exige adapter explícito — instala @prisma/adapter-pg + pg, lib/db.ts usa PrismaPg. |
 | `1.7.2` | PATCH | Landing page: versão do footer lida dinamicamente do package.json via prop — zero manutenção manual a cada release. |
 | `1.8.0` | MINOR | Studio Grupo 2: Painel dashboard (6 cards de métricas + toggles de configuração), Módulos com toggle de beta por módulo (AppConfig), Notas com toolbar Markdown + slash commands Notion-like, ERD colapsável por tabela, descrições nas tabelas do schema, seeds Full/Insider derivados de `isBeta`, banner de manutenção global, `lib/config.ts` + modelo `AppConfig` |
+| `1.8.1` | PATCH | CS-15 Consistência visual: login com viewport lock (100vh), identidade rounded unificada (botões CTA → full, inputs → 12px, modais → 24px), sidebar flutuante com glassmorphism + scroll interno, modo colapsado com espaçamento uniforme, padding-top 48px no main para pílula UserMenu não sobrepor conteúdo |
 
 ---
 
