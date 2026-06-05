@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, getStudioDataForUser, setAppConfig, saveAdminNotes, adminSendNotification } from "./actions";
-import type { LiveSchema, AppConfigEntry } from "./actions";
+import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, getStudioDataForUser, setAppConfig, saveAdminNotes, adminSendNotification, adminGetManualNotifications, adminDeleteNotification, adminUpdateNotification } from "./actions";
+import type { LiveSchema, AppConfigEntry, NotifBroadcast } from "./actions";
 import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan, ensureInsiderPlan, migrateAndDeletePlan } from "@/app/actions/plans";
 import { ALL_MODULES } from "@/lib/modules";
 import {
@@ -2196,19 +2196,29 @@ function StudioSelect({ value, onChange, options, placeholder }: {
   );
 }
 
-/* ── CS-18: Notifications tab ── */
+/* ── CS-18: Notification form (shared by create + edit modals) ── */
 type UserItem = { id: string; name: string; email: string | null };
 type PlanItemBase = { id: string; name: string; color: string };
 
-function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItemBase[] }) {
+/* ── Notification form (inside modal) ── */
+function NotifForm({
+  users, plans,
+  initial,
+  onSave, onClose,
+}: {
+  users: UserItem[]; plans: PlanItemBase[];
+  initial?: NotifBroadcast;
+  onSave: () => void; onClose: () => void;
+}) {
+  const isEdit = !!initial;
   const [recipientType, setRecipientType] = useState<"all" | "plan" | "user">("all");
   const [planId, setPlanId] = useState("");
   const [userId, setUserId] = useState("");
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [type, setType] = useState<"info" | "warning" | "danger" | "success">("info");
-  const [link, setLink] = useState("");
-  const [status, setStatus] = useState<null | { ok: true; count: number } | { error: string }>(null);
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [body, setBody] = useState(initial?.body ?? "");
+  const [type, setType] = useState<"info" | "warning" | "danger" | "success">(initial?.type ?? "info");
+  const [link, setLink] = useState(initial?.link ?? "");
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const inputStyle: React.CSSProperties = {
@@ -2218,166 +2228,338 @@ function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItem
     transition: "border-color 150ms, box-shadow 150ms",
   };
   const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--color-f3)", marginBottom: 4, display: "block" };
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setStatus(null);
-    startTransition(async () => {
-      const result = await adminSendNotification({
-        recipientType,
-        planId: recipientType === "plan" ? planId : undefined,
-        userId: recipientType === "user" ? userId : undefined,
-        title, body, type,
-        link: link || undefined,
-      });
-      setStatus(result);
-      if ("ok" in result) { setTitle(""); setBody(""); setLink(""); }
-    });
-  }
+  const focusHandlers = {
+    onFocus: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      e.currentTarget.style.borderColor = "var(--color-cyan-border)";
+      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(34,211,238,0.08)";
+    },
+    onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      e.currentTarget.style.borderColor = "var(--color-border2)";
+      e.currentTarget.style.boxShadow = "none";
+    },
+  };
 
   const typeColors: Record<string, string> = {
-    info: "var(--color-cyan)",
-    warning: "var(--color-amber)",
-    danger: "var(--color-red)",
-    success: "#A3E635",
+    info: "var(--color-cyan)", warning: "var(--color-amber)",
+    danger: "var(--color-red)", success: "#A3E635",
   };
 
   const recipientOptions: SelectOption[] = [
-    { value: "all",  label: "Todos os usuários" },
+    { value: "all", label: "Todos os usuários" },
     { value: "plan", label: "Por plano" },
     { value: "user", label: "Usuário específico" },
   ];
 
-  const planOptions: SelectOption[] = [
-    { value: "", label: "Selecione um plano…" },
-    ...plans.map(p => ({ value: p.id, label: p.name })),
-  ];
-
-  const userOptions: SelectOption[] = [
-    { value: "", label: "Selecione um usuário…" },
-    ...users.map(u => ({ value: u.id, label: u.name + (u.email ? ` — ${u.email}` : "") })),
-  ];
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      if (isEdit) {
+        const result = await adminUpdateNotification(
+          initial!.broadcastId, initial!.sampleId,
+          { title, body, type, link: link || null }
+        );
+        if ("error" in result) { setError(result.error); return; }
+      } else {
+        const result = await adminSendNotification({
+          recipientType,
+          planId: recipientType === "plan" ? planId : undefined,
+          userId: recipientType === "user" ? userId : undefined,
+          title, body, type, link: link || undefined,
+        });
+        if ("error" in result) { setError(result.error); return; }
+      }
+      onSave();
+    });
+  }
 
   return (
-    <div style={{ maxWidth: 600 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-f1)", margin: 0 }}>Enviar Notificação</h2>
-        <p style={{ fontSize: 12, color: "var(--color-f4)", marginTop: 4 }}>
-          Mensagem entregue na central de notificações do(s) usuário(s) selecionado(s).
-        </p>
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {!isEdit && (
+        <>
+          <div>
+            <label style={labelStyle}>Destinatários</label>
+            <StudioSelect value={recipientType} onChange={v => setRecipientType(v as "all" | "plan" | "user")} options={recipientOptions} />
+          </div>
+          {recipientType === "plan" && (
+            <div>
+              <label style={labelStyle}>Plano</label>
+              <StudioSelect value={planId} onChange={setPlanId} options={[{ value: "", label: "Selecione um plano…" }, ...plans.map(p => ({ value: p.id, label: p.name }))]} />
+            </div>
+          )}
+          {recipientType === "user" && (
+            <div>
+              <label style={labelStyle}>Usuário</label>
+              <StudioSelect value={userId} onChange={setUserId} options={[{ value: "", label: "Selecione um usuário…" }, ...users.map(u => ({ value: u.id, label: u.name + (u.email ? ` — ${u.email}` : "") }))]} />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Tipo */}
+      <div>
+        <label style={labelStyle}>Tipo</label>
+        <div style={{ display: "flex", gap: 8 }}>
+          {(["info", "warning", "danger", "success"] as const).map(t => (
+            <button key={t} type="button" onClick={() => setType(t)} style={{
+              flex: 1, height: 34, borderRadius: 8, fontSize: 12, fontWeight: 500,
+              cursor: "pointer", transition: "all 150ms", border: "1px solid",
+              background: type === t ? `${typeColors[t]}18` : "var(--color-bg3)",
+              borderColor: type === t ? typeColors[t] : "var(--color-border2)",
+              color: type === t ? typeColors[t] : "var(--color-f3)",
+            }}>
+              {t === "info" ? "Info" : t === "warning" ? "Aviso" : t === "danger" ? "Urgente" : "Sucesso"}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* Destinatários */}
-        <div>
-          <label style={labelStyle}>Destinatários</label>
-          <StudioSelect
-            value={recipientType}
-            onChange={v => setRecipientType(v as "all" | "plan" | "user")}
-            options={recipientOptions}
-          />
+      <div>
+        <label style={labelStyle}>Título</label>
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da notificação" style={inputStyle} required {...focusHandlers} />
+      </div>
+
+      <div>
+        <label style={labelStyle}>Mensagem</label>
+        <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Texto da notificação…" rows={3} required
+          style={{ ...inputStyle, height: "auto", padding: "10px 12px", resize: "vertical" }} {...focusHandlers} />
+      </div>
+
+      <div>
+        <label style={labelStyle}>Link <span style={{ color: "var(--color-f4)" }}>(opcional)</span></label>
+        <input value={link} onChange={e => setLink(e.target.value)} placeholder="/dashboard" style={inputStyle} {...focusHandlers} />
+      </div>
+
+      {error && (
+        <div style={{ fontSize: 12, color: "var(--color-red)", padding: "8px 12px", borderRadius: 8, background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)" }}>
+          {error}
         </div>
+      )}
 
-        {recipientType === "plan" && (
-          <div>
-            <label style={labelStyle}>Plano</label>
-            <StudioSelect value={planId} onChange={setPlanId} options={planOptions} />
-          </div>
-        )}
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+        <button type="button" onClick={onClose} style={{
+          height: 36, padding: "0 16px", borderRadius: 8, fontSize: 13,
+          background: "none", border: "1px solid var(--color-border2)",
+          color: "var(--color-f3)", cursor: "pointer",
+        }}>
+          Cancelar
+        </button>
+        <button type="submit" disabled={isPending} style={{
+          height: 36, padding: "0 16px", background: "var(--color-cyan)", color: "#083344",
+          border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
+          cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+          opacity: isPending ? 0.7 : 1,
+        }}>
+          {isPending
+            ? <><IconLoader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> {isEdit ? "Salvando…" : "Enviando…"}</>
+            : <><IconSend size={14} /> {isEdit ? "Salvar alterações" : "Enviar notificação"}</>}
+        </button>
+      </div>
+    </form>
+  );
+}
 
-        {recipientType === "user" && (
-          <div>
-            <label style={labelStyle}>Usuário</label>
-            <StudioSelect value={userId} onChange={setUserId} options={userOptions} />
-          </div>
-        )}
+/* ── Notification type config ── */
+const NOTIF_STUDIO_CONFIG = {
+  info:    { color: "var(--color-cyan)",   bg: "rgba(34,211,238,0.08)",   label: "Info"    },
+  warning: { color: "var(--color-amber)",  bg: "rgba(251,191,36,0.08)",   label: "Aviso"   },
+  danger:  { color: "var(--color-red)",    bg: "rgba(248,113,113,0.08)",  label: "Urgente" },
+  success: { color: "#A3E635",             bg: "rgba(163,230,53,0.08)",   label: "Sucesso" },
+} as const;
 
-        {/* Tipo */}
+/* ── Notifications tab ── */
+function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItemBase[] }) {
+  const [broadcasts, setBroadcasts] = useState<NotifBroadcast[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<null | "new" | NotifBroadcast>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  async function load() {
+    setLoading(true);
+    try { setBroadcasts(await adminGetManualNotifications()); }
+    finally { setLoading(false); }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function handleSave() {
+    setModal(null);
+    load();
+  }
+
+  function handleDelete(b: NotifBroadcast) {
+    const key = b.broadcastId ?? b.sampleId;
+    setDeletingId(key);
+    startTransition(async () => {
+      await adminDeleteNotification(b.broadcastId, b.sampleId);
+      setDeletingId(null);
+      load();
+    });
+  }
+
+  const rowStyle: React.CSSProperties = {
+    display: "flex", alignItems: "flex-start", gap: 14,
+    padding: "14px 16px", borderRadius: 10,
+    background: "var(--color-bg2)", border: "1px solid var(--color-border)",
+    transition: "border-color 150ms",
+  };
+
+  return (
+    <>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
-          <label style={labelStyle}>Tipo</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            {(["info", "warning", "danger", "success"] as const).map(t => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setType(t)}
-                style={{
-                  flex: 1, height: 34, borderRadius: 8, fontSize: 12, fontWeight: 500,
-                  cursor: "pointer", transition: "all 150ms", border: "1px solid",
-                  background: type === t ? `${typeColors[t]}18` : "var(--color-bg3)",
-                  borderColor: type === t ? typeColors[t] : "var(--color-border2)",
-                  color: type === t ? typeColors[t] : "var(--color-f3)",
-                }}
-              >
-                {t === "info" ? "Info" : t === "warning" ? "Aviso" : t === "danger" ? "Urgente" : "Sucesso"}
-              </button>
-            ))}
-          </div>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-f1)", margin: 0 }}>Notificações</h2>
+          <p style={{ fontSize: 12, color: "var(--color-f4)", marginTop: 3 }}>
+            Notificações manuais enviadas via Studio. Mostra leituras em tempo real.
+          </p>
         </div>
-
-        {/* Título */}
-        <div>
-          <label style={labelStyle}>Título</label>
-          <input
-            value={title} onChange={e => setTitle(e.target.value)}
-            placeholder="Título da notificação" style={inputStyle} required
-            onFocus={e => { e.currentTarget.style.borderColor = "var(--color-cyan-border)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(34,211,238,0.08)"; }}
-            onBlur={e => { e.currentTarget.style.borderColor = "var(--color-border2)"; e.currentTarget.style.boxShadow = "none"; }}
-          />
-        </div>
-
-        {/* Mensagem */}
-        <div>
-          <label style={labelStyle}>Mensagem</label>
-          <textarea
-            value={body} onChange={e => setBody(e.target.value)}
-            placeholder="Texto da notificação…" rows={3} required
-            style={{ ...inputStyle, height: "auto", padding: "10px 12px", resize: "vertical" }}
-            onFocus={e => { e.currentTarget.style.borderColor = "var(--color-cyan-border)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(34,211,238,0.08)"; }}
-            onBlur={e => { e.currentTarget.style.borderColor = "var(--color-border2)"; e.currentTarget.style.boxShadow = "none"; }}
-          />
-        </div>
-
-        {/* Link (opcional) */}
-        <div>
-          <label style={labelStyle}>Link <span style={{ color: "var(--color-f4)" }}>(opcional)</span></label>
-          <input
-            value={link} onChange={e => setLink(e.target.value)}
-            placeholder="/dashboard" style={inputStyle}
-            onFocus={e => { e.currentTarget.style.borderColor = "var(--color-cyan-border)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(34,211,238,0.08)"; }}
-            onBlur={e => { e.currentTarget.style.borderColor = "var(--color-border2)"; e.currentTarget.style.boxShadow = "none"; }}
-          />
-        </div>
-
-        {/* Feedback */}
-        {status && (
-          <div style={{
-            padding: "10px 14px", borderRadius: 8, fontSize: 12,
-            background: "ok" in status ? "rgba(163,230,53,0.08)" : "rgba(248,113,113,0.08)",
-            border: `1px solid ${"ok" in status ? "rgba(163,230,53,0.25)" : "rgba(248,113,113,0.25)"}`,
-            color: "ok" in status ? "#A3E635" : "var(--color-red)",
-          }}>
-            {"ok" in status
-              ? `✓ Notificação enviada para ${status.count} usuário${status.count !== 1 ? "s" : ""}.`
-              : `✗ ${status.error}`}
-          </div>
-        )}
-
-        {/* Submit */}
         <button
-          type="submit" disabled={isPending}
+          type="button"
+          onClick={() => setModal("new")}
           style={{
-            height: 40, background: "var(--color-cyan)", color: "#083344",
+            height: 36, padding: "0 14px", background: "var(--color-cyan)", color: "#083344",
             border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-            opacity: isPending ? 0.7 : 1,
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
           }}
         >
-          {isPending
-            ? <><IconLoader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> Enviando…</>
-            : <><IconSend size={15} /> Enviar notificação</>}
+          <IconPlus size={14} /> Nova notificação
         </button>
-      </form>
-    </div>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-f4)", fontSize: 13 }}>
+          <IconLoader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Carregando…
+        </div>
+      ) : !broadcasts || broadcasts.length === 0 ? (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: "60px 0", gap: 10, color: "var(--color-f4)",
+        }}>
+          <IconBell size={28} style={{ opacity: 0.3 }} />
+          <span style={{ fontSize: 13 }}>Nenhuma notificação enviada ainda.</span>
+          <button type="button" onClick={() => setModal("new")} style={{
+            marginTop: 4, fontSize: 12, color: "var(--color-cyan)", background: "none",
+            border: "none", cursor: "pointer", textDecoration: "underline",
+          }}>
+            Enviar a primeira
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 720 }}>
+          {broadcasts.map((b) => {
+            const cfg = NOTIF_STUDIO_CONFIG[b.type] ?? NOTIF_STUDIO_CONFIG.info;
+            const key = b.broadcastId ?? b.sampleId;
+            const isDeleting = deletingId === key;
+            const readPct = b.totalCount > 0 ? Math.round((b.readCount / b.totalCount) * 100) : 0;
+
+            return (
+              <div key={key} style={{ ...rowStyle, opacity: isDeleting ? 0.4 : 1 }}>
+                {/* Type badge */}
+                <div style={{
+                  flexShrink: 0, width: 6, height: 6,
+                  borderRadius: "50%", background: cfg.color, marginTop: 6,
+                }} />
+
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-f1)" }}>{b.title}</span>
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase",
+                      padding: "2px 7px", borderRadius: 4, background: cfg.bg, color: cfg.color,
+                    }}>
+                      {cfg.label}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 12, color: "var(--color-f3)", margin: "0 0 6px", lineHeight: 1.5 }}>{b.body}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 11, color: "var(--color-f4)" }}>
+                    {/* Leitura */}
+                    <span title={`${b.readCount} de ${b.totalCount} leram`}>
+                      <span style={{ color: b.readCount === b.totalCount ? "#A3E635" : "var(--color-f4)", fontWeight: 500 }}>
+                        {b.readCount}/{b.totalCount}
+                      </span>
+                      {" "}leram · {readPct}%
+                    </span>
+                    {/* Progress bar */}
+                    <div style={{ width: 60, height: 3, borderRadius: 999, background: "var(--color-border2)", overflow: "hidden" }}>
+                      <div style={{ width: `${readPct}%`, height: "100%", background: b.readCount === b.totalCount ? "#A3E635" : cfg.color, borderRadius: 999, transition: "width 300ms" }} />
+                    </div>
+                    <span>·</span>
+                    <span>{new Date(b.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                    {b.link && <span>· <span style={{ color: "var(--color-cyan)" }}>{b.link}</span></span>}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                  <button type="button" onClick={() => setModal(b)} title="Editar" style={{
+                    width: 30, height: 30, borderRadius: 7, background: "none",
+                    border: "1px solid var(--color-border2)", color: "var(--color-f3)",
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all 150ms",
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--color-cyan-border)"; e.currentTarget.style.color = "var(--color-cyan)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--color-border2)"; e.currentTarget.style.color = "var(--color-f3)"; }}
+                  >
+                    <IconEdit size={13} />
+                  </button>
+                  <button type="button" onClick={() => handleDelete(b)} disabled={isDeleting} title="Apagar" style={{
+                    width: 30, height: 30, borderRadius: 7, background: "none",
+                    border: "1px solid var(--color-border2)", color: "var(--color-f4)",
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all 150ms",
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(248,113,113,0.4)"; e.currentTarget.style.color = "var(--color-red)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--color-border2)"; e.currentTarget.style.color = "var(--color-f4)"; }}
+                  >
+                    {isDeleting ? <IconLoader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <IconTrash size={13} />}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal */}
+      {modal !== null && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+          onClick={e => { if (e.target === e.currentTarget) setModal(null); }}
+        >
+          <div style={{
+            width: 520, background: "var(--color-bg2)",
+            border: "1px solid var(--color-border2)", borderRadius: 16,
+            padding: 28, boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "var(--color-f1)" }}>
+                {modal === "new" ? "Nova notificação" : "Editar notificação"}
+              </span>
+              <button type="button" onClick={() => setModal(null)} style={{
+                width: 28, height: 28, borderRadius: 8, background: "var(--color-bg3)",
+                border: "1px solid var(--color-border2)", color: "var(--color-f3)",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <IconX size={13} />
+              </button>
+            </div>
+            <NotifForm
+              users={users} plans={plans}
+              initial={modal === "new" ? undefined : modal}
+              onSave={handleSave}
+              onClose={() => setModal(null)}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

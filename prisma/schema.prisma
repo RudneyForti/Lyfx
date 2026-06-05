@@ -251,9 +251,11 @@ model Notification {
   link        String?
   readAt      DateTime?
   fingerprint String?   // dedup de alertas automáticos (= alert.id da origem)
+  broadcastId String?   // agrupa notificações manuais enviadas no mesmo lote pelo Studio
   expiresAt   DateTime? // TTL — danger alerts: createdAt + 7d
   createdAt   DateTime  @default(now())
 
   @@index([userId])
   @@index([userId, readAt])
+  @@index([broadcastId])
 }
