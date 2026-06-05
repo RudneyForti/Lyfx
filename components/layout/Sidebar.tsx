@@ -54,7 +54,7 @@ const navGroups = [
   {
     label: "Análise",
     items: [
-      { href: "/alerts",         label: "Alertas",          icon: IconBell,             moduleKey: "alerts" },
+      { href: "/alerts",         label: "Alertas e Notificações", icon: IconBell,        moduleKey: "alerts" },
       { href: "/reports",        label: "Relatórios",       icon: IconReportAnalytics,  moduleKey: "reports" },
       { href: "/health",         label: "Saúde financeira", icon: IconHeartRateMonitor, moduleKey: "health" },
       { href: "/reimbursements", label: "Reembolsos",       icon: IconReceipt2,         moduleKey: "reimbursements" },

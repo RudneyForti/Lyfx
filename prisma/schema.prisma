@@ -192,6 +192,7 @@ model User {
   country      String?
   planId    String?
   plan      Plan?    @relation(fields: [planId], references: [id])
+  lastSeenAt  DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -239,4 +240,23 @@ model AppConfig {
   key       String   @id
   value     String   @default("")
   updatedAt DateTime @updatedAt
+}
+
+// CS-18: Central de notificações
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  body        String
+  type        String    @default("info")  // info | warning | danger | success
+  link        String?
+  readAt      DateTime?
+  fingerprint String?   // dedup de alertas automáticos (= alert.id da origem)
+  broadcastId String?   // agrupa notificações manuais enviadas no mesmo lote pelo Studio
+  expiresAt   DateTime? // TTL — danger alerts: createdAt + 7d
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([userId, readAt])
+  @@index([broadcastId])
 }
