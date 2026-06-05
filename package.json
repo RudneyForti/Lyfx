@@ -12,6 +12,7 @@
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@react-google-maps/api": "^2.20.8",
     "@tabler/icons-react": "^3.44.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.10.0",

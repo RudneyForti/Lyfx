@@ -260,3 +260,81 @@ model Notification {
   @@index([userId, readAt])
   @@index([broadcastId])
 }
+
+// ── CS-17: Reembolso KM ───────────────────────────────────────────────────────
+
+model KmConfig {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  gasolineRate Float    @default(0.25)  // 25% do preço/litro por km
+  ethanolRate  Float    @default(0.36)  // 36% do preço/litro por km
+  minFuelPct   Float    @default(0.15)  // mínimo 15% em notas vs. montante
+  paymentDays  Int      @default(5)     // D+5 dias úteis
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model KmPeriod {
+  id            String      @id @default(cuid())
+  userId        String
+  name          String
+  startDate     DateTime
+  endDate       DateTime
+  fuelType      String      @default("gasoline") // gasoline | ethanol
+  status        String      @default("open")     // open | submitted
+  submittedAt   DateTime?
+  expectedPayAt DateTime?
+  totalKm       Float       @default(0)
+  fuelPriceAvg  Float       @default(0)
+  ratePerKm     Float       @default(0)
+  kmAmount      Float       @default(0)
+  extraAmount   Float       @default(0)
+  grandTotal    Float       @default(0)
+  notes         String?
+  transactionId String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  routes        KmRoute[]
+  receipts      KmReceipt[]
+  expenses      KmExpense[]
+
+  @@index([userId])
+}
+
+model KmRoute {
+  id          String   @id @default(cuid())
+  userId      String
+  periodId    String
+  period      KmPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  date        DateTime
+  origin      String
+  destination String
+  km          Float
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model KmReceipt {
+  id          String   @id @default(cuid())
+  userId      String
+  periodId    String
+  period      KmPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  date        DateTime
+  fuelType    String   @default("gasoline")
+  liters      Float
+  totalAmount Float
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model KmExpense {
+  id        String   @id @default(cuid())
+  userId    String
+  periodId  String
+  period    KmPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  type      String   @default("toll") // toll | parking | accommodation | food | taxi | other
+  date      DateTime
+  amount    Float
+  notes     String?
+  createdAt DateTime @default(now())
+}
