@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.9.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.9.1 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 

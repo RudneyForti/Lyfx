@@ -1,90 +1,55 @@
 /**
- * Direct better-sqlite3 access for PillProgress.
+ * PillProgress data access via Prisma (PostgreSQL).
  *
- * Why not db.pillProgress? Turbopack caches a stale compiled version of the
- * Prisma-generated internal/class.ts (without PillProgress in runtimeDataModel),
- * so the model delegate is undefined at runtime even though the table exists.
- *
- * Why not db.$queryRaw? The Prisma 7 WASM query-compiler initialization hangs
- * when invoked via $queryRaw with the better-sqlite3 driver adapter.
- *
- * better-sqlite3 is already a transitive dependency (via @prisma/adapter-better-sqlite3).
- * SQLite + single-threaded Node.js = no file-locking concern.
+ * Replaced better-sqlite3 workaround from v1.5.0 (SQLite era).
+ * The original workaround was needed because Turbopack cached a stale
+ * Prisma client that didn't include PillProgress. After migrating to
+ * PostgreSQL in v1.7.0, the adapter changed (@prisma/adapter-pg) and
+ * the issue no longer exists — db.pillProgress works normally.
  */
 
-import BetterSqlite3 from "better-sqlite3";
-import path from "path";
+import { db } from "@/lib/db";
 
-function openDb() {
-  return new BetterSqlite3(path.join(process.cwd(), "dev.db"), {
-    readonly: false,
+export async function selectPillProgress(userId: string) {
+  return db.pillProgress.findMany({
+    where: { userId },
+    orderBy: { completedAt: "asc" },
   });
 }
 
-export type PillRow = {
-  pillId: string;
-  profile: string;
-  completedAt: string;
-  timeSpentSeconds: number;
-  quizCorrect: number; // SQLite stores boolean as 0/1
-};
-
-export function selectPillProgress(userId: string): PillRow[] {
-  const db = openDb();
-  try {
-    return db
-      .prepare(
-        `SELECT pillId, profile, completedAt, timeSpentSeconds, quizCorrect
-         FROM PillProgress
-         WHERE userId = ?
-         ORDER BY completedAt ASC`
-      )
-      .all(userId) as PillRow[];
-  } finally {
-    db.close();
-  }
+export async function selectPillExists(userId: string, pillId: string): Promise<boolean> {
+  const row = await db.pillProgress.findUnique({
+    where: { userId_pillId: { userId, pillId } },
+  });
+  return !!row;
 }
 
-export function selectPillExists(userId: string, pillId: string): boolean {
-  const db = openDb();
-  try {
-    const row = db
-      .prepare(`SELECT 1 FROM PillProgress WHERE userId = ? AND pillId = ?`)
-      .get(userId, pillId);
-    return !!row;
-  } finally {
-    db.close();
-  }
-}
-
-export function insertPillProgress(data: {
+export async function insertPillProgress(data: {
   id: string;
   userId: string;
   pillId: string;
   profile: string;
   completedAt: string;
   timeSpentSeconds: number;
-  quizCorrect: number;
-}): void {
-  const db = openDb();
-  try {
-    db.prepare(
-      `INSERT INTO PillProgress (id, userId, pillId, profile, completedAt, timeSpentSeconds, quizCorrect, createdAt)
-       VALUES (@id, @userId, @pillId, @profile, @completedAt, @timeSpentSeconds, @quizCorrect, @completedAt)`
-    ).run(data);
-  } finally {
-    db.close();
-  }
+  quizCorrect: boolean;
+}): Promise<void> {
+  await db.pillProgress.create({
+    data: {
+      id: data.id,
+      userId: data.userId,
+      pillId: data.pillId,
+      profile: data.profile,
+      completedAt: new Date(data.completedAt),
+      timeSpentSeconds: data.timeSpentSeconds,
+      quizCorrect: data.quizCorrect,
+    },
+  });
 }
 
-export function selectCompletedDates(userId: string): string[] {
-  const db = openDb();
-  try {
-    const rows = db
-      .prepare(`SELECT completedAt FROM PillProgress WHERE userId = ?`)
-      .all(userId) as Array<{ completedAt: string }>;
-    return rows.map((r) => r.completedAt);
-  } finally {
-    db.close();
-  }
+export async function selectCompletedDates(userId: string): Promise<string[]> {
+  const rows = await db.pillProgress.findMany({
+    where: { userId },
+    select: { completedAt: true },
+  });
+  return rows.map((r) => r.completedAt.toISOString());
 }
