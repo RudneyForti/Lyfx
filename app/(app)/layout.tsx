@@ -50,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <UserMenu name={user.name} avatar={user.avatar ?? null} />
       <main
         className="flex-1 min-h-screen transition-all duration-200"
-        style={{ marginLeft: "var(--sidebar-width)" }}
+        style={{ marginLeft: "var(--sidebar-width)", paddingTop: "48px" }}
         id="main-content"
       >
         {maintenanceMode && (
