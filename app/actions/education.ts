@@ -15,13 +15,13 @@ import type { PillProgressRecord, StreakData, WeekData } from "@/lib/pills";
 
 export async function getPillProgress(): Promise<PillProgressRecord[]> {
   const userId = await requireAuth();
-  const rows = selectPillProgress(userId);
+  const rows = await selectPillProgress(userId);
   return rows.map((r) => ({
     pillId: r.pillId,
     profile: r.profile,
     completedAt: new Date(r.completedAt),
     timeSpentSeconds: r.timeSpentSeconds,
-    quizCorrect: r.quizCorrect === 1,
+    quizCorrect: r.quizCorrect,
   }));
 }
 
@@ -35,17 +35,17 @@ export async function completePill(data: {
 }): Promise<{ alreadyCompleted: boolean }> {
   const userId = await requireAuth();
 
-  const alreadyCompleted = selectPillExists(userId, data.pillId);
+  const alreadyCompleted = await selectPillExists(userId, data.pillId);
 
   if (!alreadyCompleted) {
-    insertPillProgress({
+    await insertPillProgress({
       id: randomUUID(),
       userId,
       pillId: data.pillId,
       profile: data.profile,
       completedAt: new Date().toISOString(),
       timeSpentSeconds: data.timeSpentSeconds,
-      quizCorrect: data.quizCorrect ? 1 : 0,
+      quizCorrect: data.quizCorrect,
     });
     revalidatePath("/education");
   }
@@ -57,7 +57,7 @@ export async function completePill(data: {
 
 export async function getStreakData(): Promise<StreakData> {
   const userId = await requireAuth();
-  const dates = selectCompletedDates(userId);
+  const dates = await selectCompletedDates(userId);
   const completedDates = dates.map((d) => new Date(d));
 
   const now = new Date();
