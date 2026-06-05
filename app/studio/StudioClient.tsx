@@ -2107,6 +2107,95 @@ function DataTab({ data }: { data: StudioData }) {
   );
 }
 
+/* ── CS-18: Custom select com identidade Lyfx ── */
+interface SelectOption { value: string; label: string }
+
+function StudioSelect({ value, onChange, options, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: SelectOption[];
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  const selected = options.find(o => o.value === value);
+  const display = selected?.label ?? placeholder ?? "Selecione…";
+
+  return (
+    <div ref={ref} style={{ position: "relative", userSelect: "none" }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: "100%", height: 38, background: "var(--color-bg3)",
+          border: `1px solid ${open ? "var(--color-cyan-border)" : "var(--color-border2)"}`,
+          borderRadius: 8, padding: "0 12px", fontSize: 13,
+          color: selected ? "var(--color-f1)" : "var(--color-f4)",
+          cursor: "pointer", display: "flex", alignItems: "center",
+          justifyContent: "space-between", gap: 8, outline: "none",
+          boxShadow: open ? "0 0 0 3px rgba(34,211,238,0.08)" : "none",
+          transition: "border-color 150ms, box-shadow 150ms",
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {display}
+        </span>
+        <IconChevronDown
+          size={13}
+          style={{
+            color: "var(--color-f4)", flexShrink: 0,
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform 150ms",
+          }}
+        />
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 100,
+          background: "var(--color-bg3)",
+          border: "1px solid var(--color-cyan-border)",
+          borderRadius: 8, overflow: "hidden",
+          boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+        }}>
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              style={{
+                width: "100%", height: 36, padding: "0 12px",
+                display: "flex", alignItems: "center", gap: 8,
+                fontSize: 13, cursor: "pointer", border: "none", textAlign: "left",
+                background: opt.value === value ? "rgba(34,211,238,0.08)" : "transparent",
+                color: opt.value === value ? "var(--color-cyan)" : "var(--color-f2)",
+                transition: "background 100ms",
+              }}
+              onMouseEnter={e => { if (opt.value !== value) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+              onMouseLeave={e => { if (opt.value !== value) e.currentTarget.style.background = "transparent"; }}
+            >
+              {opt.value === value && (
+                <IconCheck size={12} style={{ color: "var(--color-cyan)", flexShrink: 0 }} />
+              )}
+              <span style={{ marginLeft: opt.value === value ? 0 : 20 }}>{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── CS-18: Notifications tab ── */
 type UserItem = { id: string; name: string; email: string | null };
 type PlanItemBase = { id: string; name: string; color: string };
@@ -2126,8 +2215,8 @@ function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItem
     width: "100%", height: 38, background: "var(--color-bg3)",
     border: "1px solid var(--color-border2)", borderRadius: 8,
     padding: "0 12px", fontSize: 13, color: "var(--color-f1)", outline: "none",
+    transition: "border-color 150ms, box-shadow 150ms",
   };
-  const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
   const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--color-f3)", marginBottom: 4, display: "block" };
 
   function handleSubmit(e: React.FormEvent) {
@@ -2142,9 +2231,7 @@ function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItem
         link: link || undefined,
       });
       setStatus(result);
-      if ("ok" in result) {
-        setTitle(""); setBody(""); setLink("");
-      }
+      if ("ok" in result) { setTitle(""); setBody(""); setLink(""); }
     });
   }
 
@@ -2154,6 +2241,22 @@ function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItem
     danger: "var(--color-red)",
     success: "#A3E635",
   };
+
+  const recipientOptions: SelectOption[] = [
+    { value: "all",  label: "Todos os usuários" },
+    { value: "plan", label: "Por plano" },
+    { value: "user", label: "Usuário específico" },
+  ];
+
+  const planOptions: SelectOption[] = [
+    { value: "", label: "Selecione um plano…" },
+    ...plans.map(p => ({ value: p.id, label: p.name })),
+  ];
+
+  const userOptions: SelectOption[] = [
+    { value: "", label: "Selecione um usuário…" },
+    ...users.map(u => ({ value: u.id, label: u.name + (u.email ? ` — ${u.email}` : "") })),
+  ];
 
   return (
     <div style={{ maxWidth: 600 }}>
@@ -2168,34 +2271,24 @@ function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItem
         {/* Destinatários */}
         <div>
           <label style={labelStyle}>Destinatários</label>
-          <select value={recipientType} onChange={e => setRecipientType(e.target.value as "all" | "plan" | "user")} style={selectStyle}>
-            <option value="all">Todos os usuários</option>
-            <option value="plan">Por plano</option>
-            <option value="user">Usuário específico</option>
-          </select>
+          <StudioSelect
+            value={recipientType}
+            onChange={v => setRecipientType(v as "all" | "plan" | "user")}
+            options={recipientOptions}
+          />
         </div>
 
         {recipientType === "plan" && (
           <div>
             <label style={labelStyle}>Plano</label>
-            <select value={planId} onChange={e => setPlanId(e.target.value)} style={selectStyle} required>
-              <option value="">Selecione um plano…</option>
-              {plans.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+            <StudioSelect value={planId} onChange={setPlanId} options={planOptions} />
           </div>
         )}
 
         {recipientType === "user" && (
           <div>
             <label style={labelStyle}>Usuário</label>
-            <select value={userId} onChange={e => setUserId(e.target.value)} style={selectStyle} required>
-              <option value="">Selecione um usuário…</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name}{u.email ? ` — ${u.email}` : ""}</option>
-              ))}
-            </select>
+            <StudioSelect value={userId} onChange={setUserId} options={userOptions} />
           </div>
         )}
 
@@ -2225,26 +2318,35 @@ function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItem
         {/* Título */}
         <div>
           <label style={labelStyle}>Título</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da notificação" style={inputStyle} required />
+          <input
+            value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="Título da notificação" style={inputStyle} required
+            onFocus={e => { e.currentTarget.style.borderColor = "var(--color-cyan-border)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(34,211,238,0.08)"; }}
+            onBlur={e => { e.currentTarget.style.borderColor = "var(--color-border2)"; e.currentTarget.style.boxShadow = "none"; }}
+          />
         </div>
 
         {/* Mensagem */}
         <div>
           <label style={labelStyle}>Mensagem</label>
           <textarea
-            value={body}
-            onChange={e => setBody(e.target.value)}
-            placeholder="Texto da notificação…"
-            rows={3}
+            value={body} onChange={e => setBody(e.target.value)}
+            placeholder="Texto da notificação…" rows={3} required
             style={{ ...inputStyle, height: "auto", padding: "10px 12px", resize: "vertical" }}
-            required
+            onFocus={e => { e.currentTarget.style.borderColor = "var(--color-cyan-border)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(34,211,238,0.08)"; }}
+            onBlur={e => { e.currentTarget.style.borderColor = "var(--color-border2)"; e.currentTarget.style.boxShadow = "none"; }}
           />
         </div>
 
         {/* Link (opcional) */}
         <div>
           <label style={labelStyle}>Link <span style={{ color: "var(--color-f4)" }}>(opcional)</span></label>
-          <input value={link} onChange={e => setLink(e.target.value)} placeholder="/dashboard" style={inputStyle} />
+          <input
+            value={link} onChange={e => setLink(e.target.value)}
+            placeholder="/dashboard" style={inputStyle}
+            onFocus={e => { e.currentTarget.style.borderColor = "var(--color-cyan-border)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(34,211,238,0.08)"; }}
+            onBlur={e => { e.currentTarget.style.borderColor = "var(--color-border2)"; e.currentTarget.style.boxShadow = "none"; }}
+          />
         </div>
 
         {/* Feedback */}
@@ -2263,8 +2365,7 @@ function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItem
 
         {/* Submit */}
         <button
-          type="submit"
-          disabled={isPending}
+          type="submit" disabled={isPending}
           style={{
             height: 40, background: "var(--color-cyan)", color: "#083344",
             border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
