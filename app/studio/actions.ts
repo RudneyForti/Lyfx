@@ -331,3 +331,57 @@ export async function saveAdminNotes(content: string): Promise<{ ok: boolean }> 
   });
   return { ok: true };
 }
+
+// ── CS-18: Envio de notificações via Studio ───────────────────────────────────
+
+export interface AdminSendNotificationInput {
+  recipientType: "all" | "plan" | "user";
+  planId?: string;
+  userId?: string;
+  title: string;
+  body: string;
+  type: "info" | "warning" | "danger" | "success";
+  link?: string;
+}
+
+export async function adminSendNotification(
+  input: AdminSendNotificationInput
+): Promise<{ ok: true; count: number } | { error: string }> {
+  await requireAdmin();
+
+  if (!input.title.trim()) return { error: "Título obrigatório." };
+  if (!input.body.trim())  return { error: "Mensagem obrigatória." };
+
+  // Resolver lista de userIds destinatários
+  let userIds: string[] = [];
+
+  if (input.recipientType === "all") {
+    const users = await db.user.findMany({ select: { id: true } });
+    userIds = users.map((u) => u.id);
+  } else if (input.recipientType === "plan") {
+    if (!input.planId) return { error: "Plano não selecionado." };
+    const users = await db.user.findMany({
+      where: { planId: input.planId },
+      select: { id: true },
+    });
+    userIds = users.map((u) => u.id);
+  } else if (input.recipientType === "user") {
+    if (!input.userId) return { error: "Usuário não selecionado." };
+    userIds = [input.userId];
+  }
+
+  if (userIds.length === 0) return { error: "Nenhum destinatário encontrado." };
+
+  await db.notification.createMany({
+    data: userIds.map((uid) => ({
+      userId: uid,
+      title: input.title.trim(),
+      body: input.body.trim(),
+      type: input.type,
+      link: input.link?.trim() || null,
+    })),
+  });
+
+  revalidatePath("/", "layout");
+  return { ok: true, count: userIds.length };
+}

@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { ALL_MODULE_KEYS } from "@/lib/modules";
 import { getConfigBool, getConfigValue } from "@/lib/config";
+import { getUnreadCount, syncDangerAlerts } from "@/app/actions/notifications";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const userId = await getSessionUserId();
@@ -17,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
   }
 
-  const [user, maintenanceMode, maintenanceBanner, betaModulesRaw] = await Promise.all([
+  const [user, maintenanceMode, maintenanceBanner, betaModulesRaw, unreadCount] = await Promise.all([
     db.user.findUnique({
       where: { id: userId },
       include: { plan: { include: { modules: true } } },
@@ -25,7 +26,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getConfigBool("maintenanceMode"),
     getConfigValue("maintenanceBanner", "O sistema está temporariamente indisponível para manutenção."),
     getConfigValue("betaModules", ""),
+    getUnreadCount(userId),  // CS-18: badge do sino
   ]);
+
+  // CS-18: converter alertas danger em notificações (fingerprint dedup, TTL 7d)
+  await syncDangerAlerts(userId);
 
   let betaModules: string[] | undefined;
   if (betaModulesRaw) {
@@ -47,7 +52,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       }}
     >
       <Sidebar allowedModules={allowedModules} betaModules={betaModules} />
-      <UserMenu name={user.name} avatar={user.avatar ?? null} />
+      <UserMenu name={user.name} avatar={user.avatar ?? null} unreadCount={unreadCount} />
       <main
         className="flex-1 min-h-screen transition-all duration-200"
         style={{ marginLeft: "var(--sidebar-width)", paddingTop: "48px" }}

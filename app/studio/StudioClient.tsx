@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, getStudioDataForUser, setAppConfig, saveAdminNotes } from "./actions";
+import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, getStudioDataForUser, setAppConfig, saveAdminNotes, adminSendNotification } from "./actions";
 import type { LiveSchema, AppConfigEntry } from "./actions";
 import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan, ensureInsiderPlan, migrateAndDeletePlan } from "@/app/actions/plans";
 import { ALL_MODULES } from "@/lib/modules";
@@ -13,7 +13,7 @@ import {
   IconLock, IconLoader2, IconX, IconLogout, IconDatabase,
   IconUsers, IconTable, IconKey, IconTrash, IconChevronDown, IconChevronRight,
   IconFileDescription, IconUserPlus, IconFilter, IconPackage, IconPlus, IconEdit,
-  IconCheck, IconZoomIn, IconApps, IconAdjustments, IconPencil, IconStar,
+  IconCheck, IconZoomIn, IconApps, IconAdjustments, IconPencil, IconStar, IconBell, IconSend,
 } from "@tabler/icons-react";
 
 /* ── Login gate ── */
@@ -121,18 +121,19 @@ type StudioData = Awaited<ReturnType<typeof import("./actions").getStudioData>>;
 type PlanItem = StudioData["plans"][number];
 
 export function StudioMain({ data, docs, liveSchema, appConfig }: { data: StudioData; docs: string; liveSchema: LiveSchema; appConfig: AppConfigEntry[] }) {
-  const [tab, setTab] = useState<"schema" | "users" | "plans" | "modules" | "panel" | "notes" | "data" | "docs">("panel");
+  const [tab, setTab] = useState<"schema" | "users" | "plans" | "modules" | "panel" | "notes" | "data" | "docs" | "notifications">("panel");
   const [expanded, setExpanded] = useState<string | null>("Transaction");
 
   const tabs = [
-    { key: "panel",   label: "Painel",       icon: <IconAdjustments size={14} /> },
-    { key: "users",   label: "Usuários",     icon: <IconUsers size={14} /> },
-    { key: "plans",   label: "Planos",       icon: <IconPackage size={14} /> },
-    { key: "modules", label: "Módulos",      icon: <IconApps size={14} /> },
-    { key: "notes",   label: "Notas",        icon: <IconPencil size={14} /> },
-    { key: "data",    label: "Dados",        icon: <IconTable size={14} /> },
-    { key: "schema",  label: "Schema",       icon: <IconDatabase size={14} /> },
-    { key: "docs",    label: "Documentação", icon: <IconFileDescription size={14} /> },
+    { key: "panel",         label: "Painel",         icon: <IconAdjustments size={14} /> },
+    { key: "users",         label: "Usuários",       icon: <IconUsers size={14} /> },
+    { key: "plans",         label: "Planos",         icon: <IconPackage size={14} /> },
+    { key: "modules",       label: "Módulos",        icon: <IconApps size={14} /> },
+    { key: "notifications", label: "Notificações",   icon: <IconBell size={14} /> },
+    { key: "notes",         label: "Notas",          icon: <IconPencil size={14} /> },
+    { key: "data",          label: "Dados",          icon: <IconTable size={14} /> },
+    { key: "schema",        label: "Schema",         icon: <IconDatabase size={14} /> },
+    { key: "docs",          label: "Documentação",   icon: <IconFileDescription size={14} /> },
   ] as const;
 
   return (
@@ -171,14 +172,15 @@ export function StudioMain({ data, docs, liveSchema, appConfig }: { data: Studio
 
       {/* Content */}
       <div style={{ padding: tab === "docs" || tab === "notes" ? 0 : 28, maxWidth: tab === "docs" || tab === "schema" || tab === "notes" || tab === "panel" ? "none" : 900 }}>
-        {tab === "schema"  && <SchemaTab expanded={expanded} setExpanded={setExpanded} liveSchema={liveSchema} />}
-        {tab === "users"   && <UsersTab users={data.users} plans={data.plans} />}
-        {tab === "plans"   && <PlansTab plans={data.plans} users={data.users} />}
-        {tab === "modules" && <ModulesTab data={data} appConfig={appConfig} />}
-        {tab === "panel"   && <ControlPanelTab appConfig={appConfig} data={data} />}
-        {tab === "notes"   && <NotesTab appConfig={appConfig} />}
-        {tab === "data"    && <DataTab data={data} />}
-        {tab === "docs"    && <DocsTab content={docs} />}
+        {tab === "schema"        && <SchemaTab expanded={expanded} setExpanded={setExpanded} liveSchema={liveSchema} />}
+        {tab === "users"         && <UsersTab users={data.users} plans={data.plans} />}
+        {tab === "plans"         && <PlansTab plans={data.plans} users={data.users} />}
+        {tab === "modules"       && <ModulesTab data={data} appConfig={appConfig} />}
+        {tab === "panel"         && <ControlPanelTab appConfig={appConfig} data={data} />}
+        {tab === "notifications" && <NotificationsTab users={data.users} plans={data.plans} />}
+        {tab === "notes"         && <NotesTab appConfig={appConfig} />}
+        {tab === "data"          && <DataTab data={data} />}
+        {tab === "docs"          && <DocsTab content={docs} />}
       </div>
     </div>
   );
@@ -2101,6 +2103,180 @@ function DataTab({ data }: { data: StudioData }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/* ── CS-18: Notifications tab ── */
+type UserItem = { id: string; name: string; email: string | null };
+type PlanItemBase = { id: string; name: string; color: string };
+
+function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItemBase[] }) {
+  const [recipientType, setRecipientType] = useState<"all" | "plan" | "user">("all");
+  const [planId, setPlanId] = useState("");
+  const [userId, setUserId] = useState("");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [type, setType] = useState<"info" | "warning" | "danger" | "success">("info");
+  const [link, setLink] = useState("");
+  const [status, setStatus] = useState<null | { ok: true; count: number } | { error: string }>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", height: 38, background: "var(--color-bg3)",
+    border: "1px solid var(--color-border2)", borderRadius: 8,
+    padding: "0 12px", fontSize: 13, color: "var(--color-f1)", outline: "none",
+  };
+  const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--color-f3)", marginBottom: 4, display: "block" };
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus(null);
+    startTransition(async () => {
+      const result = await adminSendNotification({
+        recipientType,
+        planId: recipientType === "plan" ? planId : undefined,
+        userId: recipientType === "user" ? userId : undefined,
+        title, body, type,
+        link: link || undefined,
+      });
+      setStatus(result);
+      if ("ok" in result) {
+        setTitle(""); setBody(""); setLink("");
+      }
+    });
+  }
+
+  const typeColors: Record<string, string> = {
+    info: "var(--color-cyan)",
+    warning: "var(--color-amber)",
+    danger: "var(--color-red)",
+    success: "#A3E635",
+  };
+
+  return (
+    <div style={{ maxWidth: 600 }}>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-f1)", margin: 0 }}>Enviar Notificação</h2>
+        <p style={{ fontSize: 12, color: "var(--color-f4)", marginTop: 4 }}>
+          Mensagem entregue na central de notificações do(s) usuário(s) selecionado(s).
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Destinatários */}
+        <div>
+          <label style={labelStyle}>Destinatários</label>
+          <select value={recipientType} onChange={e => setRecipientType(e.target.value as "all" | "plan" | "user")} style={selectStyle}>
+            <option value="all">Todos os usuários</option>
+            <option value="plan">Por plano</option>
+            <option value="user">Usuário específico</option>
+          </select>
+        </div>
+
+        {recipientType === "plan" && (
+          <div>
+            <label style={labelStyle}>Plano</label>
+            <select value={planId} onChange={e => setPlanId(e.target.value)} style={selectStyle} required>
+              <option value="">Selecione um plano…</option>
+              {plans.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {recipientType === "user" && (
+          <div>
+            <label style={labelStyle}>Usuário</label>
+            <select value={userId} onChange={e => setUserId(e.target.value)} style={selectStyle} required>
+              <option value="">Selecione um usuário…</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name}{u.email ? ` — ${u.email}` : ""}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Tipo */}
+        <div>
+          <label style={labelStyle}>Tipo</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            {(["info", "warning", "danger", "success"] as const).map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                style={{
+                  flex: 1, height: 34, borderRadius: 8, fontSize: 12, fontWeight: 500,
+                  cursor: "pointer", transition: "all 150ms", border: "1px solid",
+                  background: type === t ? `${typeColors[t]}18` : "var(--color-bg3)",
+                  borderColor: type === t ? typeColors[t] : "var(--color-border2)",
+                  color: type === t ? typeColors[t] : "var(--color-f3)",
+                }}
+              >
+                {t === "info" ? "Info" : t === "warning" ? "Aviso" : t === "danger" ? "Urgente" : "Sucesso"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Título */}
+        <div>
+          <label style={labelStyle}>Título</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da notificação" style={inputStyle} required />
+        </div>
+
+        {/* Mensagem */}
+        <div>
+          <label style={labelStyle}>Mensagem</label>
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            placeholder="Texto da notificação…"
+            rows={3}
+            style={{ ...inputStyle, height: "auto", padding: "10px 12px", resize: "vertical" }}
+            required
+          />
+        </div>
+
+        {/* Link (opcional) */}
+        <div>
+          <label style={labelStyle}>Link <span style={{ color: "var(--color-f4)" }}>(opcional)</span></label>
+          <input value={link} onChange={e => setLink(e.target.value)} placeholder="/dashboard" style={inputStyle} />
+        </div>
+
+        {/* Feedback */}
+        {status && (
+          <div style={{
+            padding: "10px 14px", borderRadius: 8, fontSize: 12,
+            background: "ok" in status ? "rgba(163,230,53,0.08)" : "rgba(248,113,113,0.08)",
+            border: `1px solid ${"ok" in status ? "rgba(163,230,53,0.25)" : "rgba(248,113,113,0.25)"}`,
+            color: "ok" in status ? "#A3E635" : "var(--color-red)",
+          }}>
+            {"ok" in status
+              ? `✓ Notificação enviada para ${status.count} usuário${status.count !== 1 ? "s" : ""}.`
+              : `✗ ${status.error}`}
+          </div>
+        )}
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={isPending}
+          style={{
+            height: 40, background: "var(--color-cyan)", color: "#083344",
+            border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            opacity: isPending ? 0.7 : 1,
+          }}
+        >
+          {isPending
+            ? <><IconLoader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> Enviando…</>
+            : <><IconSend size={15} /> Enviar notificação</>}
+        </button>
+      </form>
     </div>
   );
 }
