@@ -92,6 +92,7 @@ Exemplo:
 | `1.7.2` | PATCH | Landing page: versão do footer lida dinamicamente do package.json via prop — zero manutenção manual a cada release. |
 | `1.8.0` | MINOR | Studio Grupo 2: Painel dashboard (6 cards de métricas + toggles de configuração), Módulos com toggle de beta por módulo (AppConfig), Notas com toolbar Markdown + slash commands Notion-like, ERD colapsável por tabela, descrições nas tabelas do schema, seeds Full/Insider derivados de `isBeta`, banner de manutenção global, `lib/config.ts` + modelo `AppConfig` |
 | `1.8.1` | PATCH | CS-15 Consistência visual: login com viewport lock (100vh), identidade rounded unificada (botões CTA → full, inputs → 12px, modais → 24px), sidebar flutuante com glassmorphism + scroll interno, modo colapsado com espaçamento uniforme, padding-top 48px no main para pílula UserMenu não sobrepor conteúdo |
+| `1.9.1` | PATCH | Fix crítico: `lib/db-pills.ts` reescrito com Prisma — workaround better-sqlite3 do v1.5.0 (SQLite) causava `no such table: PillProgress` em produção após migração para PostgreSQL |
 | `1.9.0` | MINOR | CS-18/CS-19 Central de notificações: model Notification, sino com badge no UserMenu, segregação alertas automáticos × notificações do sistema (fingerprint), Studio de envio por plano/usuário com histórico, AlertsView com seções distintas + Limpar tudo, banner de manutenção em pill, notificação de boas-vindas automática, Studio Painel redesenhado (2 colunas, gauges SVG RAM/Heap/CPU, métricas lastSeenAt, versionamento de branch git), correções TypeScript em GoalsView e TagPicker |
 
 ---
@@ -100,7 +101,6 @@ Exemplo:
 
 | Versão | Tipo | Conteúdo previsto |
 |---|---|---|
-| `2.0.0` | MAJOR | Deploy em produção: PostgreSQL, domínio próprio, HTTPS |
 | `2.0.0` | MAJOR | Deploy em produção: PostgreSQL, domínio próprio, HTTPS |
 
 ---
