@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.8.1 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.9.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -672,11 +672,13 @@ Cadastro de bancos, fintechs e corretoras com suas contas vinculadas.
 - **Exclusão em cascade**: ao excluir uma instituição, suas contas são removidas, `institutionId` dos passivos vinculados é limpo e `accountId` das transações vinculadas é limpo
 - **`lib/institutions.ts`**: tipos e constantes (`InstitutionType`, `AccountType`, labels, interfaces) — separados do arquivo `"use server"` por limitação do Turbopack
 
-### 6.17 Alertas (`/alerts`)
+### 6.17 Alertas e Notificações (`/alerts`)
 
-Central de alertas proativos gerados automaticamente com base nos dados do usuário.
+Central unificada com dois tipos distintos de mensagem ao usuário.
 
-Cinco tipos de alerta calculados on-the-fly em `app/actions/alerts.ts`:
+#### Alertas financeiros (automáticos)
+
+Calculados on-the-fly em `app/actions/alerts.ts` — não persistidos no banco, nunca descartáveis pelo usuário:
 
 | Tipo | Severidade | Critério |
 |---|---|---|
@@ -686,12 +688,19 @@ Cinco tipos de alerta calculados on-the-fly em `app/actions/alerts.ts`:
 | Meta | 🔴 danger | GoalPayment não pago com vencimento já vencido |
 | Projeção | ⚠ warning | Algum dos próximos 12 meses com saldo livre negativo |
 | Sazonal | ⚠ warning | Despesa anual com vencimento nos próximos 2 meses |
-| Passivo | 🔴 danger | Passivo ativo do tipo `cheque_especial` ou `rotativo` — exibe taxa a.m. e equivalente anual |
+| Passivo | 🔴 danger | Passivo ativo do tipo `cheque_especial` ou `rotativo` |
 
-- **Agrupamento por severidade**: danger → warning → info
-- **AlertCard**: ícone de severidade, badge de tipo, título, descrição e botão de link para a seção relevante
-- **Chips de resumo**: contagem de alertas por tipo no topo (inclui "Passivos")
-- **Estado vazio**: ícone de sino verde e mensagem "Tudo em ordem!" quando não há alertas
+#### Notificações do sistema (CS-18/CS-19)
+
+Persistidas no model `Notification` com `fingerprint: null`. Enviadas pelo Studio ou automaticamente:
+
+- **Sino no UserMenu**: badge com contagem de não lidas (vermelho), abre dropdown com duas seções
+- **Dropdown**: "Alertas financeiros" (danger primeiro, contagem de outros) + "Notificações" com unread dot / botão de delete
+- **Dedup automático**: alertas convertidos em notificação usam `fingerprint` (nunca `null`) — a query `getNotifications()` filtra `fingerprint: null` para mostrar só notificações do sistema
+- **TTL 7d**: alertas convertidos em notificação expiram via `expiresAt`
+- **Boas-vindas automática**: `adminCreateUser` cria notificação de boas-vindas com `fingerprint: null`
+- **deleteNotification**: guard `fingerprint: null` impede exclusão de alertas automáticos
+- **Seção Notificações na AlertsView**: "Marcar todas como lidas" + "Limpar tudo"
 
 ### 6.14 Reembolsos (`/reimbursements`)
 
@@ -1421,6 +1430,7 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **Fase F** | ✅ v1.4.0 | Correções críticas (análise de consultor financeiro): (1) `reserveBalance` adicionado ao modelo `Settings` — usuário declara o saldo real do fundo de reserva via editor inline no card de Saúde Financeira; fallback automático para proxy (`debit_longterm`) se o campo não foi preenchido; (2) Alerta proativo de passivo crítico — `cheque_especial` e `rotativo` ativos geram alerta `danger` com taxa a.m. + equivalente a.a. calculado; novo tipo `"liability"` em `AlertsView`. Correções TypeScript pré-existentes: `reimbursedAt` adicionado à interface `Transaction`, `AnyTransaction` corrigido em `MonthlyCalendar`, `useState<string>` em `TagPicker` e `TagsManager`. |
 | **Fase G** | ✅ v1.5.0 | Educação financeira (`/education`): 85 pílulas pedagógicas organizadas em 5 perfis de saúde financeira (`critical`, `serious`, `unstable`, `stable`, `healthy`), leitura com timer silencioso, quiz de fixação com feedback visual, streak semanal de 12 semanas, progresso persistido em `PillProgress` via `better-sqlite3` direto (contorno para cache persistente do Turbopack). |
 | **Studio G2** | ✅ v1.8.0 | Studio Grupo 2: Aba Painel com dashboard de métricas (6 cards: usuários, registros, espaço em disco, planos, versões dev/prod) + toggles de configuração global (modo manutenção + texto do banner). Aba Módulos com toggle de beta por módulo em tempo real via `AppConfig`. Aba Notas com editor Markdown, toolbar completa e slash commands Notion-like. ERD colapsável por tabela com descrições. Seeds Full/Insider derivados automaticamente de `isBeta` em `lib/modules.ts`. Modelo `AppConfig` no banco. `lib/config.ts` para leitura sem auth. |
+| **CS-18/CS-19** | ✅ v1.9.0 | Central de notificações: model `Notification` com `fingerprint`/`broadcastId`/`expiresAt`, segregação alertas automáticos × notificações do sistema. Sino no UserMenu com badge, dropdown com duas seções (Alertas financeiros + Notificações). Studio: aba Notificações para envio por plano/usuário com histórico de broadcasts. AlertsView: seções separadas, Limpar tudo, Marcar todas como lidas. Banner de manutenção em pill. Notificação de boas-vindas automática. Studio Painel redesenhado: layout 2 colunas (Sistema/Servidor), gauges SVG para RAM/Heap/CPU, métricas `lastSeenAt` (online agora / ativos hoje), versionamento de branch git. `User.lastSeenAt` atualizado a cada navegação. Fix type guards em GoalsView e TagPicker. |
 
 ### Próximas evoluções sugeridas
 

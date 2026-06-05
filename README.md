@@ -7,7 +7,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-local-003B57?style=flat-square&logo=sqlite)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
-![Version](https://img.shields.io/badge/version-1.8.1-22D3EE?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.9.0-22D3EE?style=flat-square)
 
 ---
 
@@ -29,7 +29,7 @@ O Lyfx aplica o conceito do **DRE (Demonstrativo de Resultado do Exercício)** �
 | **Passivos** | Dívidas com plano de quitação pelo método avalanche |
 | **Instituições** | Bancos e fintechs com contas e saldos vinculados |
 | **Bens e Imóveis** | Imóveis, veículos e outros bens com impostos e despesas associadas |
-| **Alertas** | Central proativa de alertas: orçamento, metas, projeções e sazonais |
+| **Alertas e Notificações** | Alertas financeiros automáticos + notificações do sistema com sino, badge e central de leitura |
 | **Saúde Financeira** | Score 0–100 em 4 dimensões com perfil evolutivo |
 | **Relatórios** | DRE detalhado por período com percentuais sobre a receita |
 | **Reembolsos** | Rastreamento de despesas reembolsáveis e seu recebimento |
@@ -72,4 +72,4 @@ Para detalhes completos sobre arquitetura, schema do banco, relacionamentos, cat
 
 ---
 
-*v1.8.1 · Junho 2026 · Projeto pessoal em desenvolvimento ativo.*
+*v1.9.0 · Junho 2026 · Projeto pessoal em desenvolvimento ativo.*

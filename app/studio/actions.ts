@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { readFile, stat } from "fs/promises";
+import { execSync } from "child_process";
 import path from "path";
+import os from "os";
 import { db } from "@/lib/db";
 import { ALL_MODULES } from "@/lib/modules";
 
@@ -98,7 +100,7 @@ export async function adminCreateUser(data: { name: string; email: string; passw
   // Assign default plan automatically
   const defaultPlan = await db.plan.findFirst({ where: { isDefault: true } });
 
-  await db.user.create({
+  const newUser = await db.user.create({
     data: {
       name: data.name.trim(),
       email: data.email.trim().toLowerCase(),
@@ -106,6 +108,19 @@ export async function adminCreateUser(data: { name: string; email: string; passw
       ...(defaultPlan ? { planId: defaultPlan.id } : {}),
     },
   });
+
+  // Notificação de boas-vindas padrão para todo novo usuário
+  await db.notification.create({
+    data: {
+      userId: newUser.id,
+      title: "Bem-vindo ao Lyfx!",
+      body: `Olá, ${newUser.name}! Seu ambiente está pronto. Explore os módulos de orçamento, metas e saúde financeira para começar a organizar sua vida financeira.`,
+      type: "success",
+      link: "/dashboard",
+      fingerprint: null,
+    },
+  });
+
   revalidatePath("/studio");
   return { ok: true };
 }
@@ -175,11 +190,26 @@ export async function getStudioData() {
     prodVersion = pkg.version ?? "—";
   } catch { /* ignore */ }
 
+  // Read git branch + short commit hash for each worktree
+  const devCwd  = process.cwd();
+  const prodCwd = path.join(process.cwd(), "..", "lyfx-production");
+  let devBranch = "—", devCommit = "—";
+  let prodBranch = "—", prodCommit = "—";
+  try {
+    devBranch  = execSync("git rev-parse --abbrev-ref HEAD", { cwd: devCwd,  encoding: "utf-8" }).trim();
+    devCommit  = execSync("git rev-parse --short HEAD",      { cwd: devCwd,  encoding: "utf-8" }).trim();
+  } catch { /* ignore */ }
+  try {
+    prodBranch = execSync("git rev-parse --abbrev-ref HEAD", { cwd: prodCwd, encoding: "utf-8" }).trim();
+    prodCommit = execSync("git rev-parse --short HEAD",      { cwd: prodCwd, encoding: "utf-8" }).trim();
+  } catch { /* ignore */ }
+
   return {
     users, plans: planList,
     txCount, tagCount, budgetCount, goalCount, recentTx,
     userCount: users.length, totalRecords, dbSizeBytes,
     appVersion, prodVersion,
+    devBranch, devCommit, prodBranch, prodCommit,
   };
 }
 
@@ -330,4 +360,435 @@ export async function saveAdminNotes(content: string): Promise<{ ok: boolean }> 
     create: { key: "adminNotes", value: content },
   });
   return { ok: true };
+}
+
+// ── CS-18: Envio de notificações via Studio ───────────────────────────────────
+
+// ── CS-18: Notificações manuais via Studio ───────────────────────────────────
+
+export interface AdminSendNotificationInput {
+  recipientType: "all" | "plan" | "user";
+  planId?: string;
+  userId?: string;
+  title: string;
+  body: string;
+  type: "info" | "warning" | "danger" | "success";
+  link?: string;
+}
+
+export interface NotifBroadcast {
+  broadcastId: string | null;
+  sampleId: string;
+  title: string;
+  body: string;
+  type: "info" | "warning" | "danger" | "success";
+  link: string | null;
+  createdAt: Date;
+  totalCount: number;
+  readCount: number;
+}
+
+export async function adminSendNotification(
+  input: AdminSendNotificationInput
+): Promise<{ ok: true; count: number } | { error: string }> {
+  await requireAdmin();
+
+  if (!input.title.trim()) return { error: "Título obrigatório." };
+  if (!input.body.trim())  return { error: "Mensagem obrigatória." };
+
+  let userIds: string[] = [];
+
+  if (input.recipientType === "all") {
+    const users = await db.user.findMany({ select: { id: true } });
+    userIds = users.map((u) => u.id);
+  } else if (input.recipientType === "plan") {
+    if (!input.planId) return { error: "Plano não selecionado." };
+    const users = await db.user.findMany({ where: { planId: input.planId }, select: { id: true } });
+    userIds = users.map((u) => u.id);
+  } else if (input.recipientType === "user") {
+    if (!input.userId) return { error: "Usuário não selecionado." };
+    userIds = [input.userId];
+  }
+
+  if (userIds.length === 0) return { error: "Nenhum destinatário encontrado." };
+
+  const broadcastId = crypto.randomUUID();
+
+  await db.notification.createMany({
+    data: userIds.map((uid) => ({
+      userId: uid,
+      title: input.title.trim(),
+      body: input.body.trim(),
+      type: input.type,
+      link: input.link?.trim() || null,
+      broadcastId,
+    })),
+  });
+
+  revalidatePath("/", "layout");
+  return { ok: true, count: userIds.length };
+}
+
+/** Lista notificações manuais agrupadas por broadcastId para o painel do Studio. */
+export async function adminGetManualNotifications(): Promise<NotifBroadcast[]> {
+  await requireAdmin();
+
+  // Busca todas as notificações sem fingerprint (= manuais)
+  const rows = await db.notification.findMany({
+    where: { fingerprint: null },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, broadcastId: true, title: true, body: true, type: true, link: true, createdAt: true, readAt: true },
+  });
+
+  // Agrupa por broadcastId (null = legado sem broadcastId, cada um é seu próprio grupo)
+  const groups = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const key = row.broadcastId ?? `__solo__${row.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(row);
+  }
+
+  return Array.from(groups.entries()).map(([, items]) => {
+    const first = items[0];
+    return {
+      broadcastId: first.broadcastId,
+      sampleId: first.id,
+      title: first.title,
+      body: first.body,
+      type: first.type as NotifBroadcast["type"],
+      link: first.link,
+      createdAt: first.createdAt,
+      totalCount: items.length,
+      readCount: items.filter((n) => n.readAt !== null).length,
+    };
+  });
+}
+
+export async function adminDeleteNotification(
+  broadcastId: string | null,
+  sampleId: string
+): Promise<{ ok: true }> {
+  await requireAdmin();
+
+  if (broadcastId) {
+    await db.notification.deleteMany({ where: { broadcastId } });
+  } else {
+    await db.notification.delete({ where: { id: sampleId } });
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function adminUpdateNotification(
+  broadcastId: string | null,
+  sampleId: string,
+  data: { title: string; body: string; type: string; link: string | null }
+): Promise<{ ok: true } | { error: string }> {
+  await requireAdmin();
+
+  if (!data.title.trim()) return { error: "Título obrigatório." };
+  if (!data.body.trim())  return { error: "Mensagem obrigatória." };
+
+  const update = {
+    title: data.title.trim(),
+    body: data.body.trim(),
+    type: data.type,
+    link: data.link?.trim() || null,
+  };
+
+  if (broadcastId) {
+    await db.notification.updateMany({ where: { broadcastId }, data: update });
+  } else {
+    await db.notification.update({ where: { id: sampleId }, data: update });
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+// ── Métricas do servidor ──────────────────────────────────────────────────────
+
+export interface ServerMetrics {
+  // Memória do sistema
+  memUsedBytes:  number;
+  memTotalBytes: number;
+  // Heap do processo Node.js
+  heapUsedBytes:  number;
+  heapTotalBytes: number;
+  // CPU
+  loadAvg1m:  number;
+  loadAvg5m:  number;
+  cpuCount:   number;
+  // Processo
+  uptimeSeconds: number;
+  // Usuários online (lastSeenAt nos últimos 5 minutos)
+  onlineNow:   number;
+  // Usuários ativos hoje
+  activeToday: number;
+}
+
+export async function getServerMetrics(): Promise<ServerMetrics> {
+  await requireAdmin();
+
+  const mem  = process.memoryUsage();
+  const load = os.loadavg();
+  const now  = new Date();
+  const fiveMinAgo  = new Date(now.getTime() -      5 * 60 * 1000);
+  const startOfDay  = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const [onlineNow, activeToday] = await Promise.all([
+    db.user.count({ where: { lastSeenAt: { gte: fiveMinAgo } } }),
+    db.user.count({ where: { lastSeenAt: { gte: startOfDay } } }),
+  ]);
+
+  return {
+    memUsedBytes:   os.totalmem() - os.freemem(),
+    memTotalBytes:  os.totalmem(),
+    heapUsedBytes:  mem.heapUsed,
+    heapTotalBytes: mem.heapTotal,
+    loadAvg1m:  load[0],
+    loadAvg5m:  load[1],
+    cpuCount:   os.cpus().length,
+    uptimeSeconds: process.uptime(),
+    onlineNow,
+    activeToday,
+  };
+}
+
+// ── CS-18: Log de eventos para a aba Dados do Studio ─────────────────────────
+
+export interface AuditEvent {
+  id: string;
+  eventType: "transaction" | "education" | "goal" | "notification" | "system";
+  title: string;
+  detail: string;
+  actorType: "user" | "system";
+  userId: string | null;
+  userName: string | null;
+  userPlanId: string | null;
+  timestamp: Date;
+}
+
+export async function adminGetEventLog(filters?: {
+  eventType?: string;
+  planId?: string;
+  userId?: string;
+  limit?: number;
+}): Promise<AuditEvent[]> {
+  await requireAdmin();
+
+  const limit = filters?.limit ?? 100;
+  const et = filters?.eventType;
+
+  // Resolve target userIds from plan/user filters
+  let targetUserIds: string[] | null = null; // null = all users
+  if (filters?.userId) {
+    targetUserIds = [filters.userId];
+  } else if (filters?.planId) {
+    const users = await db.user.findMany({
+      where: { planId: filters.planId },
+      select: { id: true },
+    });
+    targetUserIds = users.map((u) => u.id);
+  }
+
+  // Build user name/plan lookup map
+  const allUsers = await db.user.findMany({
+    select: { id: true, name: true, planId: true },
+  });
+  const userMap = new Map(allUsers.map((u) => [u.id, u]));
+
+  const events: AuditEvent[] = [];
+
+  function include(type: string) { return !et || et === type; }
+  function userWhere() {
+    return targetUserIds ? { userId: { in: targetUserIds } } : {};
+  }
+
+  // ── Transactions ──────────────────────────────────────────────────────────
+  if (include("transaction")) {
+    const txs = await db.transaction.findMany({
+      where: { ...userWhere() },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: {
+        id: true, description: true, amount: true, type: true,
+        category: true, userId: true, createdAt: true,
+      },
+    });
+    for (const tx of txs) {
+      const u = userMap.get(tx.userId);
+      events.push({
+        id: `tx-${tx.id}`,
+        eventType: "transaction",
+        title: tx.description,
+        detail: `${tx.type === "credit" ? "+" : "-"}R$ ${tx.amount.toFixed(2)} · ${tx.category}`,
+        actorType: "user",
+        userId: tx.userId,
+        userName: u?.name ?? null,
+        userPlanId: u?.planId ?? null,
+        timestamp: tx.createdAt,
+      });
+    }
+  }
+
+  // ── Education (PillProgress) ──────────────────────────────────────────────
+  if (include("education")) {
+    const pills = await db.pillProgress.findMany({
+      where: { ...userWhere() },
+      orderBy: { completedAt: "desc" },
+      take: limit,
+      select: {
+        id: true, pillId: true, userId: true,
+        completedAt: true, timeSpentSeconds: true, quizCorrect: true,
+      },
+    });
+    for (const p of pills) {
+      const u = userMap.get(p.userId);
+      const dur = p.timeSpentSeconds < 60
+        ? `${p.timeSpentSeconds}s`
+        : `${Math.floor(p.timeSpentSeconds / 60)}min`;
+      events.push({
+        id: `edu-${p.id}`,
+        eventType: "education",
+        title: `Módulo educacional concluído`,
+        detail: `${p.pillId} · ${dur}${p.quizCorrect ? " · quiz ✓" : ""}`,
+        actorType: "user",
+        userId: p.userId,
+        userName: u?.name ?? null,
+        userPlanId: u?.planId ?? null,
+        timestamp: p.completedAt,
+      });
+    }
+  }
+
+  // ── Goal payments ─────────────────────────────────────────────────────────
+  if (include("goal")) {
+    const goalWhere = targetUserIds ? { userId: { in: targetUserIds } } : {};
+    const goals = await db.goal.findMany({
+      where: goalWhere,
+      select: { id: true, name: true, userId: true },
+    });
+    if (goals.length > 0) {
+      const goalMap = new Map(goals.map((g) => [g.id, g]));
+      const payments = await db.goalPayment.findMany({
+        where: { paid: true, goalId: { in: goals.map((g) => g.id) } },
+        orderBy: { paidAt: "desc" },
+        take: limit,
+        select: { id: true, goalId: true, amount: true, paidAt: true },
+      });
+      for (const p of payments) {
+        const goal = goalMap.get(p.goalId);
+        const u = goal ? userMap.get(goal.userId) : null;
+        events.push({
+          id: `goal-${p.id}`,
+          eventType: "goal",
+          title: `Pagamento de meta registrado`,
+          detail: `${goal?.name ?? "—"} · R$ ${p.amount.toFixed(2)}`,
+          actorType: "user",
+          userId: goal?.userId ?? null,
+          userName: u?.name ?? null,
+          userPlanId: u?.planId ?? null,
+          timestamp: p.paidAt ?? new Date(0),
+        });
+      }
+    }
+  }
+
+  // ── Auto-generated alerts (fingerprint not null) ──────────────────────────
+  if (include("notification")) {
+    const notifs = await db.notification.findMany({
+      where: { fingerprint: { not: null }, ...userWhere() },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true, title: true, body: true, type: true, userId: true, createdAt: true },
+    });
+    for (const n of notifs) {
+      const u = userMap.get(n.userId);
+      events.push({
+        id: `notif-${n.id}`,
+        eventType: "notification",
+        title: `Alerta automático: ${n.title}`,
+        detail: n.body.length > 90 ? n.body.slice(0, 90) + "…" : n.body,
+        actorType: "system",
+        userId: n.userId,
+        userName: u?.name ?? null,
+        userPlanId: u?.planId ?? null,
+        timestamp: n.createdAt,
+      });
+    }
+  }
+
+  // ── System events (Studio-level — only when no user/plan filter) ──────────
+  if (include("system") && targetUserIds === null) {
+    // User registrations
+    const registrations = await db.user.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: { id: true, name: true, planId: true, createdAt: true },
+    });
+    for (const u of registrations) {
+      events.push({
+        id: `reg-${u.id}`,
+        eventType: "system",
+        title: `Novo usuário registrado`,
+        detail: u.name,
+        actorType: "system",
+        userId: u.id,
+        userName: u.name,
+        userPlanId: u.planId ?? null,
+        timestamp: u.createdAt,
+      });
+    }
+
+    // Studio broadcasts (deduplicated by broadcastId)
+    const broadcasts = await db.notification.findMany({
+      where: { broadcastId: { not: null }, fingerprint: null },
+      orderBy: { createdAt: "asc" }, // asc so first row = earliest (= creation time)
+      take: 500,
+      select: { broadcastId: true, title: true, body: true, createdAt: true },
+    });
+    const seenBroadcast = new Set<string>();
+    for (const b of broadcasts) {
+      if (!b.broadcastId || seenBroadcast.has(b.broadcastId)) continue;
+      seenBroadcast.add(b.broadcastId);
+      events.push({
+        id: `broadcast-${b.broadcastId}`,
+        eventType: "system",
+        title: `Broadcast enviado: ${b.title}`,
+        detail: b.body.length > 90 ? b.body.slice(0, 90) + "…" : b.body,
+        actorType: "system",
+        userId: null,
+        userName: null,
+        userPlanId: null,
+        timestamp: b.createdAt,
+      });
+    }
+
+    // AppConfig writes (excluding adminNotes — too noisy)
+    const configs = await db.appConfig.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+      select: { key: true, value: true, updatedAt: true },
+    });
+    for (const c of configs) {
+      if (c.key === "adminNotes") continue;
+      events.push({
+        id: `config-${c.key}`,
+        eventType: "system",
+        title: `Configuração alterada`,
+        detail: `${c.key}: ${c.value.length > 60 ? c.value.slice(0, 60) + "…" : c.value}`,
+        actorType: "system",
+        userId: null,
+        userName: null,
+        userPlanId: null,
+        timestamp: c.updatedAt,
+      });
+    }
+  }
+
+  // Sort by timestamp desc and enforce limit
+  events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  return events.slice(0, limit);
 }
