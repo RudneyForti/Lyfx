@@ -989,7 +989,11 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
     `Notas apresentadas: ${fmt(totalFuelAmount)} (mín. ${fmt(minRequired)} ${fuelOk ? "✓" : "✗"})`,
   ];
 
-  const summaryText = [...routeLines, ...calcLines].join("\n");
+  const notesLines = period.notes
+    ? [period.notes, "─────────────────────────────", ""]
+    : [];
+
+  const summaryText = [...notesLines, ...routeLines, ...calcLines].join("\n");
 
   function handleCopy() {
     navigator.clipboard.writeText(summaryText).then(() => {
