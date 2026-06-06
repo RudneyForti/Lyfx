@@ -157,7 +157,7 @@ function PlaceFormFields({
           <div className="text-[9px] font-medium text-[var(--color-cyan)]">
             Ida: {form.originAddress} → {form.destinationAddress}
           </div>
-          <div className="h-[220px] rounded-[10px] overflow-hidden">
+          <div className="h-[340px] rounded-[10px] overflow-hidden">
             <RouteMap
               origin={form.originAddress}
               destination={form.destinationAddress}
@@ -172,7 +172,7 @@ function PlaceFormFields({
           <div className="text-[9px] font-medium text-[var(--color-cyan)]">
             Volta: {form.destinationAddress} → {form.originAddress}
           </div>
-          <div className="h-[220px] rounded-[10px] overflow-hidden">
+          <div className="h-[340px] rounded-[10px] overflow-hidden">
             <RouteMap
               origin={form.destinationAddress}
               destination={form.originAddress}

@@ -366,7 +366,7 @@ function RouteForm({ periodId, route, places, onDone }: {
               </button>
             )}
             {showMap && (
-              <div className="h-[220px] rounded-[12px] overflow-hidden">
+              <div className="h-[340px] rounded-[12px] overflow-hidden">
                 <RouteMap origin={form.origin} destination={form.destination}
                   onKmChange={km => setForm(f => ({ ...f, km: String(km) }))} />
               </div>
