@@ -238,26 +238,67 @@ function MapWithDirections({
     setRouteKm(null);
   }, [origin, destination]);
 
+  // Extrai o encoded polyline do resultado — tenta overview_polyline primeiro,
+  // depois codifica overview_path (array de LatLng) como fallback.
+  const extractEncodedPolyline = useCallback((result: google.maps.DirectionsResult): string | null => {
+    const route = result.routes?.[0];
+    if (!route) return null;
+    const raw = route.overview_polyline as unknown;
+    if (typeof raw === "string" && raw) return raw;
+    if (raw && typeof (raw as { points?: string }).points === "string") {
+      return (raw as { points: string }).points;
+    }
+    // Fallback: codifica overview_path com o SDK do Maps
+    if (route.overview_path?.length) {
+      try {
+        return google.maps.geometry.encoding.encodePath(route.overview_path);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, []);
+
   const updateRouteInfo = useCallback((result: google.maps.DirectionsResult) => {
-    if (onDirectionsChange) onDirectionsChange(result);
+    // Garante que o resultado passado ao form sempre tem overview_polyline como string
+    const encoded = extractEncodedPolyline(result);
+    const enriched = encoded
+      ? {
+          ...result,
+          routes: result.routes.map((r, i) =>
+            i === 0 ? { ...r, overview_polyline: encoded } : r
+          ),
+        } as google.maps.DirectionsResult
+      : result;
+    if (onDirectionsChange) onDirectionsChange(enriched);
     const leg = result.routes[0]?.legs[0];
     if (leg?.distance?.value) {
       const km = Math.round((leg.distance.value / 1000) * 10) / 10;
       setRouteKm(km);
       if (onKmChange) onKmChange(km);
     }
-  }, [onKmChange, onDirectionsChange]);
+  }, [onKmChange, onDirectionsChange, extractEncodedPolyline]);
 
   const handleDirections = useCallback((
     result: google.maps.DirectionsResult | null,
     status: google.maps.DirectionsStatus,
   ) => {
     if (status === "OK" && result) {
+      // Enriquece o resultado com o polyline codificado antes de armazenar no estado
+      const encoded = extractEncodedPolyline(result);
+      const enriched = encoded
+        ? {
+            ...result,
+            routes: result.routes.map((r, i) =>
+              i === 0 ? { ...r, overview_polyline: encoded } : r
+            ),
+          } as google.maps.DirectionsResult
+        : result;
       skipNextChange.current = true;
-      setDirections(result);
-      updateRouteInfo(result);
+      setDirections(enriched);
+      updateRouteInfo(enriched);
     }
-  }, [updateRouteInfo]);
+  }, [updateRouteInfo, extractEncodedPolyline]);
 
   if (!isLoaded) {
     return (

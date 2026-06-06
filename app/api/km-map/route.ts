@@ -17,14 +17,32 @@ export async function GET(req: NextRequest) {
   const w    = sp.get("w") ?? "560";
   const h    = sp.get("h") ?? "180";
 
+  // Se não veio polyline mas temos origin+destination, busca traçado real via Directions API
+  let resolvedPoly = poly;
+  if (!resolvedPoly && orig && dest) {
+    try {
+      const dirParams = new URLSearchParams({ origin: orig, destination: dest, key: apiKey });
+      const dirRes = await fetch(
+        `https://maps.googleapis.com/maps/api/directions/json?${dirParams.toString()}`
+      );
+      if (dirRes.ok) {
+        const dirData = await dirRes.json();
+        resolvedPoly = (dirData as { routes?: { overview_polyline?: { points?: string } }[] })
+          ?.routes?.[0]?.overview_polyline?.points ?? null;
+      }
+    } catch {
+      // fallback silencioso — exibe só os marcadores A e B
+    }
+  }
+
   const params = new URLSearchParams();
   params.set("size", `${w}x${h}`);
   params.set("scale", "2");
   params.set("maptype", "roadmap");
   params.set("key", apiKey);
 
-  if (poly) {
-    params.append("path", `color:0x4DB6E4ff|weight:4|enc:${poly}`);
+  if (resolvedPoly) {
+    params.append("path", `color:0x4DB6E4ff|weight:4|enc:${resolvedPoly}`);
   }
   if (orig) params.append("markers", `color:0xFF4136ff|label:A|${orig}`);
   if (dest) params.append("markers", `color:0x2ECC40ff|label:B|${dest}`);
