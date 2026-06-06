@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { IconMapPin, IconX } from "@tabler/icons-react";
 import { GOOGLE_MAPS_LIBRARIES } from "./AddressAutocomplete";
 
@@ -11,7 +11,7 @@ interface RouteMapProps {
   destination: string;
   onKmChange?: (km: number) => void;
   onClose?: () => void;
-  /** Persisted DirectionsResult from previous open — skips DirectionsService if provided */
+  /** Persisted DirectionsResult from previous save — used to extract via_waypoints for route reconstruction */
   initialDirections?: google.maps.DirectionsResult | null;
   /** Called whenever directions are loaded or changed (initial + drag) */
   onDirectionsChange?: (d: google.maps.DirectionsResult) => void;
@@ -53,10 +53,13 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
 
   const { isLoaded } = useLoadScript({ googleMapsApiKey: API_KEY!, libraries: GOOGLE_MAPS_LIBRARIES });
 
-  // Initialise from persisted directions so the dragged route survives close/reopen
-  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(
-    initialDirections ?? null
-  );
+  // Start empty — always reconstruct via DirectionsService so the renderer
+  // receives proper google.maps.LatLng objects (plain JSON from DB is not
+  // sufficient for the renderer to display a custom dragged route correctly).
+  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+
+  // Pre-populate km/duration from saved data so the overlay shows immediately
+  // while the DirectionsService call is in-flight.
   const [routeKm, setRouteKm] = useState<number | null>(() => {
     const leg = initialDirections?.routes[0]?.legs[0];
     return leg?.distance?.value
@@ -66,12 +69,35 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
   const [routeDuration, setRouteDuration] = useState<string | null>(
     initialDirections?.routes[0]?.legs[0]?.duration?.text ?? null
   );
-  // Skip DirectionsService if we already have a saved result
-  const requested = useRef(!!initialDirections);
+
+  // Controls whether DirectionsService is mounted in JSX
+  const requested = useRef(false);
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
 
+  // When handleDirections sets `directions` state, the renderer fires
+  // onDirectionsChanged immediately (prop change). We skip that one call
+  // because updateRouteInfo was already invoked inside handleDirections.
+  // Subsequent calls are real user-drag events and must pass through.
+  const skipNextChange = useRef(false);
+
+  // Extract via_waypoints from the saved route so DirectionsService can
+  // reconstruct the exact custom path the user previously dragged.
+  const savedWaypoints = useMemo(() => {
+    if (!initialDirections) return undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const viaPoints: Array<{ lat: number | (() => number); lng: number | (() => number) }> =
+      (initialDirections as unknown as { routes: { legs: { via_waypoints: Array<{ lat: number | (() => number); lng: number | (() => number) }> }[] }[] }).routes?.[0]?.legs?.[0]?.via_waypoints ?? [];
+    if (!viaPoints.length) return undefined;
+    return viaPoints.map(wp => {
+      const lat = typeof wp.lat === "function" ? (wp.lat as () => number)() : wp.lat as number;
+      const lng = typeof wp.lng === "function" ? (wp.lng as () => number)() : wp.lng as number;
+      return { location: { lat, lng }, stopover: false };
+    });
+  // initialDirections is stable on initial mount; useMemo is correct here
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDirections]);
+
   // Reset route whenever addresses change — but NOT on initial mount
-  // (would wipe out initialDirections before the renderer has a chance to display it)
   const mounted = useRef(false);
   useEffect(() => {
     if (!mounted.current) {
@@ -79,12 +105,13 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
       return;
     }
     requested.current = false;
+    skipNextChange.current = false;
     setDirections(null);
     setRouteKm(null);
     setRouteDuration(null);
   }, [origin, destination]);
 
-  // Update km/duration display + persist — used by both initial load and drag
+  // Update km/duration display + persist — used by DirectionsService callback and drag
   const updateRouteInfo = useCallback((result: google.maps.DirectionsResult) => {
     if (onDirectionsChange) onDirectionsChange(result);
     const leg = result.routes[0]?.legs[0];
@@ -96,10 +123,12 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
     if (leg?.duration?.text) setRouteDuration(leg.duration.text);
   }, [onKmChange, onDirectionsChange]);
 
-  // Initial DirectionsService response — sets directions state (mounts the renderer)
+  // DirectionsService callback — sets directions state (mounts the renderer)
   const handleDirections = useCallback((result: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
     if (status === "OK" && result) {
-      setDirections(result);   // ← only here; never inside onDirectionsChanged
+      // Flag that the next onDirectionsChanged is from the prop-change, not a drag
+      skipNextChange.current = true;
+      setDirections(result);
       updateRouteInfo(result);
     }
   }, [updateRouteInfo]);
@@ -125,7 +154,12 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
       >
         {origin && destination && !requested.current && (
           <DirectionsService
-            options={{ destination, origin, travelMode: "DRIVING" }}
+            options={{
+              destination,
+              origin,
+              travelMode: "DRIVING",
+              ...(savedWaypoints ? { waypoints: savedWaypoints, optimizeWaypoints: false } : {}),
+            }}
             callback={(r: google.maps.DirectionsResult | null, s: google.maps.DirectionsStatus) => {
               requested.current = true;
               handleDirections(r, s);
@@ -138,11 +172,13 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
             options={{ draggable: true }}
             onLoad={(renderer: google.maps.DirectionsRenderer) => { rendererRef.current = renderer; }}
             onDirectionsChanged={() => {
-              // IMPORTANT: do NOT call setDirections here.
-              // DirectionsRenderer fires onDirectionsChanged whenever its `directions`
-              // prop changes — calling setDirections would create an infinite loop.
-              // The renderer manages the visual route internally; we only read the
-              // updated result to refresh km/duration and persist for remount.
+              // Skip the first event — it fires when the `directions` prop changes
+              // (set by handleDirections). updateRouteInfo already ran there.
+              // All subsequent events are real user-drag interactions.
+              if (skipNextChange.current) {
+                skipNextChange.current = false;
+                return;
+              }
               const updated = rendererRef.current?.getDirections();
               if (updated) updateRouteInfo(updated);
             }}
