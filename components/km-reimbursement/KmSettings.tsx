@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { saveKmConfig, createKmPlace, deleteKmPlace } from "@/app/actions/km-reimbursement";
 import type { KmConfigData, KmPlaceData } from "@/app/actions/km-reimbursement";
-import { IconArrowLeft, IconCheck, IconSettings, IconMapPin, IconTrash, IconPlus, IconCar } from "@tabler/icons-react";
+import { RouteMap } from "./RouteMap";
+import { IconArrowLeft, IconCheck, IconSettings, IconMapPin, IconTrash, IconPlus, IconCar, IconMap } from "@tabler/icons-react";
 
 function inputCls(extra = "") {
   return `w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[9px] text-[13px] text-[var(--color-f1)] outline-none h-[38px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)] ${extra}`;
@@ -28,6 +29,7 @@ function Label({ children, hint }: { children: React.ReactNode; hint?: string })
 function PlacesSection({ places }: { places: KmPlaceData[] }) {
   const [isPending, start] = useTransition();
   const [adding, setAdding] = useState(false);
+  const [mapDir, setMapDir] = useState<"going" | "return" | null>(null);
   const [form, setForm] = useState({
     name: "",
     originAddress: "",
@@ -51,9 +53,12 @@ function PlacesSection({ places }: { places: KmPlaceData[] }) {
         kmReturn: parseFloat(form.kmReturn) || 0,
       });
       setForm({ name: "", originAddress: "", destinationAddress: "", kmGoing: "", kmReturn: "" });
+      setMapDir(null);
       setAdding(false);
     });
   }
+
+  const canShowMap = form.originAddress.trim().length > 0 && form.destinationAddress.trim().length > 0;
 
   function handleDelete(id: string) {
     if (!confirm("Excluir lugar?")) return;
@@ -118,7 +123,20 @@ function PlacesSection({ places }: { places: KmPlaceData[] }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-medium text-[var(--color-f3)]">KM ida</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-medium text-[var(--color-f3)]">KM ida</label>
+                {canShowMap && (
+                  <button
+                    type="button"
+                    onClick={() => setMapDir(d => d === "going" ? null : "going")}
+                    className="flex items-center gap-1 text-[9px] font-medium cursor-pointer bg-transparent border-0 p-0 transition-colors"
+                    style={{ color: mapDir === "going" ? "var(--color-cyan)" : "var(--color-f4)" }}
+                  >
+                    <IconMap size={10} />
+                    {mapDir === "going" ? "fechar" : "ver mapa"}
+                  </button>
+                )}
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -130,7 +148,20 @@ function PlacesSection({ places }: { places: KmPlaceData[] }) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-medium text-[var(--color-f3)]">KM volta</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-medium text-[var(--color-f3)]">KM volta</label>
+                {canShowMap && (
+                  <button
+                    type="button"
+                    onClick={() => setMapDir(d => d === "return" ? null : "return")}
+                    className="flex items-center gap-1 text-[9px] font-medium cursor-pointer bg-transparent border-0 p-0 transition-colors"
+                    style={{ color: mapDir === "return" ? "var(--color-cyan)" : "var(--color-f4)" }}
+                  >
+                    <IconMap size={10} />
+                    {mapDir === "return" ? "fechar" : "ver mapa"}
+                  </button>
+                )}
+              </div>
               <input
                 type="number"
                 step="0.1"
@@ -142,6 +173,36 @@ function PlacesSection({ places }: { places: KmPlaceData[] }) {
               />
             </div>
           </div>
+
+          {/* Map panel */}
+          {mapDir === "going" && canShowMap && (
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[9px] font-medium text-[var(--color-cyan)]">
+                Ida: {form.originAddress} → {form.destinationAddress}
+              </div>
+              <div className="h-[200px] rounded-[10px] overflow-hidden">
+                <RouteMap
+                  origin={form.originAddress}
+                  destination={form.destinationAddress}
+                  onKmChange={km => setForm(f => ({ ...f, kmGoing: String(km) }))}
+                />
+              </div>
+            </div>
+          )}
+          {mapDir === "return" && canShowMap && (
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[9px] font-medium text-[var(--color-cyan)]">
+                Volta: {form.destinationAddress} → {form.originAddress}
+              </div>
+              <div className="h-[200px] rounded-[10px] overflow-hidden">
+                <RouteMap
+                  origin={form.destinationAddress}
+                  destination={form.originAddress}
+                  onKmChange={km => setForm(f => ({ ...f, kmReturn: String(km) }))}
+                />
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <button
               type="submit"
@@ -154,7 +215,7 @@ function PlacesSection({ places }: { places: KmPlaceData[] }) {
             </button>
             <button
               type="button"
-              onClick={() => { setAdding(false); setForm({ name: "", originAddress: "", destinationAddress: "", kmGoing: "", kmReturn: "" }); }}
+              onClick={() => { setAdding(false); setMapDir(null); setForm({ name: "", originAddress: "", destinationAddress: "", kmGoing: "", kmReturn: "" }); }}
               className="px-3 py-1.5 rounded-[8px] text-[11px] text-[var(--color-f3)] bg-[var(--color-bg4)] border border-[var(--color-border2)] cursor-pointer hover:text-[var(--color-f1)] transition-colors"
             >
               Cancelar
