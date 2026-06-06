@@ -11,6 +11,10 @@ interface RouteMapProps {
   destination: string;
   onKmChange?: (km: number) => void;
   onClose?: () => void;
+  /** Persisted DirectionsResult from previous open — skips DirectionsService if provided */
+  initialDirections?: google.maps.DirectionsResult | null;
+  /** Called whenever directions are loaded or changed (initial + drag) */
+  onDirectionsChange?: (d: google.maps.DirectionsResult) => void;
 }
 
 // ── Dark map style ────────────────────────────────────────────────────────────
@@ -41,17 +45,29 @@ const DARK_MAP_STYLES = [
 
 // ── Lazy loader for Google Maps ───────────────────────────────────────────────
 
-function MapWithDirections({ origin, destination, onKmChange, onClose }: RouteMapProps) {
+function MapWithDirections({ origin, destination, onKmChange, onClose, initialDirections, onDirectionsChange }: RouteMapProps) {
   // Dynamic import of Google Maps components only when API key is present
   const { GoogleMap, useLoadScript, DirectionsService, DirectionsRenderer } =
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("@react-google-maps/api");
 
   const { isLoaded } = useLoadScript({ googleMapsApiKey: API_KEY!, libraries: GOOGLE_MAPS_LIBRARIES });
-  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
-  const [routeKm, setRouteKm] = useState<number | null>(null);
-  const [routeDuration, setRouteDuration] = useState<string | null>(null);
-  const requested = useRef(false);
+
+  // Initialise from persisted directions so the dragged route survives close/reopen
+  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(
+    initialDirections ?? null
+  );
+  const [routeKm, setRouteKm] = useState<number | null>(() => {
+    const leg = initialDirections?.routes[0]?.legs[0];
+    return leg?.distance?.value
+      ? Math.round((leg.distance.value / 1000) * 10) / 10
+      : null;
+  });
+  const [routeDuration, setRouteDuration] = useState<string | null>(
+    initialDirections?.routes[0]?.legs[0]?.duration?.text ?? null
+  );
+  // Skip DirectionsService if we already have a saved result
+  const requested = useRef(!!initialDirections);
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
 
   // Reset route whenever addresses change
@@ -62,20 +78,23 @@ function MapWithDirections({ origin, destination, onKmChange, onClose }: RouteMa
     setRouteDuration(null);
   }, [origin, destination]);
 
-  const handleDirections = useCallback((result: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
-    if (status === "OK" && result) {
-      setDirections(result);
-      const leg = result.routes[0]?.legs[0];
-      if (leg?.distance?.value) {
-        const km = Math.round((leg.distance.value / 1000) * 10) / 10;
-        setRouteKm(km);
-        if (onKmChange) onKmChange(km);
-      }
-      if (leg?.duration?.text) {
-        setRouteDuration(leg.duration.text);
-      }
+  const applyDirections = useCallback((result: google.maps.DirectionsResult) => {
+    setDirections(result);
+    if (onDirectionsChange) onDirectionsChange(result);
+    const leg = result.routes[0]?.legs[0];
+    if (leg?.distance?.value) {
+      const km = Math.round((leg.distance.value / 1000) * 10) / 10;
+      setRouteKm(km);
+      if (onKmChange) onKmChange(km);
     }
-  }, [onKmChange]);
+    if (leg?.duration?.text) {
+      setRouteDuration(leg.duration.text);
+    }
+  }, [onKmChange, onDirectionsChange]);
+
+  const handleDirections = useCallback((result: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
+    if (status === "OK" && result) applyDirections(result);
+  }, [applyDirections]);
 
   if (!isLoaded) {
     return (
@@ -112,16 +131,7 @@ function MapWithDirections({ origin, destination, onKmChange, onClose }: RouteMa
             onLoad={(renderer: google.maps.DirectionsRenderer) => { rendererRef.current = renderer; }}
             onDirectionsChanged={() => {
               const updated = rendererRef.current?.getDirections();
-              if (!updated) return;
-              const leg = updated.routes[0]?.legs[0];
-              if (leg?.distance?.value) {
-                const km = Math.round((leg.distance.value / 1000) * 10) / 10;
-                setRouteKm(km);
-                if (onKmChange) onKmChange(km);
-              }
-              if (leg?.duration?.text) {
-                setRouteDuration(leg.duration.text);
-              }
+              if (updated) applyDirections(updated);
             }}
           />
         )}

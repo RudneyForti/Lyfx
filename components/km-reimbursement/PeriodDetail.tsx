@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   createKmRoute, createKmRoutesBulk, updateKmRoute, deleteKmRoute,
@@ -132,6 +132,7 @@ function RouteForm({ periodId, route, places, onDone }: {
 }) {
   const [isPending, start] = useTransition();
   const [showMap, setShowMap] = useState(false);
+  const [mapDirections, setMapDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [mode, setMode] = useState<"place" | "manual">(places.length > 0 && !route ? "place" : "manual");
   const [selectedPlace, setSelectedPlace] = useState<KmPlaceData | null>(null);
   // ida+volta checkboxes (only in place mode, new route)
@@ -147,6 +148,16 @@ function RouteForm({ periodId, route, places, onDone }: {
   });
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // Clear saved directions whenever origin/destination change
+  const prevRouteAddr = useRef({ o: form.origin, d: form.destination });
+  useEffect(() => {
+    const p = prevRouteAddr.current;
+    if (p.o !== form.origin || p.d !== form.destination) {
+      setMapDirections(null);
+      prevRouteAddr.current = { o: form.origin, d: form.destination };
+    }
+  }, [form.origin, form.destination]);
 
   const placesOptions = places.map(p => ({ value: p.id, label: p.name }));
 
@@ -380,8 +391,13 @@ function RouteForm({ periodId, route, places, onDone }: {
             )}
             {showMap && (
               <div className="h-[340px] rounded-[12px] overflow-hidden">
-                <RouteMap origin={form.origin} destination={form.destination}
-                  onKmChange={km => setForm(f => ({ ...f, km: String(km) }))} />
+                <RouteMap
+                  origin={form.origin}
+                  destination={form.destination}
+                  onKmChange={km => setForm(f => ({ ...f, km: String(km) }))}
+                  initialDirections={mapDirections}
+                  onDirectionsChange={setMapDirections}
+                />
               </div>
             )}
           </>

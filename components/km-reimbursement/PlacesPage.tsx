@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createKmPlace, updateKmPlace, deleteKmPlace } from "@/app/actions/km-reimbursement";
 import type { KmPlaceData } from "@/app/actions/km-reimbursement";
@@ -53,6 +53,23 @@ function PlaceFormFields({
 }) {
   const set = (k: keyof PlaceForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // Persist dragged routes so they survive close/reopen
+  const [goingDirections, setGoingDirections] =
+    useState<google.maps.DirectionsResult | null>(null);
+  const [returnDirections, setReturnDirections] =
+    useState<google.maps.DirectionsResult | null>(null);
+
+  // Clear saved directions whenever addresses change
+  const prevAddr = useRef({ o: form.originAddress, d: form.destinationAddress });
+  useEffect(() => {
+    const p = prevAddr.current;
+    if (p.o !== form.originAddress || p.d !== form.destinationAddress) {
+      setGoingDirections(null);
+      setReturnDirections(null);
+      prevAddr.current = { o: form.originAddress, d: form.destinationAddress };
+    }
+  }, [form.originAddress, form.destinationAddress]);
 
   const canShowMap =
     form.originAddress.trim().length > 0 && form.destinationAddress.trim().length > 0;
@@ -163,6 +180,8 @@ function PlaceFormFields({
               origin={form.originAddress}
               destination={form.destinationAddress}
               onKmChange={km => setForm(f => ({ ...f, kmGoing: String(km) }))}
+              initialDirections={goingDirections}
+              onDirectionsChange={setGoingDirections}
             />
           </div>
         </div>
@@ -178,6 +197,8 @@ function PlaceFormFields({
               origin={form.destinationAddress}
               destination={form.originAddress}
               onKmChange={km => setForm(f => ({ ...f, kmReturn: String(km) }))}
+              initialDirections={returnDirections}
+              onDirectionsChange={setReturnDirections}
             />
           </div>
         </div>
