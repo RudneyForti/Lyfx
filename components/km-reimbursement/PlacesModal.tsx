@@ -21,10 +21,13 @@ type PlaceForm = {
   destinationAddress: string;
   kmGoing: string;
   kmReturn: string;
+  routeGoing: google.maps.DirectionsResult | null;
+  routeReturn: google.maps.DirectionsResult | null;
 };
 
 const emptyForm: PlaceForm = {
   name: "", originAddress: "", destinationAddress: "", kmGoing: "", kmReturn: "",
+  routeGoing: null, routeReturn: null,
 };
 
 function placeToForm(p: KmPlaceData): PlaceForm {
@@ -34,6 +37,8 @@ function placeToForm(p: KmPlaceData): PlaceForm {
     destinationAddress: p.destinationAddress,
     kmGoing: p.kmGoing > 0 ? String(p.kmGoing) : "",
     kmReturn: p.kmReturn > 0 ? String(p.kmReturn) : "",
+    routeGoing: (p.routeGoing as google.maps.DirectionsResult | null) ?? null,
+    routeReturn: (p.routeReturn as google.maps.DirectionsResult | null) ?? null,
   };
 }
 
@@ -55,22 +60,15 @@ function PlaceFormFields({
   const set = (k: keyof PlaceForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  // Persist dragged routes so they survive close/reopen
-  const [goingDirections, setGoingDirections] =
-    useState<google.maps.DirectionsResult | null>(null);
-  const [returnDirections, setReturnDirections] =
-    useState<google.maps.DirectionsResult | null>(null);
-
-  // Clear saved directions whenever addresses change
+  // Clear saved route geometry whenever addresses change
   const prevAddr = useRef({ o: form.originAddress, d: form.destinationAddress });
   useEffect(() => {
     const p = prevAddr.current;
     if (p.o !== form.originAddress || p.d !== form.destinationAddress) {
-      setGoingDirections(null);
-      setReturnDirections(null);
+      setForm(f => ({ ...f, routeGoing: null, routeReturn: null }));
       prevAddr.current = { o: form.originAddress, d: form.destinationAddress };
     }
-  }, [form.originAddress, form.destinationAddress]);
+  }, [form.originAddress, form.destinationAddress, setForm]);
 
   const canShowMap =
     form.originAddress.trim().length > 0 && form.destinationAddress.trim().length > 0;
@@ -181,8 +179,8 @@ function PlaceFormFields({
               origin={form.originAddress}
               destination={form.destinationAddress}
               onKmChange={km => setForm(f => ({ ...f, kmGoing: String(km) }))}
-              initialDirections={goingDirections}
-              onDirectionsChange={setGoingDirections}
+              initialDirections={form.routeGoing}
+              onDirectionsChange={d => setForm(f => ({ ...f, routeGoing: d }))}
             />
           </div>
         </div>
@@ -198,8 +196,8 @@ function PlaceFormFields({
               origin={form.destinationAddress}
               destination={form.originAddress}
               onKmChange={km => setForm(f => ({ ...f, kmReturn: String(km) }))}
-              initialDirections={returnDirections}
-              onDirectionsChange={setReturnDirections}
+              initialDirections={form.routeReturn}
+              onDirectionsChange={d => setForm(f => ({ ...f, routeReturn: d }))}
             />
           </div>
         </div>
@@ -231,6 +229,8 @@ function EditRow({
         destinationAddress: form.destinationAddress.trim(),
         kmGoing: parseFloat(form.kmGoing) || 0,
         kmReturn: parseFloat(form.kmReturn) || 0,
+        routeGoing: form.routeGoing ?? undefined,
+        routeReturn: form.routeReturn ?? undefined,
       });
       onCancel();
     });
@@ -318,6 +318,8 @@ export function PlacesModal({ places, onClose }: PlacesModalProps) {
         destinationAddress: form.destinationAddress.trim(),
         kmGoing: parseFloat(form.kmGoing) || 0,
         kmReturn: parseFloat(form.kmReturn) || 0,
+        routeGoing: form.routeGoing ?? undefined,
+        routeReturn: form.routeReturn ?? undefined,
       });
       resetAddForm();
     });
