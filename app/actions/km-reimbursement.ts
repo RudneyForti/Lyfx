@@ -510,8 +510,36 @@ export async function createKmPlace(data: {
   revalidatePath("/km-reimbursement");
 }
 
+export async function updateKmPlace(id: string, data: {
+  name: string;
+  originAddress: string;
+  destinationAddress: string;
+  kmGoing: number;
+  kmReturn: number;
+  notes?: string;
+}): Promise<void> {
+  const userId = await requireAuth();
+  const place = await db.kmPlace.findFirst({ where: { id, userId } });
+  if (!place) return;
+  await db.kmPlace.update({
+    where: { id },
+    data: {
+      name: data.name.trim(),
+      originAddress: data.originAddress.trim(),
+      destinationAddress: data.destinationAddress.trim(),
+      kmGoing: data.kmGoing,
+      kmReturn: data.kmReturn,
+      notes: data.notes?.trim() ?? null,
+    },
+  });
+  revalidatePath("/km-reimbursement/places");
+  revalidatePath("/km-reimbursement/settings");
+  revalidatePath("/km-reimbursement");
+}
+
 export async function deleteKmPlace(id: string): Promise<void> {
   const userId = await requireAuth();
   await db.kmPlace.deleteMany({ where: { id, userId } });
+  revalidatePath("/km-reimbursement/places");
   revalidatePath("/km-reimbursement/settings");
 }
