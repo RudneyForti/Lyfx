@@ -20,16 +20,12 @@ interface RouteMapProps {
 // ── Dark map style ────────────────────────────────────────────────────────────
 
 const DARK_MAP_STYLES = [
-  // Base — tudo no azul escuro original
   { elementType: "geometry",             stylers: [{ color: "#1a1a2e" }] },
   { elementType: "labels.text.stroke",   stylers: [{ color: "#1a1a2e" }] },
   { elementType: "labels.text.fill",     stylers: [{ color: "#6b7a99" }] },
-  // Água um tom mais escuro
   { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d0d1f" }] },
   { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3a4a6b" }] },
-  // Parques ligeiramente distintos
   { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#16213e" }] },
-  // ── Vias — tons progressivamente mais claros ──
   { featureType: "road.local",    elementType: "geometry.fill",   stylers: [{ color: "#252547" }] },
   { featureType: "road.local",    elementType: "labels.text.fill", stylers: [{ color: "#4a5578" }] },
   { featureType: "road.arterial", elementType: "geometry.fill",   stylers: [{ color: "#2e2e5a" }] },
@@ -38,46 +34,70 @@ const DARK_MAP_STYLES = [
   { featureType: "road.highway",  elementType: "geometry.stroke",  stylers: [{ color: "#1a1a2e" }] },
   { featureType: "road.highway",  elementType: "labels.text.fill", stylers: [{ color: "#9aa5cc" }] },
   { featureType: "road.highway.controlled_access", elementType: "geometry.fill", stylers: [{ color: "#464685" }] },
-  // Trânsito / admin
   { featureType: "transit",       elementType: "labels.text.fill", stylers: [{ color: "#4a5578" }] },
   { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#8895bb" }] },
 ];
 
+// ── Shared overlay button style ───────────────────────────────────────────────
+
+const overlayBtnBase: React.CSSProperties = {
+  background: "rgba(0,0,0,0.72)",
+  backdropFilter: "blur(6px)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  color: "rgba(255,255,255,0.85)",
+};
+
+const overlayBtnHover: React.CSSProperties = {
+  background: "rgba(34,211,238,0.15)",
+  border: "1px solid rgba(34,211,238,0.4)",
+  color: "var(--color-cyan)",
+};
+
+const btnCls =
+  "w-7 h-7 rounded-[8px] flex items-center justify-center cursor-pointer border-0 transition-colors select-none";
+
+// ── Zoom button with hover state ──────────────────────────────────────────────
+
+function ZoomBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      className={btnCls}
+      style={hov ? { ...overlayBtnBase, ...overlayBtnHover } : overlayBtnBase}
+    >
+      <span className="text-[16px] font-light leading-none">{label}</span>
+    </button>
+  );
+}
+
 // ── Lazy loader for Google Maps ───────────────────────────────────────────────
 
 function MapWithDirections({ origin, destination, onKmChange, onClose, initialDirections, onDirectionsChange }: RouteMapProps) {
-  // Dynamic import of Google Maps components only when API key is present
   const { GoogleMap, useLoadScript, DirectionsService, DirectionsRenderer } =
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("@react-google-maps/api");
 
   const { isLoaded } = useLoadScript({ googleMapsApiKey: API_KEY!, libraries: GOOGLE_MAPS_LIBRARIES });
 
-  // Start empty — always reconstruct via DirectionsService so the renderer
-  // receives proper google.maps.LatLng objects (plain JSON from DB is not
-  // sufficient for the renderer to display a custom dragged route correctly).
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
-
-  // Pre-populate km/duration from saved data so the overlay shows immediately
-  // while the DirectionsService call is in-flight.
   const [routeKm, setRouteKm] = useState<number | null>(() => {
     const leg = initialDirections?.routes[0]?.legs[0];
     return leg?.distance?.value
       ? Math.round((leg.distance.value / 1000) * 10) / 10
       : null;
   });
-  const [routeDuration, setRouteDuration] = useState<string | null>(
-    initialDirections?.routes[0]?.legs[0]?.duration?.text ?? null
-  );
 
-  // Controls whether DirectionsService is mounted in JSX
+  // Map instance — needed for custom zoom controls
+  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+
   const requested = useRef(false);
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
-
-  // When handleDirections sets `directions` state, the renderer fires
-  // onDirectionsChanged immediately (prop change). We skip that one call
-  // because updateRouteInfo was already invoked inside handleDirections.
-  // Subsequent calls are real user-drag events and must pass through.
+  // Blocks the first onDirectionsChanged (fired by prop-change) so updateRouteInfo
+  // isn't called twice — it already ran inside handleDirections.
   const skipNextChange = useRef(false);
 
   // Extract via_waypoints from the saved route so DirectionsService can
@@ -86,32 +106,28 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
     if (!initialDirections) return undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const viaPoints: Array<{ lat: number | (() => number); lng: number | (() => number) }> =
-      (initialDirections as unknown as { routes: { legs: { via_waypoints: Array<{ lat: number | (() => number); lng: number | (() => number) }> }[] }[] }).routes?.[0]?.legs?.[0]?.via_waypoints ?? [];
+      (initialDirections as unknown as {
+        routes: { legs: { via_waypoints: Array<{ lat: number | (() => number); lng: number | (() => number) }> }[] }[];
+      }).routes?.[0]?.legs?.[0]?.via_waypoints ?? [];
     if (!viaPoints.length) return undefined;
     return viaPoints.map(wp => {
       const lat = typeof wp.lat === "function" ? (wp.lat as () => number)() : wp.lat as number;
       const lng = typeof wp.lng === "function" ? (wp.lng as () => number)() : wp.lng as number;
       return { location: { lat, lng }, stopover: false };
     });
-  // initialDirections is stable on initial mount; useMemo is correct here
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialDirections]);
 
-  // Reset route whenever addresses change — but NOT on initial mount
+  // Reset route when addresses change — skip initial mount
   const mounted = useRef(false);
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
+    if (!mounted.current) { mounted.current = true; return; }
     requested.current = false;
     skipNextChange.current = false;
     setDirections(null);
     setRouteKm(null);
-    setRouteDuration(null);
   }, [origin, destination]);
 
-  // Update km/duration display + persist — used by DirectionsService callback and drag
   const updateRouteInfo = useCallback((result: google.maps.DirectionsResult) => {
     if (onDirectionsChange) onDirectionsChange(result);
     const leg = result.routes[0]?.legs[0];
@@ -120,13 +136,10 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
       setRouteKm(km);
       if (onKmChange) onKmChange(km);
     }
-    if (leg?.duration?.text) setRouteDuration(leg.duration.text);
   }, [onKmChange, onDirectionsChange]);
 
-  // DirectionsService callback — sets directions state (mounts the renderer)
   const handleDirections = useCallback((result: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
     if (status === "OK" && result) {
-      // Flag that the next onDirectionsChanged is from the prop-change, not a drag
       skipNextChange.current = true;
       setDirections(result);
       updateRouteInfo(result);
@@ -147,8 +160,9 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
         mapContainerStyle={{ width: "100%", height: "100%", borderRadius: 12 }}
         zoom={10}
         center={{ lat: -23.5505, lng: -46.6333 }}
+        onLoad={(map: google.maps.Map) => setMapInstance(map)}
         options={{
-          disableDefaultUI: false,
+          disableDefaultUI: true,
           styles: DARK_MAP_STYLES,
         }}
       >
@@ -172,13 +186,7 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
             options={{ draggable: true }}
             onLoad={(renderer: google.maps.DirectionsRenderer) => { rendererRef.current = renderer; }}
             onDirectionsChanged={() => {
-              // Skip the first event — it fires when the `directions` prop changes
-              // (set by handleDirections). updateRouteInfo already ran there.
-              // All subsequent events are real user-drag interactions.
-              if (skipNextChange.current) {
-                skipNextChange.current = false;
-                return;
-              }
+              if (skipNextChange.current) { skipNextChange.current = false; return; }
               const updated = rendererRef.current?.getDirections();
               if (updated) updateRouteInfo(updated);
             }}
@@ -186,9 +194,9 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
         )}
       </GoogleMap>
 
-      {/* KM overlay */}
+      {/* KM badge — bottom left */}
       {routeKm !== null && (
-        <div className="absolute bottom-3 left-3 flex items-center gap-2 pointer-events-none">
+        <div className="absolute bottom-3 left-3 pointer-events-none">
           <div
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] text-[12px] font-bold"
             style={{
@@ -201,26 +209,37 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
             <IconMapPin size={12} />
             {routeKm.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km
           </div>
-          {routeDuration && (
-            <div
-              className="px-2 py-1.5 rounded-[8px] text-[11px] font-medium"
-              style={{
-                background: "rgba(0,0,0,0.65)",
-                backdropFilter: "blur(6px)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "rgba(255,255,255,0.7)",
-              }}
-            >
-              {routeDuration}
-            </div>
-          )}
         </div>
       )}
 
+      {/* Powered by Google Maps — bottom right */}
+      <div className="absolute bottom-3 right-3 pointer-events-none">
+        <div
+          className="px-2 py-1 rounded-[6px] text-[8px] font-medium tracking-wide"
+          style={{
+            background: "rgba(0,0,0,0.65)",
+            backdropFilter: "blur(6px)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            color: "rgba(255,255,255,0.4)",
+          }}
+        >
+          Powered by Google Maps
+        </div>
+      </div>
+
+      {/* Custom zoom controls — top right */}
+      <div className="absolute top-2 right-2 flex flex-col gap-1">
+        <ZoomBtn label="+" onClick={() => mapInstance?.setZoom((mapInstance.getZoom() ?? 10) + 1)} />
+        <ZoomBtn label="−" onClick={() => mapInstance?.setZoom((mapInstance.getZoom() ?? 10) - 1)} />
+      </div>
+
+      {/* Close button — top left (only when onClose is provided) */}
       {onClose && (
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-2 right-2 w-7 h-7 rounded-[8px] bg-[rgba(0,0,0,0.7)] flex items-center justify-center text-white hover:bg-[rgba(0,0,0,0.9)] transition-colors cursor-pointer border-0"
+          className={`${btnCls} absolute top-2 left-2`}
+          style={overlayBtnBase}
         >
           <IconX size={13} />
         </button>
