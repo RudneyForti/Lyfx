@@ -13,6 +13,10 @@ export type KmConfigData = {
   ethanolRate: number;
   minFuelPct: number;
   paymentDays: number;
+  vehiclePlate: string;
+  vehicleType: string;
+  vehicleClass: string;
+  vehicleBrand: string;
 };
 
 export type KmPeriodSummary = {
@@ -91,7 +95,10 @@ export type KmExpenseData = {
 export type KmPlaceData = {
   id: string;
   name: string;
-  address: string;
+  originAddress: string;
+  destinationAddress: string;
+  kmGoing: number;
+  kmReturn: number;
   notes: string | null;
   createdAt: Date;
 };
@@ -145,7 +152,11 @@ export async function getKmConfig(): Promise<KmConfigData> {
   const existing = await db.kmConfig.findUnique({ where: { userId } });
   if (existing) return existing;
   return db.kmConfig.create({
-    data: { userId, gasolineRate: 0.25, ethanolRate: 0.36, minFuelPct: 0.15, paymentDays: 5 },
+    data: {
+      userId,
+      gasolineRate: 0.25, ethanolRate: 0.36, minFuelPct: 0.15, paymentDays: 5,
+      vehiclePlate: "", vehicleType: "", vehicleClass: "", vehicleBrand: "",
+    },
   });
 }
 
@@ -154,12 +165,35 @@ export async function saveKmConfig(data: {
   ethanolRate: number;
   minFuelPct: number;
   paymentDays: number;
+  vehiclePlate?: string;
+  vehicleType?: string;
+  vehicleClass?: string;
+  vehicleBrand?: string;
 }): Promise<void> {
   const userId = await requireAuth();
   await db.kmConfig.upsert({
     where: { userId },
-    create: { userId, ...data },
-    update: data,
+    create: {
+      userId,
+      gasolineRate: data.gasolineRate,
+      ethanolRate: data.ethanolRate,
+      minFuelPct: data.minFuelPct,
+      paymentDays: data.paymentDays,
+      vehiclePlate: data.vehiclePlate ?? "",
+      vehicleType: data.vehicleType ?? "",
+      vehicleClass: data.vehicleClass ?? "",
+      vehicleBrand: data.vehicleBrand ?? "",
+    },
+    update: {
+      gasolineRate: data.gasolineRate,
+      ethanolRate: data.ethanolRate,
+      minFuelPct: data.minFuelPct,
+      paymentDays: data.paymentDays,
+      vehiclePlate: data.vehiclePlate ?? "",
+      vehicleType: data.vehicleType ?? "",
+      vehicleClass: data.vehicleClass ?? "",
+      vehicleBrand: data.vehicleBrand ?? "",
+    },
   });
   revalidatePath("/km-reimbursement");
 }
@@ -425,7 +459,10 @@ export async function getKmPlaces(): Promise<KmPlaceData[]> {
 
 export async function createKmPlace(data: {
   name: string;
-  address: string;
+  originAddress: string;
+  destinationAddress: string;
+  kmGoing: number;
+  kmReturn: number;
   notes?: string;
 }): Promise<void> {
   const userId = await requireAuth();
@@ -433,7 +470,10 @@ export async function createKmPlace(data: {
     data: {
       userId,
       name: data.name.trim(),
-      address: data.address.trim(),
+      originAddress: data.originAddress.trim(),
+      destinationAddress: data.destinationAddress.trim(),
+      kmGoing: data.kmGoing,
+      kmReturn: data.kmReturn,
       notes: data.notes?.trim() ?? null,
     },
   });

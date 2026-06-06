@@ -21,6 +21,7 @@ import {
   IconRoute, IconGasStation, IconReceipt, IconFileText,
   IconClock, IconCheck, IconSend, IconRefresh,
   IconCopy, IconPencil, IconX, IconSettings, IconMapPin,
+  IconTable, IconChevronLeft, IconChevronRight,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,21 @@ function fmtDate(d: Date | string) {
 }
 function fmtDateInput(d: Date | string) {
   return new Date(d).toISOString().split("T")[0];
+}
+function fmtDateSAP(d: Date | string) {
+  // dd.mm.yyyy for SAP
+  const dt = new Date(d);
+  const day = String(dt.getDate()).padStart(2, "0");
+  const month = String(dt.getMonth() + 1).padStart(2, "0");
+  const year = dt.getFullYear();
+  return `${day}.${month}.${year}`;
+}
+function fmtDayMonth(d: Date | string) {
+  // DD/MM for SAP summary header
+  const dt = new Date(d);
+  const day = String(dt.getDate()).padStart(2, "0");
+  const month = String(dt.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}`;
 }
 function today() {
   return new Date().toISOString().split("T")[0];
@@ -109,11 +125,34 @@ function RouteForm({ periodId, route, places, onDone }: {
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  // Quando seleciona um lugar salvo, preenche destino + descrição
-  function applyPlace(placeId: string) {
+  // Quando seleciona um lugar salvo, mostra botões Ida / Volta
+  const [selectedPlace, setSelectedPlace] = useState<KmPlaceData | null>(null);
+
+  function handlePlaceSelect(placeId: string) {
     const place = places.find(p => p.id === placeId);
-    if (!place) return;
-    setForm(f => ({ ...f, destination: place.address, notes: place.name }));
+    setSelectedPlace(place ?? null);
+  }
+
+  function applyIda() {
+    if (!selectedPlace) return;
+    setForm(f => ({
+      ...f,
+      origin: selectedPlace.originAddress,
+      destination: selectedPlace.destinationAddress,
+      km: selectedPlace.kmGoing > 0 ? String(selectedPlace.kmGoing) : f.km,
+      notes: selectedPlace.name,
+    }));
+  }
+
+  function applyVolta() {
+    if (!selectedPlace) return;
+    setForm(f => ({
+      ...f,
+      origin: selectedPlace.destinationAddress,
+      destination: selectedPlace.originAddress,
+      km: selectedPlace.kmReturn > 0 ? String(selectedPlace.kmReturn) : f.km,
+      notes: selectedPlace.name,
+    }));
   }
 
   function submit(e: React.FormEvent) {
@@ -140,20 +179,44 @@ function RouteForm({ periodId, route, places, onDone }: {
 
         {/* Lugares salvos */}
         {!route && places.length > 0 && (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5 text-[10px] font-medium text-[var(--color-cyan)]">
               <IconMapPin size={10} />
               Lugar salvo
-              <span className="text-[var(--color-f4)] font-normal">(preenche destino e descrição)</span>
+              <span className="text-[var(--color-f4)] font-normal">(preenche trajeto automaticamente)</span>
             </div>
-            <Select
-              value=""
-              onChange={applyPlace}
-              options={placesOptions}
-              placeholder="Selecionar lugar cadastrado..."
-              height={34}
-              fontSize={12}
-            />
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Select
+                  value={selectedPlace?.id ?? ""}
+                  onChange={handlePlaceSelect}
+                  options={placesOptions}
+                  placeholder="Selecionar lugar cadastrado..."
+                  height={34}
+                  fontSize={12}
+                />
+              </div>
+              {selectedPlace && (
+                <>
+                  <button
+                    type="button"
+                    onClick={applyIda}
+                    className="flex items-center gap-1 px-3 h-[34px] rounded-[8px] text-[11px] font-semibold text-white cursor-pointer border-0 whitespace-nowrap"
+                    style={{ background: "var(--color-cyan)" }}
+                  >
+                    Ida
+                  </button>
+                  <button
+                    type="button"
+                    onClick={applyVolta}
+                    className="flex items-center gap-1 px-3 h-[34px] rounded-[8px] text-[11px] font-semibold cursor-pointer border whitespace-nowrap"
+                    style={{ color: "var(--color-cyan)", borderColor: "var(--color-cyan-border)", background: "rgba(34,211,238,0.08)" }}
+                  >
+                    Volta
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -626,11 +689,149 @@ function ExpensesTab({ period }: { period: KmPeriodDetail }) {
   );
 }
 
+// ── SAP Table ─────────────────────────────────────────────────────────────────
+
+const SAP_CHUNK = 5;
+
+function SapTable({ routes, config }: { routes: KmRouteData[]; config: KmConfigData }) {
+  const [chunk, setChunk] = useState(0);
+  const [copied, setCopied] = useState(false);
+
+  const totalChunks = Math.ceil(routes.length / SAP_CHUNK);
+  const start = chunk * SAP_CHUNK;
+  const slice = routes.slice(start, start + SAP_CHUNK);
+
+  const colLabels = ["Data", "KM", "Placa", "Tipo", "Classe", "Marca", "Local Partida", "Destino Final"];
+
+  function buildTSV(rows: KmRouteData[]): string {
+    return rows.map(r => [
+      fmtDateSAP(r.date),
+      r.km.toLocaleString("pt-BR", { maximumFractionDigits: 1 }),
+      config.vehiclePlate,
+      config.vehicleType,
+      config.vehicleClass,
+      config.vehicleBrand,
+      r.origin,
+      r.destination,
+    ].join("\t")).join("\n");
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(buildTSV(slice)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  if (routes.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-6 border border-dashed border-[var(--color-border2)] rounded-[10px]">
+        <span className="text-[12px] text-[var(--color-f4)]">Nenhum trajeto para exibir</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)]">Lote SAP</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded-[4px] bg-[var(--color-bg3)] text-[var(--color-f4)] border border-[var(--color-border2)]">
+            {start + 1}–{Math.min(start + SAP_CHUNK, routes.length)} de {routes.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setChunk(c => Math.max(0, c - 1))}
+            disabled={chunk === 0}
+            className="w-7 h-7 rounded-[7px] flex items-center justify-center text-[var(--color-f4)] bg-[var(--color-bg3)] border border-[var(--color-border2)] hover:text-[var(--color-f2)] disabled:opacity-30 cursor-pointer transition-colors"
+          >
+            <IconChevronLeft size={12} />
+          </button>
+          <span className="text-[10px] text-[var(--color-f4)]">{chunk + 1}/{totalChunks}</span>
+          <button
+            type="button"
+            onClick={() => setChunk(c => Math.min(totalChunks - 1, c + 1))}
+            disabled={chunk >= totalChunks - 1}
+            className="w-7 h-7 rounded-[7px] flex items-center justify-center text-[var(--color-f4)] bg-[var(--color-bg3)] border border-[var(--color-border2)] hover:text-[var(--color-f2)] disabled:opacity-30 cursor-pointer transition-colors"
+          >
+            <IconChevronRight size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[11px] font-medium cursor-pointer border transition-all"
+            style={copied
+              ? { color: "#22c55e", background: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.3)" }
+              : { color: "var(--color-f3)", background: "var(--color-bg3)", borderColor: "var(--color-border2)" }}
+          >
+            {copied ? <IconCheck size={11} /> : <IconCopy size={11} />}
+            {copied ? "Copiado!" : "Copiar lote"}
+          </button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-[12px] border border-[var(--color-border)]">
+        <table className="w-full border-collapse" style={{ minWidth: 720 }}>
+          <thead>
+            <tr style={{ background: "var(--color-bg3)" }}>
+              {colLabels.map(col => (
+                <th key={col} className="text-left px-3 py-2 text-[9px] font-bold tracking-[1.4px] uppercase text-[var(--color-f4)] border-b border-[var(--color-border)] whitespace-nowrap">
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {routes.map((r, i) => {
+              const inChunk = i >= start && i < start + SAP_CHUNK;
+              return (
+                <tr
+                  key={r.id}
+                  className={cn(
+                    "border-b border-[var(--color-border)] last:border-0 transition-colors",
+                    inChunk ? "bg-[rgba(34,211,238,0.04)]" : ""
+                  )}
+                >
+                  <td className="px-3 py-2 text-[11px] text-[var(--color-f2)] whitespace-nowrap font-mono">{fmtDateSAP(r.date)}</td>
+                  <td className="px-3 py-2 text-[11px] text-[var(--color-cyan)] font-medium whitespace-nowrap">
+                    {r.km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                  </td>
+                  <td className="px-3 py-2 text-[11px] text-[var(--color-f3)] whitespace-nowrap">{config.vehiclePlate || "—"}</td>
+                  <td className="px-3 py-2 text-[11px] text-[var(--color-f3)] whitespace-nowrap">{config.vehicleType || "—"}</td>
+                  <td className="px-3 py-2 text-[11px] text-[var(--color-f3)] whitespace-nowrap">{config.vehicleClass || "—"}</td>
+                  <td className="px-3 py-2 text-[11px] text-[var(--color-f3)] whitespace-nowrap">{config.vehicleBrand || "—"}</td>
+                  <td className="px-3 py-2 text-[11px] text-[var(--color-f2)] max-w-[160px] truncate">{r.origin}</td>
+                  <td className="px-3 py-2 text-[11px] text-[var(--color-f2)] max-w-[160px] truncate">{r.destination}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {!config.vehiclePlate && (
+        <div className="text-[10px] text-[var(--color-f4)] flex items-center gap-1.5">
+          <span className="text-[var(--color-amber)]">!</span>
+          Placa, tipo e marca do veículo não configurados.{" "}
+          <Link href="/km-reimbursement/settings" className="text-[var(--color-cyan)] hover:underline no-underline">
+            Configurar →
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Summary Tab ───────────────────────────────────────────────────────────────
 
 function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConfigData }) {
   const [isPending, start] = useTransition();
   const [copied, setCopied] = useState(false);
+  const [view, setView] = useState<"text" | "table">("text");
 
   const isOpen = period.status === "open";
   const totalFuelAmount = period.receipts.reduce((s, r) => s + r.totalAmount, 0);
@@ -643,15 +844,7 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
     return acc;
   }, {});
 
-  // Locais visitados: unique non-empty route notes (empresa/descrição)
-  const locaisVisitados = [...new Set(
-    period.routes.map(r => r.notes).filter(Boolean) as string[]
-  )];
-
-  const startStr = new Date(period.startDate).toLocaleDateString("pt-BR");
-  const endStr   = new Date(period.endDate).toLocaleDateString("pt-BR");
-
-  // Determine fuelType from receipts (majority by liters)
+  // Determine dominant fuelType from receipts
   const gasolineL = period.receipts.filter(r => r.fuelType === "gasoline").reduce((s, r) => s + r.liters, 0);
   const ethanolL  = period.receipts.filter(r => r.fuelType === "ethanol").reduce((s, r) => s + r.liters, 0);
   const dominantFuel = ethanolL > gasolineL ? "ethanol" : "gasoline";
@@ -660,8 +853,18 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
     ? (config.ethanolRate * 100).toFixed(0)
     : (config.gasolineRate * 100).toFixed(0);
 
-  const summaryLines = [
-    `Período: ${startStr} a ${endStr}`,
+  // Build SAP text: routes first (grouped by day/company), then calculations
+  const routeLines: string[] = [];
+  for (const r of period.routes) {
+    const dayMonth = fmtDayMonth(r.date);
+    const empresa = r.notes ? ` — ${r.notes}` : "";
+    routeLines.push(`${dayMonth}${empresa}`);
+    routeLines.push(`${r.origin} → ${r.destination} (${r.km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km)`);
+    routeLines.push(""); // blank line between routes
+  }
+
+  const calcLines = [
+    "─────────────────────────────",
     `Combustível: ${fuelLabel} · Preço médio: R$ ${period.fuelPriceAvg.toFixed(3)}/litro`,
     `Taxa/km: R$ ${period.ratePerKm.toFixed(4)} (${taxaPct}% × R$ ${period.fuelPriceAvg.toFixed(3)})`,
     `Km rodados: ${period.totalKm.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`,
@@ -674,11 +877,9 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
     `TOTAL GERAL: ${fmt(period.grandTotal)}`,
     "─────────────────────────────",
     `Notas apresentadas: ${fmt(totalFuelAmount)} (mín. ${fmt(minRequired)} ${fuelOk ? "✓" : "✗"})`,
-    ...(locaisVisitados.length > 0 ? [
-      "─────────────────────────────",
-      `Locais visitados: ${locaisVisitados.join(", ")}`,
-    ] : []),
   ];
+
+  const summaryLines = [...routeLines, ...calcLines];
   const summaryText = summaryLines.join("\n");
 
   function handleCopy() {
@@ -700,24 +901,58 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
 
   return (
     <div>
+      {/* View toggle */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[10px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)]">Resumo para SAP</span>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[11px] font-medium cursor-pointer border transition-all"
-          style={copied
-            ? { color: "#22c55e", background: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.3)" }
-            : { color: "var(--color-f3)", background: "var(--color-bg3)", borderColor: "var(--color-border2)" }}
-        >
-          {copied ? <IconCheck size={11} /> : <IconCopy size={11} />}
-          {copied ? "Copiado!" : "Copiar"}
-        </button>
+        <div className="flex items-center gap-1 bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[10px] p-0.5">
+          <button
+            onClick={() => setView("text")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-medium cursor-pointer border-0 transition-colors",
+              view === "text" ? "bg-[var(--color-bg4)] text-[var(--color-f1)]" : "bg-transparent text-[var(--color-f4)] hover:text-[var(--color-f2)]"
+            )}
+          >
+            <IconFileText size={11} />
+            Texto SAP
+          </button>
+          <button
+            onClick={() => setView("table")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-medium cursor-pointer border-0 transition-colors",
+              view === "table" ? "bg-[var(--color-bg4)] text-[var(--color-f1)]" : "bg-transparent text-[var(--color-f4)] hover:text-[var(--color-f2)]"
+            )}
+          >
+            <IconTable size={11} />
+            Tabela SAP
+          </button>
+        </div>
+
+        {view === "text" && (
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[11px] font-medium cursor-pointer border transition-all"
+            style={copied
+              ? { color: "#22c55e", background: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.3)" }
+              : { color: "var(--color-f3)", background: "var(--color-bg3)", borderColor: "var(--color-border2)" }}
+          >
+            {copied ? <IconCheck size={11} /> : <IconCopy size={11} />}
+            {copied ? "Copiado!" : "Copiar texto"}
+          </button>
+        )}
       </div>
 
-      {/* Summary box */}
-      <div className="bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] p-4 mb-4 font-mono text-[12px] leading-relaxed text-[var(--color-f2)] whitespace-pre-wrap select-all">
-        {summaryText}
-      </div>
+      {/* Text view */}
+      {view === "text" && (
+        <div className="bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] p-4 mb-4 font-mono text-[12px] leading-relaxed text-[var(--color-f2)] whitespace-pre-wrap select-all">
+          {summaryText}
+        </div>
+      )}
+
+      {/* Table view */}
+      {view === "table" && (
+        <div className="mb-4">
+          <SapTable routes={period.routes} config={config} />
+        </div>
+      )}
 
       {/* Total */}
       <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[12px] p-4 mb-4">
