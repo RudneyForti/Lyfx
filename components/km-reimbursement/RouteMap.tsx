@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { IconMapPin, IconX } from "@tabler/icons-react";
+import { IconMapPin, IconX, IconRefresh } from "@tabler/icons-react";
 import { GOOGLE_MAPS_LIBRARIES } from "./AddressAutocomplete";
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -89,6 +89,23 @@ function ZoomBtn({ label, onClick }: { label: string; onClick: () => void }) {
       style={hov ? { ...overlayBtnBase, ...overlayBtnHover } : overlayBtnBase}
     >
       <span className="text-[16px] font-light leading-none">{label}</span>
+    </button>
+  );
+}
+
+function ResetRouteBtn({ onClick }: { onClick: () => void }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      type="button"
+      title="Resetar para o caminho mais curto"
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      className={btnCls}
+      style={hov ? { ...overlayBtnBase, ...overlayBtnHover } : overlayBtnBase}
+    >
+      <IconRefresh size={13} />
     </button>
   );
 }
@@ -206,6 +223,8 @@ function MapWithDirections({
   });
   const [mapType, setMapType] = useState<MapTypeKey>("roadmap");
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+  // When true, DirectionsService runs without via_waypoints → shortest path
+  const [useDefaultRoute, setUseDefaultRoute] = useState(false);
 
   const requested = useRef(false);
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
@@ -327,7 +346,10 @@ function MapWithDirections({
               destination,
               origin,
               travelMode: "DRIVING",
-              ...(savedWaypoints ? { waypoints: savedWaypoints, optimizeWaypoints: false } : {}),
+              // useDefaultRoute=true → fetch without waypoints (reset to shortest path)
+              ...(!useDefaultRoute && savedWaypoints
+                ? { waypoints: savedWaypoints, optimizeWaypoints: false }
+                : {}),
             }}
             callback={(r: google.maps.DirectionsResult | null, s: google.maps.DirectionsStatus) => {
               requested.current = true;
@@ -400,10 +422,23 @@ function MapWithDirections({
         }} />
       </div>
 
-      {/* Custom zoom controls — top right */}
+      {/* Zoom + reset — top right */}
       <div className="absolute top-2 right-2 flex flex-col gap-1">
         <ZoomBtn label="+" onClick={() => mapInstance?.setZoom((mapInstance.getZoom() ?? 10) + 1)} />
         <ZoomBtn label="−" onClick={() => mapInstance?.setZoom((mapInstance.getZoom() ?? 10) - 1)} />
+        {/* Reset button: only when a route is loaded */}
+        {directions && (
+          <>
+            <div className="h-1" />
+            <ResetRouteBtn onClick={() => {
+              setUseDefaultRoute(true);
+              requested.current = false;
+              skipNextChange.current = false;
+              setDirections(null);
+              setRouteKm(null);
+            }} />
+          </>
+        )}
       </div>
 
       {/* KM badge — bottom left (persistent, visible even if balloon scrolls off-screen) */}
