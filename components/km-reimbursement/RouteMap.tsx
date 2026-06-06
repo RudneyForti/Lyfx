@@ -141,30 +141,37 @@ function MapTypeToggle({
   );
 }
 
-// ── MutationObserver helper to hide via-waypoint white circles ───────────────
-// Google Maps renders via_waypoint markers as SVG <circle> elements.
-// The fill value may be a CSS attribute OR an inline style, so CSS selectors
-// alone are unreliable. Instead we scan and hide matching circles via JS,
-// re-running on every DOM mutation inside the map wrapper (throttled to rAF).
+// ── Via-waypoint circle hider ────────────────────────────────────────────────
+// Google Maps renders via_waypoint markers as SVG <circle> elements whose fill
+// may be set as an SVG presentation attribute, an inline style, a CSS class, or
+// returned as rgb()/rgba() by getComputedStyle — all different from each other.
+// We cover all cases by checking attribute + inline style + computed style.
 
-const WHITE_FILLS = new Set(["white", "#fff", "#ffffff", "rgb(255,255,255)"]);
+function isViaWaypointCircle(el: Element): boolean {
+  // 1. SVG presentation attribute: fill="white" / fill="#fff" / fill="#ffffff"
+  const attr = (el.getAttribute("fill") ?? "").toLowerCase().trim();
+  if (attr === "white" || attr === "#fff" || attr === "#ffffff") return true;
 
-function isWhiteCircle(el: Element): boolean {
-  const attr = (el.getAttribute("fill") ?? "").toLowerCase().replace(/\s/g, "");
-  if (WHITE_FILLS.has(attr)) return true;
-  const style = (el.getAttribute("style") ?? "").toLowerCase().replace(/\s/g, "");
-  return (
-    style.includes("fill:white") ||
-    style.includes("fill:#fff") ||
-    style.includes("fill:#ffffff") ||
-    style.includes("fill:rgb(255,255,255)")
-  );
+  // 2. Inline style: style="fill:white" (any whitespace variation)
+  const inl = ((el as SVGElement).style?.fill ?? "").toLowerCase().replace(/\s/g, "");
+  if (inl === "white" || inl === "#fff" || inl === "#ffffff") return true;
+
+  // 3. Computed style — covers CSS-class-set fills.
+  //    SVG computed fill always comes back as rgb(r, g, b) or rgba(r, g, b, a).
+  try {
+    const computed = getComputedStyle(el).fill.replace(/\s/g, "");
+    if (/^rgba?\(255,255,255/.test(computed)) return true;
+  } catch { /* SVG not yet attached to layout */ }
+
+  return false;
 }
 
-function hideWhiteCirclesIn(root: Element) {
+function hideViaWaypointCircles(root: Element) {
   root.querySelectorAll("svg circle").forEach(el => {
-    if (isWhiteCircle(el)) {
-      (el as SVGCircleElement).style.setProperty("display", "none", "important");
+    if (isViaWaypointCircle(el)) {
+      // Use opacity so Google Maps' internal hit-test logic isn't disrupted
+      (el as SVGCircleElement).style.setProperty("opacity", "0", "important");
+      (el as SVGCircleElement).style.setProperty("pointer-events", "none", "important");
     }
   });
 }
@@ -200,29 +207,28 @@ function MapWithDirections({
   const skipNextChange = useRef(false);
   const mapWrapRef = useRef<HTMLDivElement>(null);
 
-  // MutationObserver: hides via-waypoint white circles whenever Google Maps
-  // adds or mutates SVG elements inside the map wrapper.
+  // MutationObserver: hides via-waypoint circles on every DOM change inside the
+  // map wrapper, throttled to one execution per animation frame.
   useEffect(() => {
     if (!isLoaded) return;
     const wrap = mapWrapRef.current;
     if (!wrap) return;
 
-    hideWhiteCirclesIn(wrap); // initial pass
-
     let rafId: number | null = null;
-    const observer = new MutationObserver(() => {
+    const runHide = () => {
       if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
-        hideWhiteCirclesIn(wrap);
+        hideViaWaypointCircles(wrap);
         rafId = null;
       });
-    });
+    };
 
+    const observer = new MutationObserver(runHide);
     observer.observe(wrap, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["fill", "style"],
+      attributeFilter: ["fill", "style", "r"],
     });
 
     return () => {
@@ -230,6 +236,16 @@ function MapWithDirections({
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [isLoaded]);
+
+  // Secondary pass: run 150 ms after the route renders (circles may not exist yet
+  // at the moment the observer is set up, and getComputedStyle only works once
+  // elements are attached to the layout).
+  useEffect(() => {
+    if (!directions || !mapWrapRef.current) return;
+    const wrap = mapWrapRef.current;
+    const timer = setTimeout(() => hideViaWaypointCircles(wrap), 150);
+    return () => clearTimeout(timer);
+  }, [directions]);
 
   // Extract via_waypoints from saved route so DirectionsService reconstructs the custom path
   const savedWaypoints = useMemo(() => {
