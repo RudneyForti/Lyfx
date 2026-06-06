@@ -1,9 +1,8 @@
-// @react-pdf/renderer — renderiza apenas no cliente (importado via dynamic import)
+// @react-pdf/renderer — usado server-side via /api/km-pdf/[id]
 import {
   Document, Page, Text, View, Image, StyleSheet,
 } from "@react-pdf/renderer";
 import type { KmPeriodDetail, KmConfigData } from "@/app/actions/km-reimbursement";
-import { buildKmMapUrl } from "@/lib/km-static-map";
 
 // ── Paleta ────────────────────────────────────────────────────────────────────
 
@@ -80,13 +79,14 @@ const EXPENSE_LABELS: Record<string, string> = {
 // ── Documento PDF ─────────────────────────────────────────────────────────────
 
 interface Props {
-  period:   KmPeriodDetail;
-  config:   KmConfigData;
-  userName: string;
-  baseUrl:  string;
+  period:    KmPeriodDetail;
+  config:    KmConfigData;
+  userName:  string;
+  /** Data URLs pré-buscadas, na mesma ordem de period.routes */
+  mapImages: (string | null)[];
 }
 
-export function PeriodPdfDocument({ period, config, userName, baseUrl }: Props) {
+export function PeriodPdfDocument({ period, config, userName, mapImages }: Props) {
   const totalFuelAmount = period.receipts.reduce((s, r) => s + r.totalAmount, 0);
   const minRequired     = period.kmAmount * config.minFuelPct;
   const fuelOk          = totalFuelAmount >= minRequired;
@@ -137,14 +137,7 @@ export function PeriodPdfDocument({ period, config, userName, baseUrl }: Props) 
           <View>
             <Text style={s.sectionLabel}>Trajetos — {period.totalKm.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km no total</Text>
             {period.routes.map((r, i) => {
-              const mapUrl = buildKmMapUrl({
-                polyline:    r.routePolyline ?? undefined,
-                origin:      r.origin,
-                destination: r.destination,
-                baseUrl,
-                width: 515,
-                height: 140,
-              });
+              const imgSrc = mapImages[i];
               return (
                 <View key={r.id} style={s.routeBlock} wrap={false}>
                   <Text style={s.routeMeta}>#{i + 1} · {fmtDate(r.date)}{r.notes ? ` · ${r.notes}` : ""}</Text>
@@ -154,7 +147,7 @@ export function PeriodPdfDocument({ period, config, userName, baseUrl }: Props) 
                   <View style={s.routeKmRow}>
                     <Text style={s.routeKm}>{r.km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km</Text>
                   </View>
-                  <Image style={s.mapImg} src={mapUrl} />
+                  {imgSrc && <Image style={s.mapImg} src={imgSrc} />}
                 </View>
               );
             })}
