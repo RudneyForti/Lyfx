@@ -51,7 +51,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
   { key: "health",         label: "Saúde Financeira", group: "Análise",      summary: "Score e diagnóstico da sua situação financeira geral." },
   { key: "reports",        label: "Relatórios",       group: "Análise",      summary: "Relatórios detalhados com gráficos por período e categoria." },
   { key: "reimbursements",    label: "Reembolsos",      group: "Análise",      summary: "Controle gastos a serem reembolsados por terceiros.", isBeta: true },
-  { key: "km-reimbursement", label: "Reembolso KM",   group: "Análise",      summary: "Controle de reembolso de quilometragem com cálculo automático e D+5.", isBeta: true },
+  { key: "km-reimbursement", label: "Reembolso Especial", group: "Análise", summary: "Módulo corporativo de reembolso especial: KM, combustível, pedágios e despesas.", isBeta: true },
   { key: "tags",              label: "Tags",           group: "Análise",      summary: "Etiquete transações com tags personalizadas para análise." },
 
   // Aprender

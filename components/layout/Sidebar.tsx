@@ -59,7 +59,7 @@ const navGroups = [
       { href: "/reports",        label: "Relatórios",       icon: IconReportAnalytics,  moduleKey: "reports" },
       { href: "/health",         label: "Saúde financeira", icon: IconHeartRateMonitor, moduleKey: "health" },
       { href: "/reimbursements",    label: "Reembolsos",    icon: IconReceipt2, moduleKey: "reimbursements" },
-      { href: "/km-reimbursement", label: "Reembolso KM",  icon: IconCar,      moduleKey: "km-reimbursement" },
+      { href: "/km-reimbursement", label: "Reembolso Especial", icon: IconCar, moduleKey: "km-reimbursement" },
       { href: "/tags",             label: "Minhas tags",   icon: IconTags,     moduleKey: "tags" },
     ],
   },

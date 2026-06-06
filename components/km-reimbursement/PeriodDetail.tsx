@@ -8,14 +8,19 @@ import {
   createKmExpense, deleteKmExpense,
   submitPeriod, reopenPeriod,
 } from "@/app/actions/km-reimbursement";
-import type { KmPeriodDetail, KmConfigData, KmRouteData, KmReceiptData, KmExpenseData } from "@/app/actions/km-reimbursement";
+import type {
+  KmPeriodDetail, KmConfigData,
+  KmRouteData, KmReceiptData, KmExpenseData,
+  KmPlaceData,
+} from "@/app/actions/km-reimbursement";
 import { RouteMap } from "./RouteMap";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { Select } from "@/components/ui/Select";
 import {
   IconArrowLeft, IconPlus, IconTrash, IconMap,
   IconRoute, IconGasStation, IconReceipt, IconFileText,
   IconClock, IconCheck, IconSend, IconRefresh,
-  IconCopy, IconPencil, IconX, IconSettings,
+  IconCopy, IconPencil, IconX, IconSettings, IconMapPin,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -41,13 +46,20 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 const EXPENSE_TYPE_LABELS: Record<string, string> = {
-  toll: "Pedágio",
-  parking: "Estacionamento",
+  toll:          "Pedágio",
+  parking:       "Estacionamento",
   accommodation: "Hospedagem",
-  food: "Alimentação",
-  taxi: "Taxi / Uber",
-  other: "Outro",
+  food:          "Refeição",
+  taxi:          "Taxi / Uber",
+  other:         "Outro",
 };
+
+const EXPENSE_TYPE_OPTIONS = Object.entries(EXPENSE_TYPE_LABELS).map(([value, label]) => ({ value, label }));
+
+const FUEL_TYPE_OPTIONS = [
+  { value: "gasoline", label: "Gasolina" },
+  { value: "ethanol",  label: "Etanol" },
+];
 
 // ── Section header ────────────────────────────────────────────────────────────
 
@@ -69,8 +81,6 @@ function SectionHeader({ label, count, onAdd }: { label: string; count: number; 
   );
 }
 
-// ── Empty row ─────────────────────────────────────────────────────────────────
-
 function EmptyState({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center py-8 text-center border border-dashed border-[var(--color-border2)] rounded-[10px]">
@@ -81,9 +91,10 @@ function EmptyState({ label }: { label: string }) {
 
 // ── Routes Tab ────────────────────────────────────────────────────────────────
 
-function RouteForm({ periodId, route, onDone }: {
+function RouteForm({ periodId, route, places, onDone }: {
   periodId: string;
   route?: KmRouteData;
+  places: KmPlaceData[];
   onDone: () => void;
 }) {
   const [isPending, start] = useTransition();
@@ -97,6 +108,13 @@ function RouteForm({ periodId, route, onDone }: {
   });
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // Quando seleciona um lugar salvo, preenche destino + descrição
+  function applyPlace(placeId: string) {
+    const place = places.find(p => p.id === placeId);
+    if (!place) return;
+    setForm(f => ({ ...f, destination: place.address, notes: place.name }));
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -114,9 +132,31 @@ function RouteForm({ periodId, route, onDone }: {
     });
   }
 
+  const placesOptions = places.map(p => ({ value: p.id, label: p.name }));
+
   return (
     <div className="bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] p-4 mb-3">
       <form onSubmit={submit} className="flex flex-col gap-3">
+
+        {/* Lugares salvos */}
+        {!route && places.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium text-[var(--color-cyan)]">
+              <IconMapPin size={10} />
+              Lugar salvo
+              <span className="text-[var(--color-f4)] font-normal">(preenche destino e descrição)</span>
+            </div>
+            <Select
+              value=""
+              onChange={applyPlace}
+              options={placesOptions}
+              placeholder="Selecionar lugar cadastrado..."
+              height={34}
+              fontSize={12}
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
             <Label>Data</Label>
@@ -143,8 +183,8 @@ function RouteForm({ periodId, route, onDone }: {
           </div>
         </div>
         <div className="flex flex-col gap-1">
-          <Label>Observações <span className="text-[var(--color-f4)] font-normal">(opcional)</span></Label>
-          <input className={inputCls()} placeholder="Motivo da viagem..." value={form.notes} onChange={set("notes")} />
+          <Label>Empresa / Descrição <span className="text-[var(--color-f4)] font-normal">(opcional)</span></Label>
+          <input className={inputCls()} placeholder="Ex: Empresa XYZ, Reunião com cliente..." value={form.notes} onChange={set("notes")} />
         </div>
 
         {/* Map */}
@@ -226,7 +266,7 @@ function RouteRow({ route, open, onEdit, onDelete }: {
   );
 }
 
-function RoutesTab({ period }: { period: KmPeriodDetail }) {
+function RoutesTab({ period, places }: { period: KmPeriodDetail; places: KmPlaceData[] }) {
   const isOpen = period.status === "open";
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -242,7 +282,7 @@ function RoutesTab({ period }: { period: KmPeriodDetail }) {
         </div>
       )}
 
-      {adding && <RouteForm periodId={period.id} onDone={() => setAdding(false)} />}
+      {adding && <RouteForm periodId={period.id} places={places} onDone={() => setAdding(false)} />}
 
       {period.routes.length === 0 && !adding && <EmptyState label="trajeto" />}
 
@@ -250,7 +290,7 @@ function RoutesTab({ period }: { period: KmPeriodDetail }) {
         <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[12px] overflow-hidden">
           {period.routes.map(r => editing === r.id ? (
             <div key={r.id} className="p-3 border-b border-[var(--color-border)] last:border-0">
-              <RouteForm periodId={period.id} route={r} onDone={() => setEditing(null)} />
+              <RouteForm periodId={period.id} route={r} places={places} onDone={() => setEditing(null)} />
             </div>
           ) : (
             <RouteRow
@@ -288,7 +328,7 @@ function ReceiptForm({ periodId, onDone }: { periodId: string; onDone: () => voi
     totalAmount: "",
     notes: "",
   });
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
   function submit(e: React.FormEvent) {
@@ -325,10 +365,13 @@ function ReceiptForm({ periodId, onDone }: { periodId: string; onDone: () => voi
           </div>
           <div className="flex flex-col gap-1">
             <Label>Combustível</Label>
-            <select className={inputCls("cursor-pointer")} value={form.fuelType} onChange={set("fuelType")}>
-              <option value="gasoline">Gasolina</option>
-              <option value="ethanol">Etanol</option>
-            </select>
+            <Select
+              value={form.fuelType}
+              onChange={v => setForm(f => ({ ...f, fuelType: v }))}
+              options={FUEL_TYPE_OPTIONS}
+              height={34}
+              fontSize={12}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <Label>Litros</Label>
@@ -418,14 +461,11 @@ function ReceiptsTab({ period, config }: { period: KmPeriodDetail; config: KmCon
         </div>
       )}
 
-      {/* Footer summary */}
       {period.receipts.length > 0 && (
         <div className="mt-3 p-3 bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[10px] flex flex-col gap-1.5">
           <div className="flex justify-between text-[11px]">
             <span className="text-[var(--color-f4)]">Preço médio/litro</span>
-            <span className="font-medium text-[var(--color-f1)]">
-              R$ {period.fuelPriceAvg.toFixed(3)}
-            </span>
+            <span className="font-medium text-[var(--color-f1)]">R$ {period.fuelPriceAvg.toFixed(3)}</span>
           </div>
           <div className="flex justify-between text-[11px]">
             <span className="text-[var(--color-f4)]">Total das notas</span>
@@ -453,7 +493,7 @@ function ExpenseForm({ periodId, onDone }: { periodId: string; onDone: () => voi
     amount: "",
     notes: "",
   });
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
   function submit(e: React.FormEvent) {
@@ -485,11 +525,13 @@ function ExpenseForm({ periodId, onDone }: { periodId: string; onDone: () => voi
           </div>
           <div className="flex flex-col gap-1">
             <Label>Tipo</Label>
-            <select className={inputCls("cursor-pointer")} value={form.type} onChange={set("type")}>
-              {Object.entries(EXPENSE_TYPE_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
-              ))}
-            </select>
+            <Select
+              value={form.type}
+              onChange={v => setForm(f => ({ ...f, type: v }))}
+              options={EXPENSE_TYPE_OPTIONS}
+              height={34}
+              fontSize={12}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <Label>Valor (R$)</Label>
@@ -520,7 +562,6 @@ function ExpensesTab({ period }: { period: KmPeriodDetail }) {
   const [adding, setAdding] = useState(false);
   const [, startDel] = useTransition();
 
-  // Group by type for totals
   const byType = period.expenses.reduce<Record<string, number>>((acc, e) => {
     acc[e.type] = (acc[e.type] ?? 0) + e.amount;
     return acc;
@@ -567,7 +608,6 @@ function ExpensesTab({ period }: { period: KmPeriodDetail }) {
         </div>
       )}
 
-      {/* Subtotals by type */}
       {Object.keys(byType).length > 1 && (
         <div className="mt-3 p-3 bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[10px] flex flex-col gap-1.5">
           {Object.entries(byType).map(([type, total]) => (
@@ -598,16 +638,25 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
   const fuelOk = totalFuelAmount >= minRequired;
   const canSubmit = isOpen && period.totalKm > 0 && fuelOk;
 
-  // Build by expense type
   const byType = period.expenses.reduce<Record<string, number>>((acc, e) => {
     acc[e.type] = (acc[e.type] ?? 0) + e.amount;
     return acc;
   }, {});
 
+  // Locais visitados: unique non-empty route notes (empresa/descrição)
+  const locaisVisitados = [...new Set(
+    period.routes.map(r => r.notes).filter(Boolean) as string[]
+  )];
+
   const startStr = new Date(period.startDate).toLocaleDateString("pt-BR");
   const endStr   = new Date(period.endDate).toLocaleDateString("pt-BR");
-  const fuelLabel = period.fuelType === "ethanol" ? "Etanol" : "Gasolina";
-  const taxaPct   = period.fuelType === "ethanol"
+
+  // Determine fuelType from receipts (majority by liters)
+  const gasolineL = period.receipts.filter(r => r.fuelType === "gasoline").reduce((s, r) => s + r.liters, 0);
+  const ethanolL  = period.receipts.filter(r => r.fuelType === "ethanol").reduce((s, r) => s + r.liters, 0);
+  const dominantFuel = ethanolL > gasolineL ? "ethanol" : "gasoline";
+  const fuelLabel = dominantFuel === "ethanol" ? "Etanol" : "Gasolina";
+  const taxaPct = dominantFuel === "ethanol"
     ? (config.ethanolRate * 100).toFixed(0)
     : (config.gasolineRate * 100).toFixed(0);
 
@@ -625,6 +674,10 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
     `TOTAL GERAL: ${fmt(period.grandTotal)}`,
     "─────────────────────────────",
     `Notas apresentadas: ${fmt(totalFuelAmount)} (mín. ${fmt(minRequired)} ${fuelOk ? "✓" : "✗"})`,
+    ...(locaisVisitados.length > 0 ? [
+      "─────────────────────────────",
+      `Locais visitados: ${locaisVisitados.join(", ")}`,
+    ] : []),
   ];
   const summaryText = summaryLines.join("\n");
 
@@ -681,7 +734,6 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
           </div>
         </div>
 
-        {/* Fuel validation */}
         {period.kmAmount > 0 && (
           <div className={cn(
             "flex items-center gap-2 mt-3 pt-3 border-t border-[var(--color-border2)] text-[11px]",
@@ -718,7 +770,6 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {/* Submitted info */}
           <div className="flex items-center gap-3 p-3 bg-[rgba(251,191,36,0.08)] border border-[rgba(251,191,36,0.2)] rounded-[10px]">
             <IconClock size={16} className="text-[var(--color-amber)] flex-shrink-0" />
             <div className="flex-1">
@@ -753,15 +804,23 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
 // ── Main PeriodDetail ─────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "routes",   label: "Trajetos",         icon: IconRoute },
-  { id: "receipts", label: "Combustível",       icon: IconGasStation },
-  { id: "expenses", label: "Despesas Extras",   icon: IconReceipt },
-  { id: "summary",  label: "Resumo",            icon: IconFileText },
+  { id: "routes",   label: "Trajetos",       icon: IconRoute },
+  { id: "receipts", label: "Combustível",     icon: IconGasStation },
+  { id: "expenses", label: "Despesas Extras", icon: IconReceipt },
+  { id: "summary",  label: "Resumo",          icon: IconFileText },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
 
-export function PeriodDetail({ period, config }: { period: KmPeriodDetail; config: KmConfigData }) {
+export function PeriodDetail({
+  period,
+  config,
+  places,
+}: {
+  period: KmPeriodDetail;
+  config: KmConfigData;
+  places: KmPlaceData[];
+}) {
   const [activeTab, setActiveTab] = useState<TabId>("routes");
   const isOpen = period.status === "open";
 
@@ -795,13 +854,9 @@ export function PeriodDetail({ period, config }: { period: KmPeriodDetail; confi
             </div>
             <div className="text-[12px] text-[var(--color-f4)]">
               {new Date(period.startDate).toLocaleDateString("pt-BR")} → {new Date(period.endDate).toLocaleDateString("pt-BR")}
-              {" · "}
-              {period.fuelType === "ethanol" ? "Etanol" : "Gasolina"}
-              {period.notes && ` · ${period.notes}`}
             </div>
           </div>
 
-          {/* Quick totals */}
           <div className="flex items-center gap-4 flex-shrink-0 mt-1">
             <div className="text-right">
               <div className="text-[10px] text-[var(--color-f4)] mb-0.5">Total</div>
@@ -840,7 +895,7 @@ export function PeriodDetail({ period, config }: { period: KmPeriodDetail; confi
       </div>
 
       {/* Tab content */}
-      {activeTab === "routes"   && <RoutesTab period={period} />}
+      {activeTab === "routes"   && <RoutesTab period={period} places={places} />}
       {activeTab === "receipts" && <ReceiptsTab period={period} config={config} />}
       {activeTab === "expenses" && <ExpensesTab period={period} />}
       {activeTab === "summary"  && <SummaryTab period={period} config={config} />}

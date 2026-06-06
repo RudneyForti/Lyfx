@@ -338,3 +338,13 @@ model KmExpense {
   notes     String?
   createdAt DateTime @default(now())
 }
+
+model KmPlace {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   // Ex: "Empresa XYZ"
+  address   String   // Ex: "Av. Paulista, 1000, São Paulo"
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
