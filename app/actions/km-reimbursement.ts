@@ -15,7 +15,6 @@ export type KmConfigData = {
   paymentDays: number;
   vehiclePlate: string;
   vehicleType: string;
-  vehicleClass: string;
   vehicleBrand: string;
 };
 
@@ -70,6 +69,8 @@ export type KmRouteData = {
   destination: string;
   km: number;
   notes: string | null;
+  placeId: string | null;
+  direction: string | null;
   createdAt: Date;
 };
 
@@ -128,7 +129,11 @@ async function recalcPeriodInternal(periodId: string, userId: string) {
 
   const gasolineRate = config?.gasolineRate ?? 0.25;
   const ethanolRate  = config?.ethanolRate  ?? 0.36;
-  const rate = period.fuelType === "ethanol" ? ethanolRate : gasolineRate;
+  // Derive dominant fuel from receipts (not period.fuelType)
+  const gasolineL = receipts.filter(r => r.fuelType === "gasoline").reduce((s, r) => s + r.liters, 0);
+  const ethanolL  = receipts.filter(r => r.fuelType === "ethanol").reduce((s, r) => s + r.liters, 0);
+  const dominantFuel = ethanolL > gasolineL ? "ethanol" : "gasoline";
+  const rate = dominantFuel === "ethanol" ? ethanolRate : gasolineRate;
 
   const totalKm    = routes.reduce((s, r) => s + r.km, 0);
   const totalLiters = receipts.reduce((s, r) => s + r.liters, 0);
@@ -155,7 +160,7 @@ export async function getKmConfig(): Promise<KmConfigData> {
     data: {
       userId,
       gasolineRate: 0.25, ethanolRate: 0.36, minFuelPct: 0.15, paymentDays: 5,
-      vehiclePlate: "", vehicleType: "", vehicleClass: "", vehicleBrand: "",
+      vehiclePlate: "", vehicleType: "Carro", vehicleBrand: "",
     },
   });
 }
@@ -167,33 +172,22 @@ export async function saveKmConfig(data: {
   paymentDays: number;
   vehiclePlate?: string;
   vehicleType?: string;
-  vehicleClass?: string;
   vehicleBrand?: string;
 }): Promise<void> {
   const userId = await requireAuth();
+  const payload = {
+    gasolineRate: data.gasolineRate,
+    ethanolRate: data.ethanolRate,
+    minFuelPct: data.minFuelPct,
+    paymentDays: data.paymentDays,
+    vehiclePlate: data.vehiclePlate ?? "",
+    vehicleType: data.vehicleType ?? "Carro",
+    vehicleBrand: data.vehicleBrand ?? "",
+  };
   await db.kmConfig.upsert({
     where: { userId },
-    create: {
-      userId,
-      gasolineRate: data.gasolineRate,
-      ethanolRate: data.ethanolRate,
-      minFuelPct: data.minFuelPct,
-      paymentDays: data.paymentDays,
-      vehiclePlate: data.vehiclePlate ?? "",
-      vehicleType: data.vehicleType ?? "",
-      vehicleClass: data.vehicleClass ?? "",
-      vehicleBrand: data.vehicleBrand ?? "",
-    },
-    update: {
-      gasolineRate: data.gasolineRate,
-      ethanolRate: data.ethanolRate,
-      minFuelPct: data.minFuelPct,
-      paymentDays: data.paymentDays,
-      vehiclePlate: data.vehiclePlate ?? "",
-      vehicleType: data.vehicleType ?? "",
-      vehicleClass: data.vehicleClass ?? "",
-      vehicleBrand: data.vehicleBrand ?? "",
-    },
+    create: { userId, ...payload },
+    update: payload,
   });
   revalidatePath("/km-reimbursement");
 }
@@ -264,6 +258,8 @@ export async function createKmRoute(data: {
   destination: string;
   km: number;
   notes?: string;
+  placeId?: string;
+  direction?: string;
 }): Promise<void> {
   const userId = await requireAuth();
   await db.kmRoute.create({
@@ -275,10 +271,42 @@ export async function createKmRoute(data: {
       destination: data.destination,
       km: data.km,
       notes: data.notes ?? null,
+      placeId: data.placeId ?? null,
+      direction: data.direction ?? null,
     },
   });
   await recalcPeriodInternal(data.periodId, userId);
   revalidatePath(`/km-reimbursement/${data.periodId}`);
+}
+
+export async function createKmRoutesBulk(routes: Array<{
+  periodId: string;
+  date: string;
+  origin: string;
+  destination: string;
+  km: number;
+  notes?: string;
+  placeId?: string;
+  direction?: string;
+}>): Promise<void> {
+  if (routes.length === 0) return;
+  const userId = await requireAuth();
+  const periodId = routes[0].periodId;
+  await db.kmRoute.createMany({
+    data: routes.map(r => ({
+      userId,
+      periodId: r.periodId,
+      date: new Date(r.date),
+      origin: r.origin,
+      destination: r.destination,
+      km: r.km,
+      notes: r.notes ?? null,
+      placeId: r.placeId ?? null,
+      direction: r.direction ?? null,
+    })),
+  });
+  await recalcPeriodInternal(periodId, userId);
+  revalidatePath(`/km-reimbursement/${periodId}`);
 }
 
 export async function updateKmRoute(id: string, data: {
@@ -299,6 +327,7 @@ export async function updateKmRoute(id: string, data: {
       destination: data.destination,
       km: data.km,
       notes: data.notes ?? null,
+      // preserve placeId/direction on update
     },
   });
   await recalcPeriodInternal(route.periodId, userId);

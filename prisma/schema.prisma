@@ -271,8 +271,7 @@ model KmConfig {
   minFuelPct   Float    @default(0.15)  // mínimo 15% em notas vs. montante
   paymentDays  Int      @default(5)     // D+5 dias úteis
   vehiclePlate String   @default("")    // placa do veículo
-  vehicleType  String   @default("")    // ex: Próprio, Empresa
-  vehicleClass String   @default("")    // ex: Passeio, Utilitário
+  vehicleType  String   @default("Carro") // ex: Carro
   vehicleBrand String   @default("")    // ex: Toyota, Honda
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -315,6 +314,8 @@ model KmRoute {
   destination String
   km          Float
   notes       String?
+  placeId     String?  // ref to KmPlace (null = manual entry)
+  direction   String?  // "going" | "return" (when placeId is set)
   createdAt   DateTime @default(now())
 }
 
