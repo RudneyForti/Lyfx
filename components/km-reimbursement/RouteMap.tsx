@@ -158,46 +158,6 @@ function MapTypeToggle({
   );
 }
 
-// ── Via-waypoint circle hider ────────────────────────────────────────────────
-// Strategy: CSS injection scoped to a unique wrapper ID (applied at paint time,
-// survives SVG redraws) + JS interval as a safety net for any circles that
-// escape the CSS rule (e.g. set via SVG presentation attributes that override CSS).
-//
-// We hide ALL <circle> elements inside the map wrapper because:
-// - Route polyline → <path>, not <circle>
-// - A/B markers   → <div> with images, not SVG <circle>
-// - Only via_waypoint handles use <circle>
-//
-// Scoped to #km-route-map-{instance} so it doesn't affect other Google Maps
-// instances that might exist on the same page.
-
-const MAP_WRAP_ID = "km-route-map-wrap";
-
-function ensureCircleHideStyle() {
-  const id = "km-route-circle-hide-css";
-  if (document.getElementById(id)) return;
-  const style = document.createElement("style");
-  style.id = id;
-  // Both visibility and opacity to defeat SVG presentation-attribute specificity
-  style.textContent = `
-    #${MAP_WRAP_ID} svg circle {
-      opacity: 0 !important;
-      visibility: hidden !important;
-      pointer-events: none !important;
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-function forceHideCircles(wrap: HTMLElement) {
-  wrap.querySelectorAll("svg circle").forEach(el => {
-    const c = el as SVGCircleElement;
-    c.style.setProperty("opacity", "0", "important");
-    c.style.setProperty("visibility", "hidden", "important");
-    c.style.setProperty("pointer-events", "none", "important");
-  });
-}
-
 // ── Lazy loader for Google Maps ───────────────────────────────────────────────
 
 function MapWithDirections({
@@ -229,23 +189,6 @@ function MapWithDirections({
   const requested = useRef(false);
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const skipNextChange = useRef(false);
-  const mapWrapRef = useRef<HTMLDivElement>(null);
-
-  // Primary: inject scoped CSS rule (applied at paint time, survives SVG redraws)
-  useEffect(() => {
-    if (isLoaded) ensureCircleHideStyle();
-  }, [isLoaded]);
-
-  // Secondary: JS interval every 400 ms for circles whose SVG presentation
-  // attributes override CSS specificity (e.g. fill="white" beats CSS fill rule).
-  // Runs only while this map is mounted; cleared on unmount.
-  useEffect(() => {
-    if (!isLoaded) return;
-    const wrap = mapWrapRef.current;
-    if (!wrap) return;
-    const id = setInterval(() => forceHideCircles(wrap), 400);
-    return () => clearInterval(id);
-  }, [isLoaded]);
 
   // Extract via_waypoints from saved route so DirectionsService reconstructs the custom path
   const savedWaypoints = useMemo(() => {
@@ -327,7 +270,7 @@ function MapWithDirections({
   const isDarkStyle = mapType === "roadmap";
 
   return (
-    <div ref={mapWrapRef} id={MAP_WRAP_ID} className="relative w-full h-full">
+    <div className="relative w-full h-full">
       <GoogleMap
         mapContainerStyle={{ width: "100%", height: "100%", borderRadius: 12 }}
         zoom={10}
