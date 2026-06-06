@@ -15,28 +15,27 @@ interface RouteMapProps {
 // ── Dark map style ────────────────────────────────────────────────────────────
 
 const DARK_MAP_STYLES = [
-  { elementType: "geometry",                                         stylers: [{ color: "#212121" }] },
-  { elementType: "labels.text.stroke",                               stylers: [{ color: "#212121" }] },
-  { elementType: "labels.text.fill",                                 stylers: [{ color: "#757575" }] },
-  { featureType: "administrative",       elementType: "geometry",    stylers: [{ color: "#757575" }] },
-  { featureType: "administrative.country", elementType: "labels.text.fill", stylers: [{ color: "#9e9e9e" }] },
-  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#bdbdbd" }] },
-  { featureType: "poi",                  elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
-  { featureType: "poi.park",             elementType: "geometry",    stylers: [{ color: "#181818" }] },
-  { featureType: "poi.park",             elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
-  { featureType: "poi.park",             elementType: "labels.text.stroke", stylers: [{ color: "#1b1b1b" }] },
-  // ── Roads ──
-  { featureType: "road",                 elementType: "geometry.fill",    stylers: [{ color: "#2c2c2c" }] },
-  { featureType: "road",                 elementType: "labels.text.fill", stylers: [{ color: "#8a8a8a" }] },
-  { featureType: "road.arterial",        elementType: "geometry",    stylers: [{ color: "#373737" }] },
-  { featureType: "road.highway",         elementType: "geometry",    stylers: [{ color: "#3c3c3c" }] },
-  { featureType: "road.highway.controlled_access", elementType: "geometry", stylers: [{ color: "#4e4e4e" }] },
-  { featureType: "road.local",           elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
-  // ── Transit ──
-  { featureType: "transit",              elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
-  // ── Water ──
-  { featureType: "water",                elementType: "geometry",    stylers: [{ color: "#000000" }] },
-  { featureType: "water",                elementType: "labels.text.fill", stylers: [{ color: "#3d3d3d" }] },
+  // Base — tudo no azul escuro original
+  { elementType: "geometry",             stylers: [{ color: "#1a1a2e" }] },
+  { elementType: "labels.text.stroke",   stylers: [{ color: "#1a1a2e" }] },
+  { elementType: "labels.text.fill",     stylers: [{ color: "#6b7a99" }] },
+  // Água um tom mais escuro
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d0d1f" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3a4a6b" }] },
+  // Parques ligeiramente distintos
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#16213e" }] },
+  // ── Vias — tons progressivamente mais claros ──
+  { featureType: "road.local",    elementType: "geometry.fill",   stylers: [{ color: "#252547" }] },
+  { featureType: "road.local",    elementType: "labels.text.fill", stylers: [{ color: "#4a5578" }] },
+  { featureType: "road.arterial", elementType: "geometry.fill",   stylers: [{ color: "#2e2e5a" }] },
+  { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#7a8ab0" }] },
+  { featureType: "road.highway",  elementType: "geometry.fill",   stylers: [{ color: "#3a3a70" }] },
+  { featureType: "road.highway",  elementType: "geometry.stroke",  stylers: [{ color: "#1a1a2e" }] },
+  { featureType: "road.highway",  elementType: "labels.text.fill", stylers: [{ color: "#9aa5cc" }] },
+  { featureType: "road.highway.controlled_access", elementType: "geometry.fill", stylers: [{ color: "#464685" }] },
+  // Trânsito / admin
+  { featureType: "transit",       elementType: "labels.text.fill", stylers: [{ color: "#4a5578" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#8895bb" }] },
 ];
 
 // ── Lazy loader for Google Maps ───────────────────────────────────────────────
