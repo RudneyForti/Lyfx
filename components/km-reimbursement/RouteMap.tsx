@@ -22,13 +22,22 @@ function MapWithDirections({ origin, destination, onKmChange, onClose }: RouteMa
 
   const { isLoaded } = useLoadScript({ googleMapsApiKey: API_KEY! });
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [routeKm, setRouteKm] = useState<number | null>(null);
+  const [routeDuration, setRouteDuration] = useState<string | null>(null);
   const requested = useRef(false);
 
   const handleDirections = useCallback((result: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
     if (status === "OK" && result) {
       setDirections(result);
-      const km = result.routes[0]?.legs[0]?.distance?.value;
-      if (km && onKmChange) onKmChange(Math.round((km / 1000) * 10) / 10);
+      const leg = result.routes[0]?.legs[0];
+      if (leg?.distance?.value) {
+        const km = Math.round((leg.distance.value / 1000) * 10) / 10;
+        setRouteKm(km);
+        if (onKmChange) onKmChange(km);
+      }
+      if (leg?.duration?.text) {
+        setRouteDuration(leg.duration.text);
+      }
     }
   }, [onKmChange]);
 
@@ -67,6 +76,38 @@ function MapWithDirections({ origin, destination, onKmChange, onClose }: RouteMa
           />
         )}
       </GoogleMap>
+
+      {/* KM overlay */}
+      {routeKm !== null && (
+        <div className="absolute bottom-3 left-3 flex items-center gap-2 pointer-events-none">
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] text-[12px] font-bold"
+            style={{
+              background: "rgba(0,0,0,0.75)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(34,211,238,0.35)",
+              color: "var(--color-cyan)",
+            }}
+          >
+            <IconMapPin size={12} />
+            {routeKm.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km
+          </div>
+          {routeDuration && (
+            <div
+              className="px-2 py-1.5 rounded-[8px] text-[11px] font-medium"
+              style={{
+                background: "rgba(0,0,0,0.65)",
+                backdropFilter: "blur(6px)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.7)",
+              }}
+            >
+              {routeDuration}
+            </div>
+          )}
+        </div>
+      )}
+
       {onClose && (
         <button
           onClick={onClose}
