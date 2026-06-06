@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createKmPeriod } from "@/app/actions/km-reimbursement";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { IconCar, IconArrowLeft } from "@tabler/icons-react";
 
 function inputCls(extra = "") {
@@ -84,11 +85,23 @@ export function NewPeriodForm() {
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label>Data de início</Label>
-              <input type="date" className={inputCls()} value={form.startDate} onChange={set("startDate")} required />
+              <DatePicker
+                value={form.startDate}
+                onChange={v => setForm(f => ({ ...f, startDate: v }))}
+                placeholder="dd/mm/aaaa"
+                height={38}
+                fontSize={13}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Data de fim</Label>
-              <input type="date" className={inputCls()} value={form.endDate} onChange={set("endDate")} required />
+              <DatePicker
+                value={form.endDate}
+                onChange={v => setForm(f => ({ ...f, endDate: v }))}
+                placeholder="dd/mm/aaaa"
+                height={38}
+                fontSize={13}
+              />
             </div>
           </div>
 

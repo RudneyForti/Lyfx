@@ -10,6 +10,7 @@ import {
 } from "@/app/actions/km-reimbursement";
 import type { KmPeriodDetail, KmConfigData, KmRouteData, KmReceiptData, KmExpenseData } from "@/app/actions/km-reimbursement";
 import { RouteMap } from "./RouteMap";
+import { DatePicker } from "@/components/ui/DatePicker";
 import {
   IconArrowLeft, IconPlus, IconTrash, IconMap,
   IconRoute, IconGasStation, IconReceipt, IconFileText,
@@ -119,7 +120,12 @@ function RouteForm({ periodId, route, onDone }: {
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
             <Label>Data</Label>
-            <input type="date" className={inputCls()} value={form.date} onChange={set("date")} required />
+            <DatePicker
+              value={form.date}
+              onChange={v => setForm(f => ({ ...f, date: v }))}
+              height={34}
+              fontSize={12}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <Label>KM rodados</Label>
@@ -310,7 +316,12 @@ function ReceiptForm({ periodId, onDone }: { periodId: string; onDone: () => voi
         <div className="grid grid-cols-3 gap-3">
           <div className="flex flex-col gap-1">
             <Label>Data</Label>
-            <input type="date" className={inputCls()} value={form.date} onChange={set("date")} required />
+            <DatePicker
+              value={form.date}
+              onChange={v => setForm(f => ({ ...f, date: v }))}
+              height={34}
+              fontSize={12}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <Label>Combustível</Label>
@@ -465,7 +476,12 @@ function ExpenseForm({ periodId, onDone }: { periodId: string; onDone: () => voi
         <div className="grid grid-cols-3 gap-3">
           <div className="flex flex-col gap-1">
             <Label>Data</Label>
-            <input type="date" className={inputCls()} value={form.date} onChange={set("date")} required />
+            <DatePicker
+              value={form.date}
+              onChange={v => setForm(f => ({ ...f, date: v }))}
+              height={34}
+              fontSize={12}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <Label>Tipo</Label>
