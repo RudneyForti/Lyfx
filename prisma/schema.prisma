@@ -270,6 +270,10 @@ model KmConfig {
   ethanolRate  Float    @default(0.36)  // 36% do preço/litro por km
   minFuelPct   Float    @default(0.15)  // mínimo 15% em notas vs. montante
   paymentDays  Int      @default(5)     // D+5 dias úteis
+  vehiclePlate String   @default("")    // placa do veículo
+  vehicleType  String   @default("")    // ex: Próprio, Empresa
+  vehicleClass String   @default("")    // ex: Passeio, Utilitário
+  vehicleBrand String   @default("")    // ex: Toyota, Honda
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -340,11 +344,14 @@ model KmExpense {
 }
 
 model KmPlace {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String   // Ex: "Empresa XYZ"
-  address   String   // Ex: "Av. Paulista, 1000, São Paulo"
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  userId             String
+  name               String   // Ex: "Empresa XYZ"
+  originAddress      String   @default("")  // endereço de partida (ex: casa/escritório)
+  destinationAddress String   @default("")  // endereço de destino (ex: empresa)
+  kmGoing            Float    @default(0)   // km ida
+  kmReturn           Float    @default(0)   // km volta
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }

@@ -4,10 +4,14 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { saveKmConfig, createKmPlace, deleteKmPlace } from "@/app/actions/km-reimbursement";
 import type { KmConfigData, KmPlaceData } from "@/app/actions/km-reimbursement";
-import { IconArrowLeft, IconCheck, IconSettings, IconMapPin, IconTrash, IconPlus } from "@tabler/icons-react";
+import { IconArrowLeft, IconCheck, IconSettings, IconMapPin, IconTrash, IconPlus, IconCar } from "@tabler/icons-react";
 
 function inputCls(extra = "") {
   return `w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] px-3 py-[9px] text-[13px] text-[var(--color-f1)] outline-none h-[38px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)] ${extra}`;
+}
+
+function inputSmCls(extra = "") {
+  return `w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[10px] px-3 py-[7px] text-[12px] text-[var(--color-f1)] outline-none h-[34px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)] ${extra}`;
 }
 
 function Label({ children, hint }: { children: React.ReactNode; hint?: string }) {
@@ -24,17 +28,29 @@ function Label({ children, hint }: { children: React.ReactNode; hint?: string })
 function PlacesSection({ places }: { places: KmPlaceData[] }) {
   const [isPending, start] = useTransition();
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", address: "" });
+  const [form, setForm] = useState({
+    name: "",
+    originAddress: "",
+    destinationAddress: "",
+    kmGoing: "",
+    kmReturn: "",
+  });
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim() || !form.address.trim()) return;
+    if (!form.name.trim() || !form.destinationAddress.trim()) return;
     start(async () => {
-      await createKmPlace({ name: form.name.trim(), address: form.address.trim() });
-      setForm({ name: "", address: "" });
+      await createKmPlace({
+        name: form.name.trim(),
+        originAddress: form.originAddress.trim(),
+        destinationAddress: form.destinationAddress.trim(),
+        kmGoing: parseFloat(form.kmGoing) || 0,
+        kmReturn: parseFloat(form.kmReturn) || 0,
+      });
+      setForm({ name: "", originAddress: "", destinationAddress: "", kmGoing: "", kmReturn: "" });
       setAdding(false);
     });
   }
@@ -53,7 +69,7 @@ function PlacesSection({ places }: { places: KmPlaceData[] }) {
             Lugares Cadastrados
           </div>
           <div className="text-[10px] text-[var(--color-f4)] mt-0.5">
-            Empresas e locais frequentes para preencher trajetos rapidamente
+            Empresas e locais frequentes para preencher trajetos (ida e volta) rapidamente
           </div>
         </div>
         <button
@@ -71,7 +87,7 @@ function PlacesSection({ places }: { places: KmPlaceData[] }) {
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-medium text-[var(--color-f3)]">Nome / Empresa</label>
             <input
-              className={inputCls()}
+              className={inputSmCls()}
               placeholder="Ex: Empresa XYZ, Cliente ABC..."
               value={form.name}
               onChange={set("name")}
@@ -79,20 +95,57 @@ function PlacesSection({ places }: { places: KmPlaceData[] }) {
               autoFocus
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-medium text-[var(--color-f3)]">Endereço</label>
-            <input
-              className={inputCls()}
-              placeholder="Ex: Av. Paulista, 1000, São Paulo"
-              value={form.address}
-              onChange={set("address")}
-              required
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-medium text-[var(--color-f3)]">Endereço de Partida (origem)</label>
+              <input
+                className={inputSmCls()}
+                placeholder="Ex: Rua Principal, 100, Cidade"
+                value={form.originAddress}
+                onChange={set("originAddress")}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-medium text-[var(--color-f3)]">Endereço de Destino</label>
+              <input
+                className={inputSmCls()}
+                placeholder="Ex: Av. Paulista, 1000, São Paulo"
+                value={form.destinationAddress}
+                onChange={set("destinationAddress")}
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-medium text-[var(--color-f3)]">KM ida</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                className={inputSmCls()}
+                placeholder="0.0"
+                value={form.kmGoing}
+                onChange={set("kmGoing")}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-medium text-[var(--color-f3)]">KM volta</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                className={inputSmCls()}
+                placeholder="0.0"
+                value={form.kmReturn}
+                onChange={set("kmReturn")}
+              />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="submit"
-              disabled={isPending || !form.name.trim() || !form.address.trim()}
+              disabled={isPending || !form.name.trim() || !form.destinationAddress.trim()}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-semibold text-white cursor-pointer border-0 disabled:opacity-50"
               style={{ background: "var(--color-cyan)" }}
             >
@@ -101,7 +154,7 @@ function PlacesSection({ places }: { places: KmPlaceData[] }) {
             </button>
             <button
               type="button"
-              onClick={() => { setAdding(false); setForm({ name: "", address: "" }); }}
+              onClick={() => { setAdding(false); setForm({ name: "", originAddress: "", destinationAddress: "", kmGoing: "", kmReturn: "" }); }}
               className="px-3 py-1.5 rounded-[8px] text-[11px] text-[var(--color-f3)] bg-[var(--color-bg4)] border border-[var(--color-border2)] cursor-pointer hover:text-[var(--color-f1)] transition-colors"
             >
               Cancelar
@@ -120,16 +173,35 @@ function PlacesSection({ places }: { places: KmPlaceData[] }) {
       {places.length > 0 && (
         <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[12px] overflow-hidden">
           {places.map(place => (
-            <div key={place.id} className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-0 group">
-              <IconMapPin size={13} className="text-[var(--color-cyan)] flex-shrink-0" />
+            <div key={place.id} className="flex items-start gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-0 group">
+              <IconMapPin size={13} className="text-[var(--color-cyan)] flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <div className="text-[12px] font-medium text-[var(--color-f1)] truncate">{place.name}</div>
-                <div className="text-[10px] text-[var(--color-f4)] truncate">{place.address}</div>
+                <div className="text-[10px] text-[var(--color-f4)] mt-0.5 truncate">
+                  {place.originAddress
+                    ? <><span className="text-[var(--color-f3)]">Partida:</span> {place.originAddress}</>
+                    : <span className="italic">sem endereço de partida</span>}
+                </div>
+                <div className="text-[10px] text-[var(--color-f4)] mt-0.5 truncate">
+                  <span className="text-[var(--color-f3)]">Destino:</span> {place.destinationAddress || <span className="italic">—</span>}
+                </div>
+                <div className="flex items-center gap-3 mt-0.5">
+                  {place.kmGoing > 0 && (
+                    <span className="text-[9px] text-[var(--color-cyan)]">
+                      Ida: {place.kmGoing.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km
+                    </span>
+                  )}
+                  {place.kmReturn > 0 && (
+                    <span className="text-[9px] text-[var(--color-cyan)]">
+                      Volta: {place.kmReturn.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => handleDelete(place.id)}
                 disabled={isPending}
-                className="w-6 h-6 rounded-[6px] flex items-center justify-center text-[var(--color-f4)] hover:text-red-400 hover:bg-[rgba(239,68,68,0.1)] cursor-pointer border-0 bg-transparent transition-colors opacity-0 group-hover:opacity-100"
+                className="w-6 h-6 rounded-[6px] flex items-center justify-center text-[var(--color-f4)] hover:text-red-400 hover:bg-[rgba(239,68,68,0.1)] cursor-pointer border-0 bg-transparent transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
               >
                 <IconTrash size={11} />
               </button>
@@ -151,6 +223,10 @@ export function KmSettings({ config, places }: { config: KmConfigData; places: K
     ethanolRate:  String(config.ethanolRate),
     minFuelPct:   String(config.minFuelPct),
     paymentDays:  String(config.paymentDays),
+    vehiclePlate: config.vehiclePlate,
+    vehicleType:  config.vehicleType,
+    vehicleClass: config.vehicleClass,
+    vehicleBrand: config.vehicleBrand,
   });
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -164,13 +240,17 @@ export function KmSettings({ config, places }: { config: KmConfigData; places: K
         ethanolRate:  parseFloat(form.ethanolRate) || 0.36,
         minFuelPct:   parseFloat(form.minFuelPct) || 0.15,
         paymentDays:  parseInt(form.paymentDays) || 5,
+        vehiclePlate: form.vehiclePlate,
+        vehicleType:  form.vehicleType,
+        vehicleClass: form.vehicleClass,
+        vehicleBrand: form.vehicleBrand,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     });
   }
 
-  const fields = [
+  const rateFields = [
     {
       key: "gasolineRate",
       label: "Taxa Gasolina",
@@ -215,14 +295,17 @@ export function KmSettings({ config, places }: { config: KmConfigData; places: K
           Reem<span className="text-[var(--color-cyan)]">bolso Especial</span>
         </h1>
         <p className="text-[var(--color-f3)] text-sm mt-2">
-          Ajuste as taxas, regras e locais frequentes do módulo.
+          Ajuste as taxas, veículo, regras e locais frequentes do módulo.
         </p>
       </div>
 
-      {/* Params form */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-8">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6 mb-8">
+        {/* Rate params */}
         <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[14px] p-5 flex flex-col gap-5">
-          {fields.map(f => (
+          <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-[var(--color-border)]">
+            Parâmetros de Cálculo
+          </div>
+          {rateFields.map(f => (
             <div key={f.key} className="flex flex-col gap-1.5">
               <Label hint={f.hint}>{f.label}</Label>
               <div className="flex items-center gap-2">
@@ -240,6 +323,52 @@ export function KmSettings({ config, places }: { config: KmConfigData; places: K
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Vehicle */}
+        <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[14px] p-5 flex flex-col gap-4">
+          <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-[var(--color-border)]">
+            <IconCar size={11} />
+            Veículo
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label hint="Número da placa do veículo">Placa</Label>
+              <input
+                className={inputCls()}
+                placeholder="Ex: ABC-1234"
+                value={form.vehiclePlate}
+                onChange={set("vehiclePlate")}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label hint="Marca do veículo">Marca</Label>
+              <input
+                className={inputCls()}
+                placeholder="Ex: Toyota, Honda..."
+                value={form.vehicleBrand}
+                onChange={set("vehicleBrand")}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label hint="Tipo de posse do veículo">Tipo</Label>
+              <input
+                className={inputCls()}
+                placeholder="Ex: Próprio, Empresa..."
+                value={form.vehicleType}
+                onChange={set("vehicleType")}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label hint="Classe do veículo para o SAP">Classe</Label>
+              <input
+                className={inputCls()}
+                placeholder="Ex: Passeio, Utilitário..."
+                value={form.vehicleClass}
+                onChange={set("vehicleClass")}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Preview */}
