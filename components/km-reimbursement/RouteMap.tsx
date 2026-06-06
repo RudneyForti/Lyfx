@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { IconMapPin, IconX } from "@tabler/icons-react";
+import { GOOGLE_MAPS_LIBRARIES } from "./AddressAutocomplete";
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -46,11 +47,19 @@ function MapWithDirections({ origin, destination, onKmChange, onClose }: RouteMa
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("@react-google-maps/api");
 
-  const { isLoaded } = useLoadScript({ googleMapsApiKey: API_KEY! });
+  const { isLoaded } = useLoadScript({ googleMapsApiKey: API_KEY!, libraries: GOOGLE_MAPS_LIBRARIES });
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [routeKm, setRouteKm] = useState<number | null>(null);
   const [routeDuration, setRouteDuration] = useState<string | null>(null);
   const requested = useRef(false);
+
+  // Reset route whenever addresses change
+  useEffect(() => {
+    requested.current = false;
+    setDirections(null);
+    setRouteKm(null);
+    setRouteDuration(null);
+  }, [origin, destination]);
 
   const handleDirections = useCallback((result: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
     if (status === "OK" && result) {

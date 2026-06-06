@@ -9,6 +9,7 @@ import {
   IconMap, IconPencil,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
+import { AddressAutocomplete } from "./AddressAutocomplete";
 
 function inputCls(extra = "") {
   return `w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[10px] px-3 py-[7px] text-[12px] text-[var(--color-f1)] outline-none h-[34px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)] ${extra}`;
@@ -74,20 +75,20 @@ function PlaceFormFields({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] font-medium text-[var(--color-f3)]">Endereço de Partida</label>
-          <input
+          <AddressAutocomplete
             className={inputCls()}
             placeholder="Sua casa / escritório..."
             value={form.originAddress}
-            onChange={set("originAddress")}
+            onChange={val => setForm(f => ({ ...f, originAddress: val }))}
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] font-medium text-[var(--color-f3)]">Endereço de Destino</label>
-          <input
+          <AddressAutocomplete
             className={inputCls()}
             placeholder="Av. Paulista, 1000, SP..."
             value={form.destinationAddress}
-            onChange={set("destinationAddress")}
+            onChange={val => setForm(f => ({ ...f, destinationAddress: val }))}
             required
           />
         </div>

@@ -14,6 +14,7 @@ import type {
   KmPlaceData,
 } from "@/app/actions/km-reimbursement";
 import { RouteMap } from "./RouteMap";
+import { AddressAutocomplete } from "./AddressAutocomplete";
 import { PlacesModal } from "./PlacesModal";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Select } from "@/components/ui/Select";
@@ -347,11 +348,23 @@ function RouteForm({ periodId, route, places, onDone }: {
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <Label>Origem</Label>
-                <input className={inputCls()} placeholder="Rua, cidade..." value={form.origin} onChange={set("origin")} required />
+                <AddressAutocomplete
+                  className={inputCls()}
+                  placeholder="Rua, cidade..."
+                  value={form.origin}
+                  onChange={val => setForm(f => ({ ...f, origin: val }))}
+                  required
+                />
               </div>
               <div className="flex flex-col gap-1">
                 <Label>Destino</Label>
-                <input className={inputCls()} placeholder="Rua, cidade..." value={form.destination} onChange={set("destination")} required />
+                <AddressAutocomplete
+                  className={inputCls()}
+                  placeholder="Rua, cidade..."
+                  value={form.destination}
+                  onChange={val => setForm(f => ({ ...f, destination: val }))}
+                  required
+                />
               </div>
             </div>
             <div className="flex flex-col gap-1">
