@@ -312,11 +312,12 @@ model KmRoute {
   date        DateTime
   origin      String
   destination String
-  km          Float
-  notes       String?
-  placeId     String?  // ref to KmPlace (null = manual entry)
-  direction   String?  // "going" | "return" (when placeId is set)
-  createdAt   DateTime @default(now())
+  km            Float
+  routePolyline String?  // overview_polyline codificado — sempre preenchido via mapa
+  notes         String?
+  placeId       String?  // ref to KmPlace (null = manual entry)
+  direction     String?  // "going" | "return" (when placeId is set)
+  createdAt     DateTime @default(now())
 }
 
 model KmReceipt {
