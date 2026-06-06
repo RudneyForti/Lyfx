@@ -1026,7 +1026,7 @@ function SapTable({ routes, config, classeLabel }: {
 
 // ── Summary Tab ───────────────────────────────────────────────────────────────
 
-function SummaryTab({ period, config, userName }: { period: KmPeriodDetail; config: KmConfigData; userName: string }) {
+function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConfigData }) {
   const [isPending, start] = useTransition();
   const [copied, setCopied] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -1035,17 +1035,13 @@ function SummaryTab({ period, config, userName }: { period: KmPeriodDetail; conf
   async function handleExportPdf() {
     setPdfLoading(true);
     try {
-      const React = await import("react");
-      const [{ pdf }, { PeriodPdfDocument }] = await Promise.all([
-        import("@react-pdf/renderer"),
-        import("./PeriodPdf"),
-      ]);
-      const baseUrl = window.location.origin;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const element = React.createElement(PeriodPdfDocument, { period, config, userName, baseUrl }) as any;
-      const blob    = await pdf(element).toBlob();
-      const url     = URL.createObjectURL(blob);
-      const link    = document.createElement("a");
+      // PDF gerado server-side em /api/km-pdf/[id] — evita bundlar
+      // @react-pdf/renderer no cliente (incompatível com Turbopack)
+      const res = await fetch(`/api/km-pdf/${period.id}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const link = document.createElement("a");
       link.href     = url;
       link.download = `reembolso-km-${period.name.toLowerCase().replace(/\s+/g, "-")}.pdf`;
       link.click();
@@ -1398,7 +1394,7 @@ export function PeriodDetail({
         {activeTab === "routes"   && <RoutesTab period={period} places={places} />}
         {activeTab === "receipts" && <ReceiptsTab period={period} config={config} />}
         {activeTab === "expenses" && <ExpensesTab period={period} />}
-        {activeTab === "summary"  && <SummaryTab period={period} config={config} userName={userName} />}
+        {activeTab === "summary"  && <SummaryTab period={period} config={config} />}
       </div>
 
       {/* Places Modal */}
