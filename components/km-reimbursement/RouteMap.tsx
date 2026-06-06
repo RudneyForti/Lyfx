@@ -38,6 +38,19 @@ const DARK_MAP_STYLES = [
   { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#8895bb" }] },
 ];
 
+// Styles for terrain/satellite modes — no custom coloring, let Google render naturally
+const NATURAL_MAP_STYLES: google.maps.MapTypeStyle[] = [];
+
+// ── Map type config ───────────────────────────────────────────────────────────
+
+type MapTypeKey = "roadmap" | "satellite" | "terrain";
+
+const MAP_TYPE_LABELS: Record<MapTypeKey, string> = {
+  roadmap:   "Mapa",
+  satellite: "Satélite",
+  terrain:   "Terreno",
+};
+
 // ── Shared overlay button style ───────────────────────────────────────────────
 
 const overlayBtnBase: React.CSSProperties = {
@@ -53,10 +66,16 @@ const overlayBtnHover: React.CSSProperties = {
   color: "var(--color-cyan)",
 };
 
+const overlayBtnActive: React.CSSProperties = {
+  background: "rgba(34,211,238,0.2)",
+  border: "1px solid rgba(34,211,238,0.6)",
+  color: "var(--color-cyan)",
+};
+
 const btnCls =
   "w-7 h-7 rounded-[8px] flex items-center justify-center cursor-pointer border-0 transition-colors select-none";
 
-// ── Zoom button with hover state ──────────────────────────────────────────────
+// ── Zoom button ───────────────────────────────────────────────────────────────
 
 function ZoomBtn({ label, onClick }: { label: string; onClick: () => void }) {
   const [hov, setHov] = useState(false);
@@ -74,10 +93,89 @@ function ZoomBtn({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
+// ── Map type toggle ───────────────────────────────────────────────────────────
+
+function MapTypeToggle({
+  value,
+  onChange,
+}: {
+  value: MapTypeKey;
+  onChange: (t: MapTypeKey) => void;
+}) {
+  const [hov, setHov] = useState<MapTypeKey | null>(null);
+  return (
+    <div
+      className="flex items-center rounded-[8px] overflow-hidden"
+      style={{
+        background: "rgba(0,0,0,0.72)",
+        backdropFilter: "blur(6px)",
+        border: "1px solid rgba(255,255,255,0.1)",
+      }}
+    >
+      {(Object.keys(MAP_TYPE_LABELS) as MapTypeKey[]).map((type, i) => {
+        const active = value === type;
+        const hovering = hov === type;
+        return (
+          <button
+            key={type}
+            type="button"
+            onClick={() => onChange(type)}
+            onMouseEnter={() => setHov(type)}
+            onMouseLeave={() => setHov(null)}
+            className="h-7 px-2.5 text-[9px] font-semibold cursor-pointer border-0 transition-colors select-none tracking-wide"
+            style={{
+              ...(active
+                ? overlayBtnActive
+                : hovering
+                ? { ...overlayBtnBase, ...overlayBtnHover }
+                : { background: "transparent", color: "rgba(255,255,255,0.5)" }),
+              borderRadius: 0,
+              borderRight: i < 2 ? "1px solid rgba(255,255,255,0.1)" : "none",
+            }}
+          >
+            {MAP_TYPE_LABELS[type]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── CSS injection (once) to hide drag-handle dots on draggable routes ─────────
+
+let dragHandleStyleInjected = false;
+
+function injectDragHandleStyle() {
+  if (dragHandleStyleInjected) return;
+  dragHandleStyleInjected = true;
+  const style = document.createElement("style");
+  style.id = "km-route-drag-handle-hide";
+  // The DirectionsRenderer drag-handle is a white SVG circle that appears when
+  // hovering a draggable route. Target small-radius white circles in the map SVG.
+  style.textContent = `
+    .gm-style svg circle[fill="white"][r="4"],
+    .gm-style svg circle[fill="white"][r="5"],
+    .gm-style svg circle[fill="white"][r="6"],
+    .gm-style svg circle[fill="#ffffff"][r="4"],
+    .gm-style svg circle[fill="#ffffff"][r="5"],
+    .gm-style svg circle[fill="#ffffff"][r="6"] {
+      display: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 // ── Lazy loader for Google Maps ───────────────────────────────────────────────
 
-function MapWithDirections({ origin, destination, onKmChange, onClose, initialDirections, onDirectionsChange }: RouteMapProps) {
-  const { GoogleMap, useLoadScript, DirectionsService, DirectionsRenderer } =
+function MapWithDirections({
+  origin,
+  destination,
+  onKmChange,
+  onClose,
+  initialDirections,
+  onDirectionsChange,
+}: RouteMapProps) {
+  const { GoogleMap, useLoadScript, DirectionsService, DirectionsRenderer, OverlayView } =
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("@react-google-maps/api");
 
@@ -90,18 +188,19 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
       ? Math.round((leg.distance.value / 1000) * 10) / 10
       : null;
   });
-
-  // Map instance — needed for custom zoom controls
+  const [mapType, setMapType] = useState<MapTypeKey>("roadmap");
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
 
   const requested = useRef(false);
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
-  // Blocks the first onDirectionsChanged (fired by prop-change) so updateRouteInfo
-  // isn't called twice — it already ran inside handleDirections.
   const skipNextChange = useRef(false);
 
-  // Extract via_waypoints from the saved route so DirectionsService can
-  // reconstruct the exact custom path the user previously dragged.
+  // Inject drag-handle CSS once after API loads
+  useEffect(() => {
+    if (isLoaded) injectDragHandleStyle();
+  }, [isLoaded]);
+
+  // Extract via_waypoints from saved route so DirectionsService reconstructs the custom path
   const savedWaypoints = useMemo(() => {
     if (!initialDirections) return undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -111,12 +210,33 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
       }).routes?.[0]?.legs?.[0]?.via_waypoints ?? [];
     if (!viaPoints.length) return undefined;
     return viaPoints.map(wp => {
-      const lat = typeof wp.lat === "function" ? (wp.lat as () => number)() : wp.lat as number;
-      const lng = typeof wp.lng === "function" ? (wp.lng as () => number)() : wp.lng as number;
+      const lat = typeof wp.lat === "function" ? (wp.lat as () => number)() : (wp.lat as number);
+      const lng = typeof wp.lng === "function" ? (wp.lng as () => number)() : (wp.lng as number);
       return { location: { lat, lng }, stopover: false };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialDirections]);
+
+  // Compute km balloon position — midpoint of the overview polyline.
+  // overview_polyline is typed as string in @types/google.maps (encoded polyline directly).
+  const routeMidpoint = useMemo(() => {
+    if (!directions) return null;
+    const raw = directions.routes?.[0]?.overview_polyline as unknown;
+    // Handle both string (JS API) and {points: string} (serialized JSON) shapes
+    const encoded =
+      typeof raw === "string"
+        ? raw
+        : (raw as { points?: string })?.points ?? null;
+    if (!encoded) return null;
+    try {
+      const path = google.maps.geometry.encoding.decodePath(encoded);
+      if (!path.length) return null;
+      const mid = path[Math.floor(path.length / 2)];
+      return { lat: mid.lat(), lng: mid.lng() };
+    } catch {
+      return null;
+    }
+  }, [directions]);
 
   // Reset route when addresses change — skip initial mount
   const mounted = useRef(false);
@@ -138,7 +258,10 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
     }
   }, [onKmChange, onDirectionsChange]);
 
-  const handleDirections = useCallback((result: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
+  const handleDirections = useCallback((
+    result: google.maps.DirectionsResult | null,
+    status: google.maps.DirectionsStatus,
+  ) => {
     if (status === "OK" && result) {
       skipNextChange.current = true;
       setDirections(result);
@@ -154,6 +277,8 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
     );
   }
 
+  const isDarkStyle = mapType === "roadmap";
+
   return (
     <div className="relative w-full h-full">
       <GoogleMap
@@ -163,7 +288,9 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
         onLoad={(map: google.maps.Map) => setMapInstance(map)}
         options={{
           disableDefaultUI: true,
-          styles: DARK_MAP_STYLES,
+          mapTypeId: mapType,
+          // Only apply dark style on roadmap — terrain/satellite look better natural
+          styles: isDarkStyle ? DARK_MAP_STYLES : NATURAL_MAP_STYLES,
         }}
       >
         {origin && destination && !requested.current && (
@@ -183,7 +310,7 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
         {directions && (
           <DirectionsRenderer
             directions={directions}
-            options={{ draggable: true }}
+            options={{ draggable: true, suppressMarkers: false }}
             onLoad={(renderer: google.maps.DirectionsRenderer) => { rendererRef.current = renderer; }}
             onDirectionsChanged={() => {
               if (skipNextChange.current) { skipNextChange.current = false; return; }
@@ -192,9 +319,66 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
             }}
           />
         )}
+
+        {/* KM balloon — positioned at polyline midpoint, above the route */}
+        {directions && routeMidpoint && routeKm !== null && (
+          <OverlayView
+            position={routeMidpoint}
+            mapPaneName="overlayMouseTarget"
+            getPixelPositionOffset={(w: number, h: number) => ({
+              x: -(w / 2),
+              y: -(h + 6), // 6px gap above the route line
+            })}
+          >
+            <div
+              className="pointer-events-none flex flex-col items-center"
+              style={{ position: "absolute" }}
+            >
+              <div
+                className="flex items-center gap-1 px-2 py-[5px] rounded-[7px] text-[11px] font-bold"
+                style={{
+                  background: "rgba(0,0,0,0.82)",
+                  backdropFilter: "blur(6px)",
+                  border: "1px solid rgba(34,211,238,0.45)",
+                  color: "var(--color-cyan)",
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+                }}
+              >
+                <IconMapPin size={10} />
+                {routeKm.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km
+              </div>
+              {/* Arrow pointing down to the route */}
+              <div
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderLeft: "5px solid transparent",
+                  borderRight: "5px solid transparent",
+                  borderTop: "5px solid rgba(34,211,238,0.45)",
+                  marginTop: -1,
+                }}
+              />
+            </div>
+          </OverlayView>
+        )}
       </GoogleMap>
 
-      {/* KM badge — bottom left */}
+      {/* Map type toggle — top left */}
+      <div className="absolute top-2 left-2">
+        <MapTypeToggle value={mapType} onChange={t => {
+          setMapType(t);
+          if (mapInstance) mapInstance.setMapTypeId(t);
+        }} />
+      </div>
+
+      {/* Custom zoom controls — top right */}
+      <div className="absolute top-2 right-2 flex flex-col gap-1">
+        <ZoomBtn label="+" onClick={() => mapInstance?.setZoom((mapInstance.getZoom() ?? 10) + 1)} />
+        <ZoomBtn label="−" onClick={() => mapInstance?.setZoom((mapInstance.getZoom() ?? 10) - 1)} />
+      </div>
+
+      {/* KM badge — bottom left (persistent, visible even if balloon scrolls off-screen) */}
       {routeKm !== null && (
         <div className="absolute bottom-3 left-3 pointer-events-none">
           <div
@@ -227,13 +411,7 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
         </div>
       </div>
 
-      {/* Custom zoom controls — top right */}
-      <div className="absolute top-2 right-2 flex flex-col gap-1">
-        <ZoomBtn label="+" onClick={() => mapInstance?.setZoom((mapInstance.getZoom() ?? 10) + 1)} />
-        <ZoomBtn label="−" onClick={() => mapInstance?.setZoom((mapInstance.getZoom() ?? 10) - 1)} />
-      </div>
-
-      {/* Close button — top left (only when onClose is provided) */}
+      {/* Close button — top left only when onClose is provided */}
       {onClose && (
         <button
           type="button"

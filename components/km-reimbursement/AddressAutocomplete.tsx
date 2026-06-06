@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 // Stable reference — MUST be module-level to avoid re-loading the script
-export const GOOGLE_MAPS_LIBRARIES: ("places")[] = ["places"];
+// "geometry" is needed by RouteMap to decode overview_polyline for km balloon midpoint
+export const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
 interface Props {
   value: string;
