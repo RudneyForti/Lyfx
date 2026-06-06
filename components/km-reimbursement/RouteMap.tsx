@@ -141,28 +141,32 @@ function MapTypeToggle({
   );
 }
 
-// ── CSS injection (once) to hide drag-handle dots on draggable routes ─────────
+// ── MutationObserver helper to hide via-waypoint white circles ───────────────
+// Google Maps renders via_waypoint markers as SVG <circle> elements.
+// The fill value may be a CSS attribute OR an inline style, so CSS selectors
+// alone are unreliable. Instead we scan and hide matching circles via JS,
+// re-running on every DOM mutation inside the map wrapper (throttled to rAF).
 
-let dragHandleStyleInjected = false;
+const WHITE_FILLS = new Set(["white", "#fff", "#ffffff", "rgb(255,255,255)"]);
 
-function injectDragHandleStyle() {
-  if (dragHandleStyleInjected) return;
-  dragHandleStyleInjected = true;
-  const style = document.createElement("style");
-  style.id = "km-route-drag-handle-hide";
-  // The DirectionsRenderer drag-handle is a white SVG circle that appears when
-  // hovering a draggable route. Target small-radius white circles in the map SVG.
-  style.textContent = `
-    .gm-style svg circle[fill="white"][r="4"],
-    .gm-style svg circle[fill="white"][r="5"],
-    .gm-style svg circle[fill="white"][r="6"],
-    .gm-style svg circle[fill="#ffffff"][r="4"],
-    .gm-style svg circle[fill="#ffffff"][r="5"],
-    .gm-style svg circle[fill="#ffffff"][r="6"] {
-      display: none !important;
+function isWhiteCircle(el: Element): boolean {
+  const attr = (el.getAttribute("fill") ?? "").toLowerCase().replace(/\s/g, "");
+  if (WHITE_FILLS.has(attr)) return true;
+  const style = (el.getAttribute("style") ?? "").toLowerCase().replace(/\s/g, "");
+  return (
+    style.includes("fill:white") ||
+    style.includes("fill:#fff") ||
+    style.includes("fill:#ffffff") ||
+    style.includes("fill:rgb(255,255,255)")
+  );
+}
+
+function hideWhiteCirclesIn(root: Element) {
+  root.querySelectorAll("svg circle").forEach(el => {
+    if (isWhiteCircle(el)) {
+      (el as SVGCircleElement).style.setProperty("display", "none", "important");
     }
-  `;
-  document.head.appendChild(style);
+  });
 }
 
 // ── Lazy loader for Google Maps ───────────────────────────────────────────────
@@ -194,10 +198,37 @@ function MapWithDirections({
   const requested = useRef(false);
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const skipNextChange = useRef(false);
+  const mapWrapRef = useRef<HTMLDivElement>(null);
 
-  // Inject drag-handle CSS once after API loads
+  // MutationObserver: hides via-waypoint white circles whenever Google Maps
+  // adds or mutates SVG elements inside the map wrapper.
   useEffect(() => {
-    if (isLoaded) injectDragHandleStyle();
+    if (!isLoaded) return;
+    const wrap = mapWrapRef.current;
+    if (!wrap) return;
+
+    hideWhiteCirclesIn(wrap); // initial pass
+
+    let rafId: number | null = null;
+    const observer = new MutationObserver(() => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        hideWhiteCirclesIn(wrap);
+        rafId = null;
+      });
+    });
+
+    observer.observe(wrap, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["fill", "style"],
+    });
+
+    return () => {
+      observer.disconnect();
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [isLoaded]);
 
   // Extract via_waypoints from saved route so DirectionsService reconstructs the custom path
@@ -280,7 +311,7 @@ function MapWithDirections({
   const isDarkStyle = mapType === "roadmap";
 
   return (
-    <div className="relative w-full h-full">
+    <div ref={mapWrapRef} className="relative w-full h-full">
       <GoogleMap
         mapContainerStyle={{ width: "100%", height: "100%", borderRadius: 12 }}
         zoom={10}
