@@ -6,7 +6,7 @@ import { deleteKmPeriod } from "@/app/actions/km-reimbursement";
 import type { KmPeriodSummary } from "@/app/actions/km-reimbursement";
 import {
   IconCar, IconPlus, IconSettings, IconTrash,
-  IconClock, IconCheck, IconRoute,
+  IconClock, IconRoute, IconMapPin,
   IconGasStation, IconReceipt, IconChevronRight,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
@@ -141,6 +141,13 @@ export function PeriodList({ periods }: { periods: KmPeriodSummary[] }) {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0 mt-1">
+            <Link
+              href="/km-reimbursement/places"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[12px] text-[var(--color-f3)] bg-[var(--color-bg3)] border border-[var(--color-border2)] hover:text-[var(--color-f1)] hover:border-[var(--color-border)] transition-all no-underline"
+            >
+              <IconMapPin size={13} />
+              Lugares
+            </Link>
             <Link
               href="/km-reimbursement/settings"
               className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[12px] text-[var(--color-f3)] bg-[var(--color-bg3)] border border-[var(--color-border2)] hover:text-[var(--color-f1)] hover:border-[var(--color-border)] transition-all no-underline"
