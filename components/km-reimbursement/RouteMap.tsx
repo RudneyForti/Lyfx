@@ -70,8 +70,14 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
   const requested = useRef(!!initialDirections);
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
 
-  // Reset route whenever addresses change
+  // Reset route whenever addresses change — but NOT on initial mount
+  // (would wipe out initialDirections before the renderer has a chance to display it)
+  const mounted = useRef(false);
   useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
     requested.current = false;
     setDirections(null);
     setRouteKm(null);
