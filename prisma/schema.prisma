@@ -352,6 +352,8 @@ model KmPlace {
   destinationAddress String   @default("")  // endereço de destino (ex: empresa)
   kmGoing            Float    @default(0)   // km ida
   kmReturn           Float    @default(0)   // km volta
+  routeGoing         Json?                  // DirectionsResult serializado — rota de ida
+  routeReturn        Json?                  // DirectionsResult serializado — rota de volta
   notes              String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

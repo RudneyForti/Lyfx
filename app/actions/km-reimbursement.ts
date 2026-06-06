@@ -100,6 +100,8 @@ export type KmPlaceData = {
   destinationAddress: string;
   kmGoing: number;
   kmReturn: number;
+  routeGoing: unknown;   // DirectionsResult serializado (Json? do Prisma)
+  routeReturn: unknown;
   notes: string | null;
   createdAt: Date;
 };
@@ -538,6 +540,8 @@ export async function createKmPlace(data: {
   destinationAddress: string;
   kmGoing: number;
   kmReturn: number;
+  routeGoing?: unknown;
+  routeReturn?: unknown;
   notes?: string;
 }): Promise<void> {
   const userId = await requireAuth();
@@ -549,6 +553,8 @@ export async function createKmPlace(data: {
       destinationAddress: data.destinationAddress.trim(),
       kmGoing: data.kmGoing,
       kmReturn: data.kmReturn,
+      routeGoing: data.routeGoing ?? undefined,
+      routeReturn: data.routeReturn ?? undefined,
       notes: data.notes?.trim() ?? null,
     },
   });
@@ -562,6 +568,8 @@ export async function updateKmPlace(id: string, data: {
   destinationAddress: string;
   kmGoing: number;
   kmReturn: number;
+  routeGoing?: unknown;
+  routeReturn?: unknown;
   notes?: string;
 }): Promise<void> {
   const userId = await requireAuth();
@@ -575,6 +583,8 @@ export async function updateKmPlace(id: string, data: {
       destinationAddress: data.destinationAddress.trim(),
       kmGoing: data.kmGoing,
       kmReturn: data.kmReturn,
+      routeGoing: data.routeGoing ?? undefined,
+      routeReturn: data.routeReturn ?? undefined,
       notes: data.notes?.trim() ?? null,
     },
   });
