@@ -52,6 +52,7 @@ function MapWithDirections({ origin, destination, onKmChange, onClose }: RouteMa
   const [routeKm, setRouteKm] = useState<number | null>(null);
   const [routeDuration, setRouteDuration] = useState<string | null>(null);
   const requested = useRef(false);
+  const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
 
   // Reset route whenever addresses change
   useEffect(() => {
@@ -108,6 +109,20 @@ function MapWithDirections({ origin, destination, onKmChange, onClose }: RouteMa
           <DirectionsRenderer
             directions={directions}
             options={{ draggable: true }}
+            onLoad={(renderer: google.maps.DirectionsRenderer) => { rendererRef.current = renderer; }}
+            onDirectionsChanged={() => {
+              const updated = rendererRef.current?.getDirections();
+              if (!updated) return;
+              const leg = updated.routes[0]?.legs[0];
+              if (leg?.distance?.value) {
+                const km = Math.round((leg.distance.value / 1000) * 10) / 10;
+                setRouteKm(km);
+                if (onKmChange) onKmChange(km);
+              }
+              if (leg?.duration?.text) {
+                setRouteDuration(leg.duration.text);
+              }
+            }}
           />
         )}
       </GoogleMap>
