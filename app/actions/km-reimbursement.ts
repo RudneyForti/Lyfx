@@ -68,6 +68,7 @@ export type KmRouteData = {
   origin: string;
   destination: string;
   km: number;
+  routePolyline: string | null;
   notes: string | null;
   placeId: string | null;
   direction: string | null;
@@ -281,6 +282,7 @@ export async function createKmRoute(data: {
   origin: string;
   destination: string;
   km: number;
+  routePolyline?: string;
   notes?: string;
   placeId?: string;
   direction?: string;
@@ -294,6 +296,7 @@ export async function createKmRoute(data: {
       origin: data.origin,
       destination: data.destination,
       km: data.km,
+      routePolyline: data.routePolyline ?? null,
       notes: data.notes ?? null,
       placeId: data.placeId ?? null,
       direction: data.direction ?? null,
@@ -309,6 +312,7 @@ export async function createKmRoutesBulk(routes: Array<{
   origin: string;
   destination: string;
   km: number;
+  routePolyline?: string;
   notes?: string;
   placeId?: string;
   direction?: string;
@@ -324,6 +328,7 @@ export async function createKmRoutesBulk(routes: Array<{
       origin: r.origin,
       destination: r.destination,
       km: r.km,
+      routePolyline: r.routePolyline ?? null,
       notes: r.notes ?? null,
       placeId: r.placeId ?? null,
       direction: r.direction ?? null,
@@ -338,6 +343,7 @@ export async function updateKmRoute(id: string, data: {
   origin: string;
   destination: string;
   km: number;
+  routePolyline?: string;
   notes?: string;
 }): Promise<void> {
   const userId = await requireAuth();
@@ -350,6 +356,7 @@ export async function updateKmRoute(id: string, data: {
       origin: data.origin,
       destination: data.destination,
       km: data.km,
+      routePolyline: data.routePolyline ?? null,
       notes: data.notes ?? null,
       // preserve placeId/direction on update
     },
@@ -522,6 +529,14 @@ export async function reopenPeriod(id: string): Promise<void> {
   revalidatePath("/km-reimbursement");
   revalidatePath(`/km-reimbursement/${id}`);
   revalidatePath("/transactions");
+}
+
+// ── Usuário atual ─────────────────────────────────────────────────────────────
+
+export async function getCurrentUserName(): Promise<string> {
+  const userId = await requireAuth();
+  const user = await db.user.findUnique({ where: { id: userId }, select: { name: true } });
+  return user?.name ?? "";
 }
 
 // ── Lugares cadastrados ───────────────────────────────────────────────────────

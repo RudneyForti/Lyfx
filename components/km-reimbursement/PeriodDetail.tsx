@@ -24,7 +24,9 @@ import {
   IconClock, IconCheck, IconSend, IconRefresh,
   IconCopy, IconPencil, IconX, IconSettings, IconMapPin,
   IconTable, IconArrowRight, IconArrowLeft as IconBack,
+  IconDownload, IconArrowsLeftRight,
 } from "@tabler/icons-react";
+import { extractPolyline } from "@/lib/km-static-map";
 import { cn } from "@/lib/utils";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -124,30 +126,46 @@ function DirectionBadge({ direction }: { direction: string | null }) {
 
 // ── Route Form ────────────────────────────────────────────────────────────────
 
-function RouteForm({ periodId, route, places, onDone }: {
+function RouteForm({ periodId, route, places, onDone, prefill }: {
   periodId: string;
   route?: KmRouteData;
   places: KmPlaceData[];
   onDone: () => void;
+  /** Pre-fill de endereços (botão "+ Volta") */
+  prefill?: { origin: string; destination: string; date: string };
 }) {
   const [isPending, start] = useTransition();
   const [showMap, setShowMap] = useState(false);
   const [mapDirections, setMapDirections] = useState<google.maps.DirectionsResult | null>(null);
-  const [mode, setMode] = useState<"place" | "manual">(places.length > 0 && !route ? "place" : "manual");
+  // Se veio de prefill, força modo manual
+  const [mode, setMode] = useState<"place" | "manual">(
+    prefill ? "manual" : (places.length > 0 && !route ? "place" : "manual")
+  );
   const [selectedPlace, setSelectedPlace] = useState<KmPlaceData | null>(null);
   // ida+volta checkboxes (only in place mode, new route)
   const [dirGoing, setDirGoing] = useState(true);
   const [dirReturn, setDirReturn] = useState(false);
 
   const [form, setForm] = useState({
-    date: route ? fmtDateInput(route.date) : today(),
-    origin: route?.origin ?? "",
-    destination: route?.destination ?? "",
-    km: route?.km != null ? String(route.km) : "",
-    notes: route?.notes ?? "",
+    date:         route ? fmtDateInput(route.date) : (prefill?.date ?? today()),
+    origin:       route?.origin      ?? prefill?.origin      ?? "",
+    destination:  route?.destination ?? prefill?.destination ?? "",
+    km:           route?.km != null ? String(route.km) : "",
+    routePolyline: route?.routePolyline ?? null as string | null,
+    notes:        route?.notes ?? "",
   });
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // Callback do mapa: extrai km E polyline do resultado
+  function handleMapDirections(result: google.maps.DirectionsResult) {
+    setMapDirections(result);
+    const leg = result.routes?.[0]?.legs?.[0];
+    if (leg?.distance?.value) {
+      const km = Math.round((leg.distance.value / 1000) * 10) / 10;
+      setForm(f => ({ ...f, km: String(km), routePolyline: extractPolyline(result) }));
+    }
+  }
 
   // Clear saved directions whenever origin/destination change
   const prevRouteAddr = useRef({ o: form.origin, d: form.destination });
@@ -176,10 +194,11 @@ function RouteForm({ periodId, route, places, onDone }: {
           origin: form.origin.trim(),
           destination: form.destination.trim(),
           km: parseFloat(form.km) || 0,
+          routePolyline: form.routePolyline ?? undefined,
           notes: form.notes.trim() || undefined,
         });
       } else if (mode === "place" && selectedPlace) {
-        // Place mode — create one or two routes based on checkboxes
+        // Place mode — create one or two routes; extrai polyline do lugar salvo
         const routesToCreate = [];
         if (dirGoing) {
           routesToCreate.push({
@@ -188,6 +207,7 @@ function RouteForm({ periodId, route, places, onDone }: {
             origin: selectedPlace.originAddress,
             destination: selectedPlace.destinationAddress,
             km: selectedPlace.kmGoing,
+            routePolyline: extractPolyline(selectedPlace.routeGoing) ?? undefined,
             notes: selectedPlace.name,
             placeId: selectedPlace.id,
             direction: "going",
@@ -200,6 +220,7 @@ function RouteForm({ periodId, route, places, onDone }: {
             origin: selectedPlace.destinationAddress,
             destination: selectedPlace.originAddress,
             km: selectedPlace.kmReturn,
+            routePolyline: extractPolyline(selectedPlace.routeReturn) ?? undefined,
             notes: selectedPlace.name,
             placeId: selectedPlace.id,
             direction: "return",
@@ -209,13 +230,14 @@ function RouteForm({ periodId, route, places, onDone }: {
           await createKmRoutesBulk(routesToCreate);
         }
       } else {
-        // Manual mode
+        // Manual mode — km sempre vem do mapa
         await createKmRoute({
           periodId,
           date: form.date,
           origin: form.origin.trim(),
           destination: form.destination.trim(),
           km: parseFloat(form.km) || 0,
+          routePolyline: form.routePolyline ?? undefined,
           notes: form.notes.trim() || undefined,
         });
       }
@@ -351,9 +373,21 @@ function RouteForm({ periodId, route, places, onDone }: {
                 <Label>Data</Label>
                 <DatePicker value={form.date} onChange={v => setForm(f => ({ ...f, date: v }))} height={34} fontSize={12} />
               </div>
+              {/* KM — somente leitura, calculado pelo mapa */}
               <div className="flex flex-col gap-1">
-                <Label>KM rodados</Label>
-                <input type="number" step="0.1" min="0" className={inputCls()} placeholder="0.0" value={form.km} onChange={set("km")} required />
+                <Label>KM calculado</Label>
+                <div
+                  className={inputCls("cursor-default select-none")}
+                  style={{
+                    background: "var(--color-bg2)",
+                    color: form.km ? "var(--color-cyan)" : "var(--color-f4)",
+                    fontWeight: form.km ? 600 : 400,
+                  }}
+                >
+                  {form.km
+                    ? `${Number(form.km).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`
+                    : "Abra o mapa →"}
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -363,7 +397,7 @@ function RouteForm({ periodId, route, places, onDone }: {
                   className={inputCls()}
                   placeholder="Rua, cidade..."
                   value={form.origin}
-                  onChange={val => setForm(f => ({ ...f, origin: val }))}
+                  onChange={val => setForm(f => ({ ...f, origin: val, km: "", routePolyline: null }))}
                   required
                 />
               </div>
@@ -373,7 +407,7 @@ function RouteForm({ periodId, route, places, onDone }: {
                   className={inputCls()}
                   placeholder="Rua, cidade..."
                   value={form.destination}
-                  onChange={val => setForm(f => ({ ...f, destination: val }))}
+                  onChange={val => setForm(f => ({ ...f, destination: val, km: "", routePolyline: null }))}
                   required
                 />
               </div>
@@ -384,9 +418,11 @@ function RouteForm({ periodId, route, places, onDone }: {
             </div>
             {(form.origin || form.destination) && (
               <button type="button" onClick={() => setShowMap(v => !v)}
-                className="flex items-center gap-1.5 text-[11px] text-[var(--color-cyan)] w-fit cursor-pointer bg-transparent border-0 p-0 hover:opacity-80">
+                className="flex items-center gap-1.5 text-[11px] w-fit cursor-pointer bg-transparent border-0 p-0 hover:opacity-80 transition-opacity"
+                style={{ color: !form.km ? "var(--color-cyan)" : "var(--color-f4)" }}
+              >
                 <IconMap size={12} />
-                {showMap ? "Ocultar mapa" : "Ver no mapa"}
+                {showMap ? "Ocultar mapa" : (form.km ? "Ver / editar no mapa" : "Calcular km no mapa")}
               </button>
             )}
             {showMap && (
@@ -394,9 +430,8 @@ function RouteForm({ periodId, route, places, onDone }: {
                 <RouteMap
                   origin={form.origin}
                   destination={form.destination}
-                  onKmChange={km => setForm(f => ({ ...f, km: String(km) }))}
                   initialDirections={mapDirections}
-                  onDirectionsChange={setMapDirections}
+                  onDirectionsChange={handleMapDirections}
                 />
               </div>
             )}
@@ -406,7 +441,12 @@ function RouteForm({ periodId, route, places, onDone }: {
         <div className="flex items-center gap-2 pt-1">
           <button
             type="submit"
-            disabled={isPending || (mode === "place" && !selectedPlace) || (mode === "place" && !dirGoing && !dirReturn)}
+            disabled={
+              isPending ||
+              (mode === "place" && !selectedPlace) ||
+              (mode === "place" && !dirGoing && !dirReturn) ||
+              ((isEditing || mode === "manual") && !form.km)
+            }
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-semibold text-white cursor-pointer border-0 disabled:opacity-50"
             style={{ background: "var(--color-cyan)" }}
           >
@@ -430,6 +470,7 @@ function RoutesTab({ period, places }: { period: KmPeriodDetail; places: KmPlace
   const isOpen = period.status === "open";
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [voltaPrefill, setVoltaPrefill] = useState<{ origin: string; destination: string; date: string } | null>(null);
   const [, startDel] = useTransition();
 
   // Group routes by date key
@@ -450,7 +491,14 @@ function RoutesTab({ period, places }: { period: KmPeriodDetail; places: KmPlace
         </div>
       )}
 
-      {adding && <RouteForm periodId={period.id} places={places} onDone={() => setAdding(false)} />}
+      {adding && (
+        <RouteForm
+          periodId={period.id}
+          places={places}
+          prefill={voltaPrefill ?? undefined}
+          onDone={() => { setAdding(false); setVoltaPrefill(null); }}
+        />
+      )}
 
       {period.routes.length === 0 && !adding && <EmptyState label="trajeto" />}
 
@@ -514,6 +562,18 @@ function RoutesTab({ period, places }: { period: KmPeriodDetail; places: KmPlace
                     </div>
                     {isOpen && (
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* + Volta — cria trajeto inverso */}
+                        <button
+                          onClick={() => {
+                            setVoltaPrefill({ origin: r.destination, destination: r.origin, date: fmtDateInput(r.date) });
+                            setAdding(true);
+                            setEditing(null);
+                          }}
+                          title="Adicionar volta"
+                          className="flex items-center gap-0.5 h-6 px-1.5 rounded-[6px] text-[9px] font-medium text-[var(--color-f4)] hover:text-[#a78bfa] hover:bg-[rgba(167,139,250,0.1)] cursor-pointer border-0 bg-transparent transition-colors">
+                          <IconArrowsLeftRight size={10} />
+                          Volta
+                        </button>
                         <button onClick={() => setEditing(r.id)}
                           className="w-6 h-6 rounded-[6px] flex items-center justify-center text-[var(--color-f4)] hover:text-[var(--color-f2)] hover:bg-[var(--color-bg4)] cursor-pointer border-0 bg-transparent transition-colors">
                           <IconPencil size={11} />
@@ -966,10 +1026,37 @@ function SapTable({ routes, config, classeLabel }: {
 
 // ── Summary Tab ───────────────────────────────────────────────────────────────
 
-function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConfigData }) {
+function SummaryTab({ period, config, userName }: { period: KmPeriodDetail; config: KmConfigData; userName: string }) {
   const [isPending, start] = useTransition();
   const [copied, setCopied] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [view, setView] = useState<"text" | "table">("text");
+
+  async function handleExportPdf() {
+    setPdfLoading(true);
+    try {
+      const React = await import("react");
+      const [{ pdf }, { PeriodPdfDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("./PeriodPdf"),
+      ]);
+      const baseUrl = window.location.origin;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const element = React.createElement(PeriodPdfDocument, { period, config, userName, baseUrl }) as any;
+      const blob    = await pdf(element).toBlob();
+      const url     = URL.createObjectURL(blob);
+      const link    = document.createElement("a");
+      link.href     = url;
+      link.download = `reembolso-km-${period.name.toLowerCase().replace(/\s+/g, "-")}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+      alert("Não foi possível gerar o PDF. Tente novamente.");
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   const isOpen = period.status === "open";
   const totalFuelAmount = period.receipts.reduce((s, r) => s + r.totalAmount, 0);
@@ -1034,7 +1121,7 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
   return (
     <div>
       {/* View toggle */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <div className="flex items-center gap-1 bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[10px] p-0.5">
           {(["text", "table"] as const).map(v => (
             <button key={v} onClick={() => setView(v)}
@@ -1044,16 +1131,29 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
             </button>
           ))}
         </div>
-        {view === "text" && (
-          <button onClick={handleCopy}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[11px] font-medium cursor-pointer border transition-all"
-            style={copied
-              ? { color: "#22c55e", background: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.3)" }
-              : { color: "var(--color-f3)", background: "var(--color-bg3)", borderColor: "var(--color-border2)" }}>
-            {copied ? <IconCheck size={11} /> : <IconCopy size={11} />}
-            {copied ? "Copiado!" : "Copiar texto"}
+        <div className="flex items-center gap-2">
+          {view === "text" && (
+            <button onClick={handleCopy}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[11px] font-medium cursor-pointer border transition-all"
+              style={copied
+                ? { color: "#22c55e", background: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.3)" }
+                : { color: "var(--color-f3)", background: "var(--color-bg3)", borderColor: "var(--color-border2)" }}>
+              {copied ? <IconCheck size={11} /> : <IconCopy size={11} />}
+              {copied ? "Copiado!" : "Copiar texto"}
+            </button>
+          )}
+          {/* PDF export */}
+          <button
+            onClick={handleExportPdf}
+            disabled={pdfLoading || period.routes.length === 0}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[11px] font-medium cursor-pointer border transition-all disabled:opacity-40"
+            style={{ color: "var(--color-f3)", background: "var(--color-bg3)", borderColor: "var(--color-border2)" }}
+            title="Exportar PDF com mapa dos trajetos"
+          >
+            <IconDownload size={11} />
+            {pdfLoading ? "Gerando..." : "Exportar PDF"}
           </button>
-        )}
+        </div>
       </div>
 
       {view === "text" && (
@@ -1136,11 +1236,12 @@ const TABS = [
 type TabId = typeof TABS[number]["id"];
 
 export function PeriodDetail({
-  period, config, places,
+  period, config, places, userName = "",
 }: {
   period: KmPeriodDetail;
   config: KmConfigData;
   places: KmPlaceData[];
+  userName?: string;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("routes");
   const [placesOpen, setPlacesOpen] = useState(false);
@@ -1297,7 +1398,7 @@ export function PeriodDetail({
         {activeTab === "routes"   && <RoutesTab period={period} places={places} />}
         {activeTab === "receipts" && <ReceiptsTab period={period} config={config} />}
         {activeTab === "expenses" && <ExpensesTab period={period} />}
-        {activeTab === "summary"  && <SummaryTab period={period} config={config} />}
+        {activeTab === "summary"  && <SummaryTab period={period} config={config} userName={userName} />}
       </div>
 
       {/* Places Modal */}
