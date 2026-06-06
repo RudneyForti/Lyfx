@@ -42,6 +42,12 @@ function placeToForm(p: KmPlaceData): PlaceForm {
   };
 }
 
+/** Strips Google Maps class instances (LatLng, LatLngBounds…) → plain JSON object */
+function serializeRoute(d: google.maps.DirectionsResult | null): unknown {
+  if (!d) return undefined;
+  return JSON.parse(JSON.stringify(d));
+}
+
 // ── Shared form fields ────────────────────────────────────────────────────────
 
 function PlaceFormFields({
@@ -229,8 +235,8 @@ function EditRow({
         destinationAddress: form.destinationAddress.trim(),
         kmGoing: parseFloat(form.kmGoing) || 0,
         kmReturn: parseFloat(form.kmReturn) || 0,
-        routeGoing: form.routeGoing ?? undefined,
-        routeReturn: form.routeReturn ?? undefined,
+        routeGoing: serializeRoute(form.routeGoing),
+        routeReturn: serializeRoute(form.routeReturn),
       });
       onCancel();
     });
@@ -318,8 +324,8 @@ export function PlacesModal({ places, onClose }: PlacesModalProps) {
         destinationAddress: form.destinationAddress.trim(),
         kmGoing: parseFloat(form.kmGoing) || 0,
         kmReturn: parseFloat(form.kmReturn) || 0,
-        routeGoing: form.routeGoing ?? undefined,
-        routeReturn: form.routeReturn ?? undefined,
+        routeGoing: serializeRoute(form.routeGoing),
+        routeReturn: serializeRoute(form.routeReturn),
       });
       resetAddForm();
     });
