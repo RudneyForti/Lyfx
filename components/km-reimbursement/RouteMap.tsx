@@ -78,8 +78,8 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
     setRouteDuration(null);
   }, [origin, destination]);
 
-  const applyDirections = useCallback((result: google.maps.DirectionsResult) => {
-    setDirections(result);
+  // Update km/duration display + persist — used by both initial load and drag
+  const updateRouteInfo = useCallback((result: google.maps.DirectionsResult) => {
     if (onDirectionsChange) onDirectionsChange(result);
     const leg = result.routes[0]?.legs[0];
     if (leg?.distance?.value) {
@@ -87,14 +87,16 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
       setRouteKm(km);
       if (onKmChange) onKmChange(km);
     }
-    if (leg?.duration?.text) {
-      setRouteDuration(leg.duration.text);
-    }
+    if (leg?.duration?.text) setRouteDuration(leg.duration.text);
   }, [onKmChange, onDirectionsChange]);
 
+  // Initial DirectionsService response — sets directions state (mounts the renderer)
   const handleDirections = useCallback((result: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
-    if (status === "OK" && result) applyDirections(result);
-  }, [applyDirections]);
+    if (status === "OK" && result) {
+      setDirections(result);   // ← only here; never inside onDirectionsChanged
+      updateRouteInfo(result);
+    }
+  }, [updateRouteInfo]);
 
   if (!isLoaded) {
     return (
@@ -130,8 +132,13 @@ function MapWithDirections({ origin, destination, onKmChange, onClose, initialDi
             options={{ draggable: true }}
             onLoad={(renderer: google.maps.DirectionsRenderer) => { rendererRef.current = renderer; }}
             onDirectionsChanged={() => {
+              // IMPORTANT: do NOT call setDirections here.
+              // DirectionsRenderer fires onDirectionsChanged whenever its `directions`
+              // prop changes — calling setDirections would create an infinite loop.
+              // The renderer manages the visual route internally; we only read the
+              // updated result to refresh km/duration and persist for remount.
               const updated = rendererRef.current?.getDirections();
-              if (updated) applyDirections(updated);
+              if (updated) updateRouteInfo(updated);
             }}
           />
         )}

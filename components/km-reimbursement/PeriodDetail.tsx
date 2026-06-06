@@ -603,7 +603,7 @@ function ReceiptForm({ periodId, receipt, onDone }: {
             <Select value={form.fuelType} onChange={v => setForm(f => ({ ...f, fuelType: v }))} options={FUEL_TYPE_OPTIONS} height={34} fontSize={12} />
           </div>
           <div className="flex flex-col gap-1"><Label>Litros</Label>
-            <input type="number" step="0.01" min="0" className={inputCls()} placeholder="0.00" value={form.liters} onChange={set("liters")} required />
+            <input type="number" step="0.001" min="0" className={inputCls()} placeholder="0.000" value={form.liters} onChange={set("liters")} required />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
