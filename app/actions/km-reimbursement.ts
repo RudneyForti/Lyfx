@@ -88,6 +88,14 @@ export type KmExpenseData = {
   createdAt: Date;
 };
 
+export type KmPlaceData = {
+  id: string;
+  name: string;
+  address: string;
+  notes: string | null;
+  createdAt: Date;
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function addBusinessDays(date: Date, days: number): Date {
@@ -183,7 +191,7 @@ export async function createKmPeriod(data: {
   name: string;
   startDate: string;
   endDate: string;
-  fuelType: string;
+  fuelType?: string;
   notes?: string;
 }): Promise<{ id: string }> {
   const userId = await requireAuth();
@@ -193,7 +201,7 @@ export async function createKmPeriod(data: {
       name: data.name,
       startDate: new Date(data.startDate),
       endDate: new Date(data.endDate),
-      fuelType: data.fuelType,
+      fuelType: data.fuelType ?? "gasoline",
       notes: data.notes ?? null,
     },
   });
@@ -403,4 +411,38 @@ export async function reopenPeriod(id: string): Promise<void> {
   revalidatePath("/km-reimbursement");
   revalidatePath(`/km-reimbursement/${id}`);
   revalidatePath("/transactions");
+}
+
+// ── Lugares cadastrados ───────────────────────────────────────────────────────
+
+export async function getKmPlaces(): Promise<KmPlaceData[]> {
+  const userId = await requireAuth();
+  return db.kmPlace.findMany({
+    where: { userId },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function createKmPlace(data: {
+  name: string;
+  address: string;
+  notes?: string;
+}): Promise<void> {
+  const userId = await requireAuth();
+  await db.kmPlace.create({
+    data: {
+      userId,
+      name: data.name.trim(),
+      address: data.address.trim(),
+      notes: data.notes?.trim() ?? null,
+    },
+  });
+  revalidatePath("/km-reimbursement/settings");
+  revalidatePath("/km-reimbursement");
+}
+
+export async function deleteKmPlace(id: string): Promise<void> {
+  const userId = await requireAuth();
+  await db.kmPlace.deleteMany({ where: { id, userId } });
+  revalidatePath("/km-reimbursement/settings");
 }
