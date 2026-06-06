@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
   createKmRoute, createKmRoutesBulk, updateKmRoute, deleteKmRoute,
-  createKmReceipt, deleteKmReceipt,
+  createKmReceipt, updateKmReceipt, deleteKmReceipt,
   createKmExpense, deleteKmExpense,
   submitPeriod, reopenPeriod,
 } from "@/app/actions/km-reimbursement";
@@ -519,19 +519,43 @@ function RoutesTab({ period, places }: { period: KmPeriodDetail; places: KmPlace
 
 // ── Receipts Tab ──────────────────────────────────────────────────────────────
 
-function ReceiptForm({ periodId, onDone }: { periodId: string; onDone: () => void }) {
+function ReceiptForm({ periodId, receipt, onDone }: {
+  periodId: string;
+  receipt?: KmReceiptData;
+  onDone: () => void;
+}) {
   const [isPending, start] = useTransition();
-  const [form, setForm] = useState({ date: today(), fuelType: "gasoline", liters: "", totalAmount: "", notes: "" });
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const [form, setForm] = useState({
+    date: receipt ? fmtDateInput(receipt.date) : today(),
+    fuelType: receipt?.fuelType ?? "gasoline",
+    liters: receipt ? String(receipt.liters) : "",
+    totalAmount: receipt ? String(receipt.totalAmount) : "",
+    notes: receipt?.notes ?? "",
+  });
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const isEditing = !!receipt;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     start(async () => {
-      await createKmReceipt({
-        periodId, date: form.date, fuelType: form.fuelType,
-        liters: parseFloat(form.liters) || 0, totalAmount: parseFloat(form.totalAmount) || 0,
-        notes: form.notes.trim() || undefined,
-      });
+      if (isEditing) {
+        await updateKmReceipt(receipt.id, {
+          date: form.date,
+          fuelType: form.fuelType,
+          liters: parseFloat(form.liters) || 0,
+          totalAmount: parseFloat(form.totalAmount) || 0,
+          notes: form.notes.trim() || undefined,
+        });
+      } else {
+        await createKmReceipt({
+          periodId, date: form.date, fuelType: form.fuelType,
+          liters: parseFloat(form.liters) || 0,
+          totalAmount: parseFloat(form.totalAmount) || 0,
+          notes: form.notes.trim() || undefined,
+        });
+      }
       onDone();
     });
   }
@@ -561,12 +585,19 @@ function ReceiptForm({ periodId, onDone }: { periodId: string; onDone: () => voi
             <input className={inputCls()} placeholder="Posto, cidade..." value={form.notes} onChange={set("notes")} />
           </div>
         </div>
-        {pricePerLiter && <div className="text-[10px] text-[var(--color-f4)]">Preço por litro: <span className="font-medium text-[var(--color-cyan)]">R$ {pricePerLiter}</span></div>}
+        {pricePerLiter && (
+          <div className="text-[10px] text-[var(--color-f4)]">
+            Preço por litro: <span className="font-medium text-[var(--color-cyan)]">R$ {pricePerLiter}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2 pt-1">
-          <button type="submit" disabled={isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-semibold text-white cursor-pointer border-0 disabled:opacity-50" style={{ background: "var(--color-cyan)" }}>
-            <IconCheck size={12} />{isPending ? "Salvando..." : "Adicionar"}
+          <button type="submit" disabled={isPending}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-semibold text-white cursor-pointer border-0 disabled:opacity-50"
+            style={{ background: "var(--color-cyan)" }}>
+            <IconCheck size={12} />{isPending ? "Salvando..." : isEditing ? "Salvar" : "Adicionar"}
           </button>
-          <button type="button" onClick={onDone} className="flex items-center gap-1 px-3 py-1.5 rounded-[8px] text-[11px] text-[var(--color-f3)] bg-[var(--color-bg4)] border border-[var(--color-border2)] cursor-pointer hover:text-[var(--color-f1)] transition-colors">
+          <button type="button" onClick={onDone}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-[8px] text-[11px] text-[var(--color-f3)] bg-[var(--color-bg4)] border border-[var(--color-border2)] cursor-pointer hover:text-[var(--color-f1)] transition-colors">
             <IconX size={11} />Cancelar
           </button>
         </div>
@@ -578,6 +609,7 @@ function ReceiptForm({ periodId, onDone }: { periodId: string; onDone: () => voi
 function ReceiptsTab({ period, config }: { period: KmPeriodDetail; config: KmConfigData }) {
   const isOpen = period.status === "open";
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const [, startDel] = useTransition();
   const totalFuelAmount = period.receipts.reduce((s, r) => s + r.totalAmount, 0);
   const minRequired = period.kmAmount * config.minFuelPct;
@@ -585,37 +617,79 @@ function ReceiptsTab({ period, config }: { period: KmPeriodDetail; config: KmCon
 
   return (
     <div>
-      {isOpen && <SectionHeader label="Notas de Combustível" count={period.receipts.length} onAdd={() => setAdding(true)} />}
-      {!isOpen && <div className="flex items-center gap-2 mb-3"><span className="text-[10px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)]">Notas de Combustível</span><span className="text-[9px] px-1.5 py-0.5 rounded-[4px] bg-[var(--color-bg3)] text-[var(--color-f4)] border border-[var(--color-border2)]">{period.receipts.length}</span></div>}
-      {adding && <ReceiptForm periodId={period.id} onDone={() => setAdding(false)} />}
-      {period.receipts.length === 0 && !adding && <EmptyState label="nota de combustível" />}
-      {period.receipts.length > 0 && (
-        <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[12px] overflow-hidden">
-          {period.receipts.map(r => (
-            <div key={r.id} className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-0 group">
-              <div className="flex-1 min-w-0">
-                <div className="text-[12px] font-medium text-[var(--color-f1)]">{r.fuelType === "ethanol" ? "Etanol" : "Gasolina"} · {r.liters.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} L</div>
-                <div className="flex items-center gap-3 mt-0.5">
-                  <span className="text-[10px] text-[var(--color-f4)]">{fmtDate(r.date)}</span>
-                  <span className="text-[10px] text-[var(--color-f4)]">R$ {(r.totalAmount / r.liters).toFixed(3)}/litro</span>
-                  {r.notes && <span className="text-[10px] text-[var(--color-f4)] truncate">{r.notes}</span>}
-                </div>
-              </div>
-              <div className="text-[13px] font-semibold text-[var(--color-f1)]">{fmt(r.totalAmount)}</div>
-              {isOpen && (
-                <button onClick={() => { if (!confirm("Excluir nota?")) return; startDel(() => deleteKmReceipt(r.id)); }}
-                  className="w-6 h-6 rounded-[6px] flex items-center justify-center text-[var(--color-f4)] hover:text-red-400 hover:bg-[rgba(239,68,68,0.1)] cursor-pointer border-0 bg-transparent transition-colors opacity-0 group-hover:opacity-100">
-                  <IconTrash size={11} />
-                </button>
-              )}
-            </div>
-          ))}
+      {isOpen && (
+        <SectionHeader
+          label="Notas de Combustível"
+          count={period.receipts.length}
+          onAdd={() => { setAdding(true); setEditing(null); }}
+        />
+      )}
+      {!isOpen && (
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)]">Notas de Combustível</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded-[4px] bg-[var(--color-bg3)] text-[var(--color-f4)] border border-[var(--color-border2)]">{period.receipts.length}</span>
         </div>
       )}
+
+      {adding && <ReceiptForm periodId={period.id} onDone={() => setAdding(false)} />}
+      {period.receipts.length === 0 && !adding && <EmptyState label="nota de combustível" />}
+
+      {period.receipts.length > 0 && (
+        <div className="bg-[var(--color-bg2)] border border-[var(--color-border)] rounded-[12px] overflow-hidden">
+          {period.receipts.map(r =>
+            editing === r.id ? (
+              <div key={r.id} className="p-3 border-b border-[var(--color-border)] last:border-0">
+                <ReceiptForm
+                  periodId={period.id}
+                  receipt={r}
+                  onDone={() => setEditing(null)}
+                />
+              </div>
+            ) : (
+              <div key={r.id} className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-0 group">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-medium text-[var(--color-f1)]">
+                    {r.fuelType === "ethanol" ? "Etanol" : "Gasolina"} · {r.liters.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} L
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className="text-[10px] text-[var(--color-f4)]">{fmtDate(r.date)}</span>
+                    <span className="text-[10px] text-[var(--color-f4)]">R$ {(r.totalAmount / r.liters).toFixed(3)}/litro</span>
+                    {r.notes && <span className="text-[10px] text-[var(--color-f4)] truncate">{r.notes}</span>}
+                  </div>
+                </div>
+                <div className="text-[13px] font-semibold text-[var(--color-f1)]">{fmt(r.totalAmount)}</div>
+                {isOpen && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => { setAdding(false); setEditing(r.id); }}
+                      className="w-6 h-6 rounded-[6px] flex items-center justify-center text-[var(--color-f4)] hover:text-[var(--color-f2)] hover:bg-[var(--color-bg4)] cursor-pointer border-0 bg-transparent transition-colors"
+                      title="Editar">
+                      <IconPencil size={11} />
+                    </button>
+                    <button
+                      onClick={() => { if (!confirm("Excluir nota?")) return; startDel(() => deleteKmReceipt(r.id)); }}
+                      className="w-6 h-6 rounded-[6px] flex items-center justify-center text-[var(--color-f4)] hover:text-red-400 hover:bg-[rgba(239,68,68,0.1)] cursor-pointer border-0 bg-transparent transition-colors"
+                      title="Excluir">
+                      <IconTrash size={11} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          )}
+        </div>
+      )}
+
       {period.receipts.length > 0 && (
         <div className="mt-3 p-3 bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[10px] flex flex-col gap-1.5">
-          <div className="flex justify-between text-[11px]"><span className="text-[var(--color-f4)]">Preço médio/litro</span><span className="font-medium text-[var(--color-f1)]">R$ {period.fuelPriceAvg.toFixed(3)}</span></div>
-          <div className="flex justify-between text-[11px]"><span className="text-[var(--color-f4)]">Total das notas</span><span className="font-medium text-[var(--color-f1)]">{fmt(totalFuelAmount)}</span></div>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-[var(--color-f4)]">Preço médio/litro</span>
+            <span className="font-medium text-[var(--color-f1)]">R$ {period.fuelPriceAvg.toFixed(3)}</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-[var(--color-f4)]">Total das notas</span>
+            <span className="font-medium text-[var(--color-f1)]">{fmt(totalFuelAmount)}</span>
+          </div>
           {period.kmAmount > 0 && (
             <div className={cn("flex justify-between text-[11px] pt-1 border-t border-[var(--color-border2)]", fuelOk ? "text-[var(--color-green)]" : "text-[var(--color-amber)]")}>
               <span>Mínimo exigido ({(config.minFuelPct * 100).toFixed(0)}% do valor km)</span>

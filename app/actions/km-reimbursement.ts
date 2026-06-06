@@ -369,6 +369,30 @@ export async function createKmReceipt(data: {
   revalidatePath(`/km-reimbursement/${data.periodId}`);
 }
 
+export async function updateKmReceipt(id: string, data: {
+  date: string;
+  fuelType: string;
+  liters: number;
+  totalAmount: number;
+  notes?: string;
+}): Promise<void> {
+  const userId = await requireAuth();
+  const receipt = await db.kmReceipt.findFirst({ where: { id, userId } });
+  if (!receipt) return;
+  await db.kmReceipt.update({
+    where: { id },
+    data: {
+      date: new Date(data.date),
+      fuelType: data.fuelType,
+      liters: data.liters,
+      totalAmount: data.totalAmount,
+      notes: data.notes ?? null,
+    },
+  });
+  await recalcPeriodInternal(receipt.periodId, userId);
+  revalidatePath(`/km-reimbursement/${receipt.periodId}`);
+}
+
 export async function deleteKmReceipt(id: string): Promise<void> {
   const userId = await requireAuth();
   const receipt = await db.kmReceipt.findFirst({ where: { id, userId } });
