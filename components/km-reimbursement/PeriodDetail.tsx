@@ -6,7 +6,7 @@ import {
   createKmRoute, createKmRoutesBulk, updateKmRoute, deleteKmRoute,
   createKmReceipt, updateKmReceipt, deleteKmReceipt,
   createKmExpense, deleteKmExpense,
-  submitPeriod, reopenPeriod,
+  updateKmPeriod, submitPeriod, reopenPeriod,
 } from "@/app/actions/km-reimbursement";
 import type {
   KmPeriodDetail, KmConfigData,
@@ -1111,7 +1111,29 @@ export function PeriodDetail({
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("routes");
   const [placesOpen, setPlacesOpen] = useState(false);
+  const [editingHeader, setEditingHeader] = useState(false);
+  const [headerPending, startHeader] = useTransition();
+  const [headerForm, setHeaderForm] = useState({
+    name: period.name,
+    startDate: fmtDateInput(period.startDate),
+    endDate: fmtDateInput(period.endDate),
+    notes: period.notes ?? "",
+  });
   const isOpen = period.status === "open";
+
+  function saveHeader(e: React.FormEvent) {
+    e.preventDefault();
+    if (!headerForm.name.trim()) return;
+    startHeader(async () => {
+      await updateKmPeriod(period.id, {
+        name: headerForm.name.trim(),
+        startDate: headerForm.startDate,
+        endDate: headerForm.endDate,
+        notes: headerForm.notes.trim() || undefined,
+      });
+      setEditingHeader(false);
+    });
+  }
 
   return (
     <>
@@ -1121,48 +1143,111 @@ export function PeriodDetail({
           <Link href="/km-reimbursement" className="flex items-center gap-1.5 text-[11px] text-[var(--color-f4)] hover:text-[var(--color-f2)] mb-4 no-underline transition-colors w-fit">
             <IconArrowLeft size={12} />Voltar para histórico
           </Link>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h1 className="font-[family-name:var(--font-display)] italic text-[28px] font-bold tracking-tight text-[var(--color-f1)] leading-tight">{period.name}</h1>
-                {!isOpen && (
-                  <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.3)", color: "#FBBF24", fontWeight: 700, letterSpacing: 0.3 }}>
-                    Enviado
-                  </span>
-                )}
+
+          {editingHeader ? (
+            /* ── Inline edit form ── */
+            <form onSubmit={saveHeader} className="bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[14px] p-4 flex flex-col gap-3 mb-2">
+              <div className="text-[9px] font-bold tracking-[1.5px] uppercase text-[var(--color-cyan)]">Editar solicitação</div>
+              <div className="flex flex-col gap-1">
+                <Label>Nome</Label>
+                <input
+                  className={inputCls()}
+                  value={headerForm.name}
+                  onChange={e => setHeaderForm(f => ({ ...f, name: e.target.value }))}
+                  required
+                  autoFocus
+                />
               </div>
-              <div className="text-[12px] text-[var(--color-f4)]">
-                {new Date(period.startDate).toLocaleDateString("pt-BR")} → {new Date(period.endDate).toLocaleDateString("pt-BR")}
-              </div>
-            </div>
-            <div className="flex items-center gap-3 flex-shrink-0 mt-1">
-              <div className="text-right">
-                <div className="text-[10px] text-[var(--color-f4)] mb-0.5">Total</div>
-                <div className="text-[22px] font-bold font-[family-name:var(--font-display)] italic text-[var(--color-f1)]">
-                  {period.grandTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <Label>Data início</Label>
+                  <DatePicker value={headerForm.startDate} onChange={v => setHeaderForm(f => ({ ...f, startDate: v }))} height={34} fontSize={12} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label>Data fim</Label>
+                  <DatePicker value={headerForm.endDate} onChange={v => setHeaderForm(f => ({ ...f, endDate: v }))} height={34} fontSize={12} />
                 </div>
               </div>
-              {/* Lugares button */}
-              <button
-                onClick={() => setPlacesOpen(true)}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-[10px] text-[11px] font-medium text-[var(--color-f3)] bg-[var(--color-bg3)] border border-[var(--color-border2)] hover:text-[var(--color-f1)] hover:border-[var(--color-border)] transition-all cursor-pointer"
-                title="Lugares cadastrados"
-              >
-                <IconMapPin size={13} />
-                Lugares
-                {places.length > 0 && (
-                  <span className="text-[9px] px-1 py-0.5 rounded-[4px] bg-[rgba(34,211,238,0.12)] text-[var(--color-cyan)] border border-[rgba(34,211,238,0.2)]">
-                    {places.length}
-                  </span>
+              <div className="flex flex-col gap-1">
+                <Label>Observações <span className="text-[var(--color-f4)] font-normal">(opcional)</span></Label>
+                <input
+                  className={inputCls()}
+                  placeholder="Notas gerais sobre esta solicitação..."
+                  value={headerForm.notes}
+                  onChange={e => setHeaderForm(f => ({ ...f, notes: e.target.value }))}
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button type="submit" disabled={headerPending || !headerForm.name.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-semibold text-white cursor-pointer border-0 disabled:opacity-50"
+                  style={{ background: "var(--color-cyan)" }}>
+                  <IconCheck size={12} />{headerPending ? "Salvando..." : "Salvar"}
+                </button>
+                <button type="button" onClick={() => { setEditingHeader(false); setHeaderForm({ name: period.name, startDate: fmtDateInput(period.startDate), endDate: fmtDateInput(period.endDate), notes: period.notes ?? "" }); }}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-[8px] text-[11px] text-[var(--color-f3)] bg-[var(--color-bg4)] border border-[var(--color-border2)] cursor-pointer hover:text-[var(--color-f1)] transition-colors">
+                  <IconX size={11} />Cancelar
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* ── Normal header display ── */
+            <div className="flex items-start justify-between gap-4">
+              <div className="group/header flex items-start gap-2">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h1 className="font-[family-name:var(--font-display)] italic text-[28px] font-bold tracking-tight text-[var(--color-f1)] leading-tight">{period.name}</h1>
+                    {!isOpen && (
+                      <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.3)", color: "#FBBF24", fontWeight: 700, letterSpacing: 0.3 }}>
+                        Enviado
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[12px] text-[var(--color-f4)]">
+                    {new Date(period.startDate).toLocaleDateString("pt-BR")} → {new Date(period.endDate).toLocaleDateString("pt-BR")}
+                  </div>
+                  {period.notes && (
+                    <div className="text-[11px] text-[var(--color-f4)] mt-1 italic">{period.notes}</div>
+                  )}
+                </div>
+                {isOpen && (
+                  <button
+                    onClick={() => setEditingHeader(true)}
+                    className="mt-1.5 w-6 h-6 rounded-[6px] flex items-center justify-center text-[var(--color-f4)] hover:text-[var(--color-f2)] hover:bg-[var(--color-bg3)] cursor-pointer border-0 bg-transparent transition-colors opacity-0 group-hover/header:opacity-100"
+                    title="Editar solicitação"
+                  >
+                    <IconPencil size={12} />
+                  </button>
                 )}
-              </button>
-              <Link href="/km-reimbursement/settings"
-                className="w-8 h-8 rounded-[10px] flex items-center justify-center text-[var(--color-f4)] bg-[var(--color-bg3)] border border-[var(--color-border2)] hover:text-[var(--color-f2)] hover:border-[var(--color-border)] transition-all no-underline"
-                title="Parâmetros">
-                <IconSettings size={14} />
-              </Link>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0 mt-1">
+                <div className="text-right">
+                  <div className="text-[10px] text-[var(--color-f4)] mb-0.5">Total</div>
+                  <div className="text-[22px] font-bold font-[family-name:var(--font-display)] italic text-[var(--color-f1)]">
+                    {period.grandTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </div>
+                </div>
+                {/* Lugares button */}
+                <button
+                  onClick={() => setPlacesOpen(true)}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-[10px] text-[11px] font-medium text-[var(--color-f3)] bg-[var(--color-bg3)] border border-[var(--color-border2)] hover:text-[var(--color-f1)] hover:border-[var(--color-border)] transition-all cursor-pointer"
+                  title="Lugares cadastrados"
+                >
+                  <IconMapPin size={13} />
+                  Lugares
+                  {places.length > 0 && (
+                    <span className="text-[9px] px-1 py-0.5 rounded-[4px] bg-[rgba(34,211,238,0.12)] text-[var(--color-cyan)] border border-[rgba(34,211,238,0.2)]">
+                      {places.length}
+                    </span>
+                  )}
+                </button>
+                <Link href="/km-reimbursement/settings"
+                  className="w-8 h-8 rounded-[10px] flex items-center justify-center text-[var(--color-f4)] bg-[var(--color-bg3)] border border-[var(--color-border2)] hover:text-[var(--color-f2)] hover:border-[var(--color-border)] transition-all no-underline"
+                  title="Parâmetros">
+                  <IconSettings size={14} />
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Tabs */}

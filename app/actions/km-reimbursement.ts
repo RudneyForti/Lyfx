@@ -237,6 +237,28 @@ export async function createKmPeriod(data: {
   return { id: period.id };
 }
 
+export async function updateKmPeriod(id: string, data: {
+  name: string;
+  startDate: string;
+  endDate: string;
+  notes?: string;
+}): Promise<void> {
+  const userId = await requireAuth();
+  const period = await db.kmPeriod.findUnique({ where: { id, userId } });
+  if (!period) return;
+  await db.kmPeriod.update({
+    where: { id },
+    data: {
+      name: data.name.trim(),
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
+      notes: data.notes?.trim() ?? null,
+    },
+  });
+  revalidatePath("/km-reimbursement");
+  revalidatePath(`/km-reimbursement/${id}`);
+}
+
 export async function deleteKmPeriod(id: string): Promise<void> {
   const userId = await requireAuth();
   const period = await db.kmPeriod.findUnique({ where: { id, userId } });
