@@ -12,6 +12,33 @@ interface RouteMapProps {
   onClose?: () => void;
 }
 
+// ── Dark map style ────────────────────────────────────────────────────────────
+
+const DARK_MAP_STYLES = [
+  { elementType: "geometry",                                         stylers: [{ color: "#212121" }] },
+  { elementType: "labels.text.stroke",                               stylers: [{ color: "#212121" }] },
+  { elementType: "labels.text.fill",                                 stylers: [{ color: "#757575" }] },
+  { featureType: "administrative",       elementType: "geometry",    stylers: [{ color: "#757575" }] },
+  { featureType: "administrative.country", elementType: "labels.text.fill", stylers: [{ color: "#9e9e9e" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#bdbdbd" }] },
+  { featureType: "poi",                  elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+  { featureType: "poi.park",             elementType: "geometry",    stylers: [{ color: "#181818" }] },
+  { featureType: "poi.park",             elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
+  { featureType: "poi.park",             elementType: "labels.text.stroke", stylers: [{ color: "#1b1b1b" }] },
+  // ── Roads ──
+  { featureType: "road",                 elementType: "geometry.fill",    stylers: [{ color: "#2c2c2c" }] },
+  { featureType: "road",                 elementType: "labels.text.fill", stylers: [{ color: "#8a8a8a" }] },
+  { featureType: "road.arterial",        elementType: "geometry",    stylers: [{ color: "#373737" }] },
+  { featureType: "road.highway",         elementType: "geometry",    stylers: [{ color: "#3c3c3c" }] },
+  { featureType: "road.highway.controlled_access", elementType: "geometry", stylers: [{ color: "#4e4e4e" }] },
+  { featureType: "road.local",           elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
+  // ── Transit ──
+  { featureType: "transit",              elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+  // ── Water ──
+  { featureType: "water",                elementType: "geometry",    stylers: [{ color: "#000000" }] },
+  { featureType: "water",                elementType: "labels.text.fill", stylers: [{ color: "#3d3d3d" }] },
+];
+
 // ── Lazy loader for Google Maps ───────────────────────────────────────────────
 
 function MapWithDirections({ origin, destination, onKmChange, onClose }: RouteMapProps) {
@@ -57,7 +84,7 @@ function MapWithDirections({ origin, destination, onKmChange, onClose }: RouteMa
         center={{ lat: -23.5505, lng: -46.6333 }}
         options={{
           disableDefaultUI: false,
-          styles: [{ featureType: "all", elementType: "geometry", stylers: [{ color: "#1a1a2e" }] }],
+          styles: DARK_MAP_STYLES,
         }}
       >
         {origin && destination && !requested.current && (
