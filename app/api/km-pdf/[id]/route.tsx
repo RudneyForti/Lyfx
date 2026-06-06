@@ -38,14 +38,12 @@ export async function GET(
   // baseUrl para o proxy /api/km-map que renderiza as imagens dos trajetos
   const baseUrl = new URL(req.url).origin;
 
-  const element = React.createElement(PeriodPdfDocument, {
-    period,
-    config,
-    userName,
-    baseUrl,
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const element = React.createElement(PeriodPdfDocument, { period, config, userName, baseUrl }) as any;
 
-  const buffer = await pdf(element).toBuffer();
+  // toBuffer() retorna ReadableStream nos tipos do v4 — em runtime é Buffer no Node.js
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const buffer: any = await pdf(element).toBuffer();
 
   const safeName = period.name.toLowerCase().replace(/\s+/g, "-");
 
