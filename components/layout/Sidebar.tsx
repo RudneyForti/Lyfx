@@ -21,6 +21,7 @@ import {
   IconBuildingBank,
   IconBell,
   IconHome2,
+  IconCar,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -57,8 +58,9 @@ const navGroups = [
       { href: "/alerts",         label: "Alertas e Notificações", icon: IconBell,        moduleKey: "alerts" },
       { href: "/reports",        label: "Relatórios",       icon: IconReportAnalytics,  moduleKey: "reports" },
       { href: "/health",         label: "Saúde financeira", icon: IconHeartRateMonitor, moduleKey: "health" },
-      { href: "/reimbursements", label: "Reembolsos",       icon: IconReceipt2,         moduleKey: "reimbursements" },
-      { href: "/tags",           label: "Minhas tags",      icon: IconTags,             moduleKey: "tags" },
+      { href: "/reimbursements",    label: "Reembolsos",    icon: IconReceipt2, moduleKey: "reimbursements" },
+      { href: "/km-reimbursement", label: "Reembolso Especial", icon: IconCar, moduleKey: "km-reimbursement" },
+      { href: "/tags",             label: "Minhas tags",   icon: IconTags,     moduleKey: "tags" },
     ],
   },
   {

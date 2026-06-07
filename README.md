@@ -7,7 +7,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-local-003B57?style=flat-square&logo=sqlite)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
-![Version](https://img.shields.io/badge/version-1.9.1-22D3EE?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.10.0-22D3EE?style=flat-square)
 
 ---
 
@@ -37,6 +37,7 @@ O Lyfx aplica o conceito do **DRE (Demonstrativo de Resultado do Exercício)** �
 | **Perfil** | Dados pessoais, endereço com auto-fill por CEP e troca de senha |
 | **Educação** | 85 pílulas pedagógicas por perfil de saúde financeira, quiz de fixação e streak semanal |
 | **Studio** | Painel de administração protegido por senha separada |
+| **Reembolso Especial** | Controle corporativo de KM, combustível, pedágios e despesas de viagem com PDF exportável |
 
 ## Stack
 
@@ -72,4 +73,4 @@ Para detalhes completos sobre arquitetura, schema do banco, relacionamentos, cat
 
 ---
 
-*v1.9.1 · Junho 2026 · Projeto pessoal em desenvolvimento ativo.*
+*v1.10.0 · Junho 2026 · Projeto pessoal em desenvolvimento ativo.*

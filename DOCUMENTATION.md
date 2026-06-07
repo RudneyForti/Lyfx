@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.9.1 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.10.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -1431,13 +1431,16 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **Fase G** | ✅ v1.5.0 | Educação financeira (`/education`): 85 pílulas pedagógicas organizadas em 5 perfis de saúde financeira (`critical`, `serious`, `unstable`, `stable`, `healthy`), leitura com timer silencioso, quiz de fixação com feedback visual, streak semanal de 12 semanas, progresso persistido em `PillProgress` via `better-sqlite3` direto (contorno para cache persistente do Turbopack). |
 | **Studio G2** | ✅ v1.8.0 | Studio Grupo 2: Aba Painel com dashboard de métricas (6 cards: usuários, registros, espaço em disco, planos, versões dev/prod) + toggles de configuração global (modo manutenção + texto do banner). Aba Módulos com toggle de beta por módulo em tempo real via `AppConfig`. Aba Notas com editor Markdown, toolbar completa e slash commands Notion-like. ERD colapsável por tabela com descrições. Seeds Full/Insider derivados automaticamente de `isBeta` em `lib/modules.ts`. Modelo `AppConfig` no banco. `lib/config.ts` para leitura sem auth. |
 | **CS-18/CS-19** | ✅ v1.9.0 | Central de notificações: model `Notification` com `fingerprint`/`broadcastId`/`expiresAt`, segregação alertas automáticos × notificações do sistema. Sino no UserMenu com badge, dropdown com duas seções (Alertas financeiros + Notificações). Studio: aba Notificações para envio por plano/usuário com histórico de broadcasts. AlertsView: seções separadas, Limpar tudo, Marcar todas como lidas. Banner de manutenção em pill. Notificação de boas-vindas automática. Studio Painel redesenhado: layout 2 colunas (Sistema/Servidor), gauges SVG para RAM/Heap/CPU, métricas `lastSeenAt` (online agora / ativos hoje), versionamento de branch git. `User.lastSeenAt` atualizado a cada navegação. Fix type guards em GoalsView e TagPicker. |
+| **CS-17** | ✅ v1.10.0 | Reembolso Especial (`/km-reimbursement`): módulo corporativo completo com 5 modelos (`KmConfig`, `KmPeriod`, `KmRoute`, `KmReceipt`, `KmExpense`), campos de veículo em `KmConfig`. Fluxo: nova solicitação → trajetos com Google Maps arrastável → notas de combustível → despesas extras → resumo SAP → envio com Transaction D+5 dias úteis. Lugares Salvos (`/km-reimbursement/places`) com rotas configuráveis armazenadas como JSON (`routeGoing`/`routeReturn`). PDF server-side (`@react-pdf/renderer`) com mapas embutidos via Google Static Maps API, polyline de rota usando `KmPlace` como fonte da verdade. PDF redesign v2: fundo cinza `#F5F6F9`, padrão de bolinhas SVG, header escuro com logotipo tipográfico `Ly`+`fx`, mini-header nas páginas 2+, cards brancos por trajeto, resumo com `wrap={false}`, footer "Demonstrativo de Rotas". `bodySizeLimit: "5mb"` nas Server Actions. |
 
 ### Próximas evoluções sugeridas
 
-- **Importação OFX/CSV**: leitura de extratos bancários para lançamento semi-automático
-- **Relatórios avançados**: comparativo mês a mês, evolução de categorias ao longo do tempo
-- **Deploy em produção**: migração de SQLite para PostgreSQL (apenas troca do adapter Prisma + datasource URL)
+- **CS-20** — Studio: aba Roadmap/Backlog
+- **CS-21** — Importação OFX/CSV: leitura de extratos bancários para lançamento semi-automático
+- **CS-22** — Sistema de logo padronizado em SVG paths para todos os contextos
+- **CS-23** — Containerização Docker para autonomia de deploy
+- **Deploy em produção**: PostgreSQL + domínio próprio → v2.0.0
 
 ---
 
-*Última atualização: 27/05/2026. Versão atual: 1.8.0.*
+*Última atualização: 07/06/2026. Versão atual: 1.10.0.*

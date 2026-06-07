@@ -94,6 +94,7 @@ Exemplo:
 | `1.8.1` | PATCH | CS-15 Consistência visual: login com viewport lock (100vh), identidade rounded unificada (botões CTA → full, inputs → 12px, modais → 24px), sidebar flutuante com glassmorphism + scroll interno, modo colapsado com espaçamento uniforme, padding-top 48px no main para pílula UserMenu não sobrepor conteúdo |
 | `1.9.1` | PATCH | Fix crítico: `lib/db-pills.ts` reescrito com Prisma — workaround better-sqlite3 do v1.5.0 (SQLite) causava `no such table: PillProgress` em produção após migração para PostgreSQL |
 | `1.9.0` | MINOR | CS-18/CS-19 Central de notificações: model Notification, sino com badge no UserMenu, segregação alertas automáticos × notificações do sistema (fingerprint), Studio de envio por plano/usuário com histórico, AlertsView com seções distintas + Limpar tudo, banner de manutenção em pill, notificação de boas-vindas automática, Studio Painel redesenhado (2 colunas, gauges SVG RAM/Heap/CPU, métricas lastSeenAt, versionamento de branch git), correções TypeScript em GoalsView e TagPicker |
+| `1.10.0` | MINOR | CS-17 Reembolso Especial: módulo corporativo completo de KM (trajetos com Google Maps arrastável, notas de combustível, despesas extras, resumo SAP, D+5 dias úteis, Transaction automática). CS-17b PDF exportável server-side com mapas embutidos, redesign visual (fundo cinza, padrão de bolinhas, header escuro, logotipo tipográfico, mini-header nas páginas 2+, resumo sem quebra de página), polyline de rota via KmPlace como fonte da verdade. bodySizeLimit 5mb para Server Actions. |
 
 ---
 

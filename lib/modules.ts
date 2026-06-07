@@ -16,6 +16,7 @@ export type ModuleKey =
   | "health"
   | "reports"
   | "reimbursements"
+  | "km-reimbursement"
   | "tags"
   | "profile"
   | "education";
@@ -49,8 +50,9 @@ export const ALL_MODULES: ModuleDefinition[] = [
   { key: "alerts",         label: "Alertas",          group: "Análise",      summary: "Notificações automáticas quando gastos ultrapassam o limite.", isBeta: true },
   { key: "health",         label: "Saúde Financeira", group: "Análise",      summary: "Score e diagnóstico da sua situação financeira geral." },
   { key: "reports",        label: "Relatórios",       group: "Análise",      summary: "Relatórios detalhados com gráficos por período e categoria." },
-  { key: "reimbursements", label: "Reembolsos",       group: "Análise",      summary: "Controle gastos a serem reembolsados por terceiros.", isBeta: true },
-  { key: "tags",           label: "Tags",             group: "Análise",      summary: "Etiquete transações com tags personalizadas para análise." },
+  { key: "reimbursements",    label: "Reembolsos",      group: "Análise",      summary: "Controle gastos a serem reembolsados por terceiros.", isBeta: true },
+  { key: "km-reimbursement", label: "Reembolso Especial", group: "Análise", summary: "Módulo corporativo de reembolso especial: KM, combustível, pedágios e despesas.", isBeta: true },
+  { key: "tags",              label: "Tags",           group: "Análise",      summary: "Etiquete transações com tags personalizadas para análise." },
 
   // Aprender
   { key: "education",      label: "Educação",         group: "Aprender",     summary: "Pílulas de educação financeira gamificadas e progressivas.", isBeta: true },
