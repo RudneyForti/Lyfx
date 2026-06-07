@@ -1,6 +1,6 @@
 # Lyfx — Desenvolvimento (develop / porta 3000)
 # Uso: docker compose -f docker-compose.dev.yml up
-# Nota: no Windows, volume bind mounts são lentos. Preferir npm run dev nativo para desenvolvimento ativo.
+# Scripts: npm run docker:dev
 
 services:
   lyfx-dev:
@@ -24,3 +24,9 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s  # tempo para npm install + prisma generate + next dev compilar
