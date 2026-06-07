@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { timingSafeEqual } from "crypto";
 import { readFile, stat } from "fs/promises";
 import { execSync } from "child_process";
 import path from "path";
@@ -14,14 +15,18 @@ import { ALL_MODULES } from "@/lib/modules";
 const COOKIE = "lyfx_admin";
 
 export async function adminLogin(password: string) {
-  const secret = process.env.ADMIN_SECRET;
-  if (!secret || password !== secret) return { error: "Senha incorreta." };
+  const secret = process.env.ADMIN_SECRET ?? "";
+  const a = Buffer.from(password.padEnd(secret.length));
+  const b = Buffer.from(secret.padEnd(password.length));
+  const valid = password.length === secret.length && secret.length > 0 && timingSafeEqual(a, b);
+  if (!valid) return { error: "Senha incorreta." };
   const jar = await cookies();
   jar.set(COOKIE, "1", {
     httpOnly: true,
     sameSite: "lax",
     maxAge: 60 * 60 * 2, // 2h
     path: "/studio",
+    secure: process.env.NODE_ENV === "production",
   });
   redirect("/studio");
 }
@@ -39,7 +44,7 @@ export async function getAdminSession(): Promise<boolean> {
 }
 
 // [FIX C-4] Internal guard — all sensitive actions must call this first
-async function requireAdmin() {
+export async function requireAdmin() {
   const ok = await getAdminSession();
   if (!ok) throw new Error("Unauthorized.");
 }

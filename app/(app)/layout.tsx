@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getConfigBool("maintenanceMode"),
     getConfigValue("maintenanceBanner", "O sistema está temporariamente indisponível para manutenção."),
     getConfigValue("betaModules", ""),
-    getUnreadCount(userId),  // CS-18: badge do sino
+    getUnreadCount(),  // CS-26: session-based, não aceita userId externo
   ]);
 
   // CS-18: converter alertas danger em notificações (fingerprint dedup, TTL 7d)

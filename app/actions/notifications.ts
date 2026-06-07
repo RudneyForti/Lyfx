@@ -16,11 +16,13 @@ export interface NotificationItem {
 
 /* ── Leitura ──────────────────────────────────────────────────────── */
 
-/** Badge count — chamado pelo layout (userId já resolvido, sem requireAuth).
+/** Badge count — chamado pelo layout.
+ *  Usa requireAuth() internamente — ignora userId externo para garantir isolamento.
  *  Conta apenas notificações manuais/sistema (fingerprint=null).
  *  Alertas financeiros são computados em real-time por getAlerts() e não inflam o badge.
  */
-export async function getUnreadCount(userId: string): Promise<number> {
+export async function getUnreadCount(): Promise<number> {
+  const userId = await requireAuth();
   const now = new Date();
   return db.notification.count({
     where: {
