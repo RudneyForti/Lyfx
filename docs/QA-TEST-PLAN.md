@@ -1,8 +1,8 @@
-# Lyfx — Plano de Testes v1.10.0
+# Lyfx — Plano de Testes v1.11.0
 
-> Casos de teste executáveis · Gerado em 07/06/2026
+> Casos de teste executáveis · Atualizado em 07/06/2026
 > Baseado em análise do Agent Smith (QA Specialist) · Myers · WAHH · Hendrickson · Kaner
-> Cobertura completa: v1.5.0 → v1.10.0 · Inclui CS-17 (Reembolso Especial), CS-18/CS-19 (Notificações), Studio G2
+> Cobertura completa: v1.5.0 → v1.11.0 · Inclui CS-17 (Reembolso Especial), CS-18/CS-19 (Notificações), Studio G2, CS-25 (Feriados)
 
 **Como usar este arquivo:**
 - Cada caso é autossuficiente: pré-condições + passos + resultado esperado preciso
@@ -1530,6 +1530,28 @@
 ### KM-11 — D+5 quando submetido na quinta-feira
 **Prioridade:** ALTO
 **Resultado esperado:** `expectedPayAt` = quinta-feira da semana seguinte (qui→sex = 1, seg = 2, ter = 3, qua = 4, qui = 5).
+
+---
+
+### KM-11b — D+5 com feriado nacional no meio do prazo (CS-25)
+**Prioridade:** ALTO
+**Pré-condições:** Período submetido em dia com feriado nacional nos próximos 5 dias úteis (ex: submeter na segunda-feira da semana do Corpus Christi, que cai na quinta)
+**Passos:** Submeter período; verificar `expectedPayAt`
+**Resultado esperado:** `expectedPayAt` pula o feriado — cai na sexta ou na semana seguinte conforme os dias úteis restantes. Não cai no dia do feriado.
+
+---
+
+### KM-11c — D+5 com BrasilAPI offline (fallback CS-25)
+**Prioridade:** MÉDIO
+**Simulação:** Bloquear `https://brasilapi.com.br` no hosts ou desconectar rede durante o submit
+**Resultado esperado:** Submissão conclui normalmente. `expectedPayAt` calculado por sáb/dom apenas (sem feriados). Nenhum erro exibido ao usuário.
+
+---
+
+### KM-11d — D+5 com `paymentDays = 0` (BVA CS-25)
+**Prioridade:** BAIXO
+**Pré-condições:** Configurar `KmConfig.paymentDays = 0` via settings
+**Resultado esperado:** `expectedPayAt` = data de submissão (sem avançar dias). Sem loop infinito, sem crash.
 
 ---
 

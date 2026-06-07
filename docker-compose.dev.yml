@@ -1,0 +1,32 @@
+# Lyfx — Desenvolvimento (develop / porta 3000)
+# Uso: docker compose -f docker-compose.dev.yml up
+# Scripts: npm run docker:dev
+
+services:
+  lyfx-dev:
+    image: node:22-alpine
+    container_name: lyfx-dev
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app                  # bind mount — código local refletido no container
+      - /app/node_modules       # volume anônimo — preserva node_modules do container
+      - /app/.next              # volume anônimo — preserva cache de build
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+    command: >
+      sh -c "npm install &&
+             npx prisma generate &&
+             npm run dev"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s  # tempo para npm install + prisma generate + next dev compilar

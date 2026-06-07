@@ -1,0 +1,24 @@
+# Controle de versão
+.git
+.gitignore
+
+# Dependências (reinstaladas no build)
+node_modules
+.next
+
+# Ambiente (jamais entra na imagem — injetado em runtime via env_file)
+.env
+.env.*
+!.env.docker.example
+
+# Bancos locais
+*.db
+
+# Logs e temporários
+*.log
+npm-debug.log*
+
+# Docs e metadados (não necessários na imagem)
+docs/
+*.md
+!README.md

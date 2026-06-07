@@ -1,6 +1,8 @@
 import { getAdminSession, getStudioData, getDocumentation, getLiveSchema, getAppConfig } from "./actions";
 import { StudioLoginForm, StudioMain } from "./StudioClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function StudioPage() {
   const authenticated = await getAdminSession();
 

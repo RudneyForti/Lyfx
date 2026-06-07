@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.10.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.11.1 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -901,7 +901,7 @@ Módulo gamificado de educação financeira baseado em pílulas de conhecimento.
 - Progresso: tabela `PillProgress` — uma linha por usuário/pílula; re-leituras não sobrescrevem o primeiro registro
 - Streak: calculado on-the-fly a partir das datas de conclusão (semanas com ≥ 1 pílula)
 
-**Nota técnica**: as queries de `PillProgress` usam `better-sqlite3` diretamente (`lib/db-pills.ts`) porque o Turbopack mantém cache compilado do client Prisma sem o modelo recém-adicionado. As operações CRUD de todos os outros modelos continuam via Prisma normalmente.
+**Nota técnica v1.9.1+**: workaround `lib/db-pills.ts` (better-sqlite3 direto) removido em v1.11.0 (CS-30). `PillProgress` usa `db.pillProgress` via Prisma normalmente após migração para PostgreSQL.
 
 ---
 
@@ -981,20 +981,28 @@ minRequired = kmAmount × config.minFuelPct  // ex: kmAmount × 0.15
 isValid = fuelTotal >= minRequired
 ```
 
-#### D+5 dias úteis
+#### D+5 dias úteis com feriados nacionais
+
+Desde **v1.11.0 (CS-25)**, `addBusinessDays` é `async` e considera feriados nacionais via BrasilAPI.
+Localização: `lib/km-utils.ts` (movido de `app/actions/km-reimbursement.ts`).
 
 ```typescript
-function addBusinessDays(date: Date, days: number): Date {
-  let d = new Date(date);
-  let added = 0;
-  while (added < days) {
-    d.setDate(d.getDate() + 1);
-    if (d.getDay() !== 0 && d.getDay() !== 6) added++;
-    // 0 = domingo, 6 = sábado
-  }
-  return d;
-}
-// expectedPayAt = addBusinessDays(submittedAt, config.paymentDays)
+// lib/holidays.ts — cache em memória por ano
+export async function getHolidays(year: number): Promise<Set<string>>
+// Fonte: GET https://brasilapi.com.br/api/feriados/v1/{ano}
+// Fallback: Set vazio se API offline (D+5 calcula apenas sáb/dom)
+// Cache: next: { revalidate: 86400 } + Map<number, Set<string>> in-memory
+
+// lib/km-utils.ts — função principal
+export async function addBusinessDays(startDate: Date, days: number): Promise<Date>
+// Pula: sábado (6), domingo (0) e feriados nacionais
+// Guard: days inválido (NaN, negativo) → safeDays = 0
+// Virada de ano: carrega feriados do próximo ano automaticamente
+```
+
+Uso em `submitPeriod`:
+```typescript
+const expectedPayAt = await addBusinessDays(submittedAt, config.paymentDays)
 ```
 
 #### Integração Google Maps
@@ -1843,7 +1851,7 @@ Esta seção documenta problemas reais encontrados em desenvolvimento, com causa
 
 **Solução**: parar o servidor, rodar `npx prisma generate`, reiniciar. Se persistir, deletar `.next/` e reiniciar.
 
-**Caso especial `PillProgress`**: modelo adicionado em v1.5.0 exibiu esse problema. Resolvido usando `better-sqlite3` diretamente em `lib/db-pills.ts` (sem Prisma) para as queries de `PillProgress`.
+**Caso especial `PillProgress`**: modelo adicionado em v1.5.0 exibiu esse problema. Workaround `lib/db-pills.ts` removido em v1.11.0 — PostgreSQL não apresenta o problema de cache do Turbopack.
 
 ### `NEXT_PUBLIC_*` vars não recarregadas em runtime
 
@@ -1897,6 +1905,44 @@ Necessário para PDFs com múltiplas imagens de mapa embutidas em base64.
 
 **Onde está**: `app/studio/actions.ts` → `adminLogout()` especifica `path: "/studio"` na deleção de `lyfx_admin` e `path: "/"` na deleção de `lyfx_session`.
 
+### Docker + `output: "standalone"` — Prisma client não incluso automaticamente
+
+**Sintoma**: container inicia mas todas as queries falham com `Cannot find module '.prisma/client'`.
+
+**Causa**: o tracing automático do Next.js standalone (`outputFileTracingIncludes`) não inclui os arquivos gerados pelo `npx prisma generate` em `node_modules/.prisma/client`. O standalone captura apenas importações estáticas — o Prisma client é carregado dinamicamente em runtime.
+
+**Solução**: no `Dockerfile`, após copiar `.next/standalone`, copiar o diretório gerado explicitamente. **Atenção ao caminho:** no Prisma v7, o client é gerado em `lib/generated/prisma` (não em `node_modules/.prisma` como nas versões anteriores):
+```dockerfile
+COPY --from=builder --chown=nextjs:nodejs /app/lib/generated/prisma ./lib/generated/prisma
+```
+
+**Onde está**: `Dockerfile` (stage runner, linhas após `COPY .next/static`).
+
+### Docker — `localhost` não resolve o PostgreSQL do host
+
+**Sintoma**: container sobe mas falha na conexão com o banco: `ECONNREFUSED 127.0.0.1:5432`.
+
+**Causa**: dentro do container, `localhost` é o loopback do próprio container — não o host. O PostgreSQL roda no host, não no container.
+
+**Solução**: substituir `localhost` por `host.docker.internal` no `DATABASE_URL` ao usar Docker:
+```
+DATABASE_URL="postgresql://postgres:senha@host.docker.internal:5432/lyfx_prod"
+```
+
+No Linux, o Docker não tem `host.docker.internal` automaticamente — o `docker-compose.yml` adiciona `extra_hosts: host.docker.internal:host-gateway` para resolver isso.
+
+**Template**: `.env.docker.example` na raiz do projeto.
+
+### BrasilAPI — cache in-memory não persiste entre workers
+
+**Sintoma** (futuro, em ambiente serverless/multi-processo): feriados buscados novamente a cada cold start.
+
+**Causa**: `lib/holidays.ts` usa `Map` em módulo Node.js. Em ambientes com múltiplos workers (Vercel, PM2 cluster), cada instância tem sua própria memória — o cache não é compartilhado entre processos.
+
+**Comportamento atual**: aceitável para uso pessoal (single-process). Para multi-processo futuro: mover cache para Redis, banco ou `AppConfig`.
+
+**Fallback**: se BrasilAPI estiver offline, `getHolidays` retorna `Set` vazio silenciosamente — D+5 calcula apenas por sáb/dom sem lançar erro.
+
 ---
 
 ## 11. Próximos Passos
@@ -1924,14 +1970,29 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **CS-18/CS-19** | ✅ v1.9.0 | Central de notificações: model `Notification` com `fingerprint`/`broadcastId`/`expiresAt`, segregação alertas automáticos × notificações do sistema. Sino no UserMenu com badge, dropdown com duas seções (Alertas financeiros + Notificações). Studio: aba Notificações para envio por plano/usuário com histórico de broadcasts. AlertsView: seções separadas, Limpar tudo, Marcar todas como lidas. Banner de manutenção em pill. Notificação de boas-vindas automática. Studio Painel redesenhado: layout 2 colunas (Sistema/Servidor), gauges SVG para RAM/Heap/CPU, métricas `lastSeenAt` (online agora / ativos hoje), versionamento de branch git. `User.lastSeenAt` atualizado a cada navegação. Fix type guards em GoalsView e TagPicker. |
 | **CS-17** | ✅ v1.10.0 | Reembolso Especial (`/km-reimbursement`): módulo corporativo completo com 5 modelos (`KmConfig`, `KmPeriod`, `KmRoute`, `KmReceipt`, `KmExpense`), campos de veículo em `KmConfig`. Fluxo: nova solicitação → trajetos com Google Maps arrastável → notas de combustível → despesas extras → resumo SAP → envio com Transaction D+5 dias úteis. Lugares Salvos (`/km-reimbursement/places`) com rotas configuráveis armazenadas como JSON (`routeGoing`/`routeReturn`). PDF server-side (`@react-pdf/renderer`) com mapas embutidos via Google Static Maps API, polyline de rota usando `KmPlace` como fonte da verdade. PDF redesign v2: fundo cinza `#F5F6F9`, padrão de bolinhas SVG, header escuro com logotipo tipográfico `Ly`+`fx`, mini-header nas páginas 2+, cards brancos por trajeto, resumo com `wrap={false}`, footer "Demonstrativo de Rotas". `bodySizeLimit: "5mb"` nas Server Actions. |
 
+### CS-23 — Containerização Docker ✅ v1.11.1
+
+Infraestrutura Docker implementada para deploy autônomo:
+
+- **`Dockerfile`** — multi-stage: `deps` (npm ci) → `builder` (prisma generate + next build) → `runner` (standalone mínimo, usuário não-root)
+- **`next.config.ts`** — `output: "standalone"` — gera `.next/standalone/server.js` com dependências mínimas
+- **`docker-compose.yml`** — produção, porta 4000, `env_file: .env`, `extra_hosts: host.docker.internal:host-gateway`
+- **`docker-compose.dev.yml`** — desenvolvimento, porta 3000, bind mount com volumes para `node_modules` e `.next`
+- **`.env.docker.example`** — template documentando a troca `localhost → host.docker.internal`
+- **Scripts npm**: `docker:build`, `docker:up`, `docker:down`, `docker:logs`, `docker:dev`
+
+**Para usar em produção:**
+1. Copiar `.env.docker.example` → `.env`, substituir `localhost` por `host.docker.internal` no `DATABASE_URL`
+2. `npm run docker:up` — build + start em background
+3. Acesso em `http://localhost:4000`
+
 ### Próximas evoluções sugeridas
 
 - **CS-20** — Studio: aba Roadmap/Backlog
 - **CS-21** — Importação OFX/CSV: leitura de extratos bancários para lançamento semi-automático
 - **CS-22** — Sistema de logo padronizado em SVG paths para todos os contextos
-- **CS-23** — Containerização Docker para autonomia de deploy
 - **Deploy em produção**: PostgreSQL + domínio próprio → v2.0.0
 
 ---
 
-*Última atualização: 07/06/2026. Versão atual: 1.10.0.*
+*Última atualização: 07/06/2026. Versão atual: 1.11.1.*
