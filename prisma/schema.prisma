@@ -56,6 +56,8 @@ model Transaction {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   tags             TransactionTag[]
+  // [CS-30] FK explícita: período de reembolso vinculado a esta transação
+  kmPeriod         KmPeriod?
 }
 
 model Goal {
@@ -278,25 +280,27 @@ model KmConfig {
 }
 
 model KmPeriod {
-  id            String      @id @default(cuid())
+  id            String       @id @default(cuid())
   userId        String
   name          String
   startDate     DateTime
   endDate       DateTime
-  fuelType      String      @default("gasoline") // gasoline | ethanol
-  status        String      @default("open")     // open | submitted
+  fuelType      String       @default("gasoline") // gasoline | ethanol
+  status        String       @default("open")     // open | submitted
   submittedAt   DateTime?
   expectedPayAt DateTime?
-  totalKm       Float       @default(0)
-  fuelPriceAvg  Float       @default(0)
-  ratePerKm     Float       @default(0)
-  kmAmount      Float       @default(0)
-  extraAmount   Float       @default(0)
-  grandTotal    Float       @default(0)
+  totalKm       Float        @default(0)
+  fuelPriceAvg  Float        @default(0)
+  ratePerKm     Float        @default(0)
+  kmAmount      Float        @default(0)
+  extraAmount   Float        @default(0)
+  grandTotal    Float        @default(0)
   notes         String?
-  transactionId String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  // [CS-30] FK explícita para Transaction (era campo solto sem relação declarada)
+  transactionId String?      @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
   routes        KmRoute[]
   receipts      KmReceipt[]
   expenses      KmExpense[]
