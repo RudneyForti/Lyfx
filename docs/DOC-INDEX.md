@@ -1,5 +1,5 @@
 # Lyfx — Índice de Documentação
-> Registro central de todos os documentos do projeto · v1.11.1 · Junho 2026
+> Registro central de todos os documentos do projeto · v1.11.2 · Junho 2026
 > **Regra:** atualizar este arquivo em todo merge para `master` (E7 — passo obrigatório).
 
 ---
@@ -93,4 +93,4 @@ Este índice é **obrigatório** no checklist E7 de release. Atualizar quando:
 
 ---
 
-*Índice gerado em 07/06/2026 · Versão da plataforma: v1.11.1*
+*Índice gerado em 07/06/2026 · Versão da plataforma: v1.11.2*
