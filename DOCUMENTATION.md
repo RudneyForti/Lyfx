@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.11.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.11.1 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -1905,6 +1905,34 @@ Necessário para PDFs com múltiplas imagens de mapa embutidas em base64.
 
 **Onde está**: `app/studio/actions.ts` → `adminLogout()` especifica `path: "/studio"` na deleção de `lyfx_admin` e `path: "/"` na deleção de `lyfx_session`.
 
+### Docker + `output: "standalone"` — Prisma client não incluso automaticamente
+
+**Sintoma**: container inicia mas todas as queries falham com `Cannot find module '.prisma/client'`.
+
+**Causa**: o tracing automático do Next.js standalone (`outputFileTracingIncludes`) não inclui os arquivos gerados pelo `npx prisma generate` em `node_modules/.prisma/client`. O standalone captura apenas importações estáticas — o Prisma client é carregado dinamicamente em runtime.
+
+**Solução**: no `Dockerfile`, após copiar `.next/standalone`, copiar o diretório gerado explicitamente:
+```dockerfile
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+```
+
+**Onde está**: `Dockerfile` (stage runner, linhas após `COPY .next/static`).
+
+### Docker — `localhost` não resolve o PostgreSQL do host
+
+**Sintoma**: container sobe mas falha na conexão com o banco: `ECONNREFUSED 127.0.0.1:5432`.
+
+**Causa**: dentro do container, `localhost` é o loopback do próprio container — não o host. O PostgreSQL roda no host, não no container.
+
+**Solução**: substituir `localhost` por `host.docker.internal` no `DATABASE_URL` ao usar Docker:
+```
+DATABASE_URL="postgresql://postgres:senha@host.docker.internal:5432/lyfx_prod"
+```
+
+No Linux, o Docker não tem `host.docker.internal` automaticamente — o `docker-compose.yml` adiciona `extra_hosts: host.docker.internal:host-gateway` para resolver isso.
+
+**Template**: `.env.docker.example` na raiz do projeto.
+
 ### BrasilAPI — cache in-memory não persiste entre workers
 
 **Sintoma** (futuro, em ambiente serverless/multi-processo): feriados buscados novamente a cada cold start.
@@ -1942,14 +1970,29 @@ Baseado em análise técnica e bibliográfica do produto, as evoluções foram p
 | **CS-18/CS-19** | ✅ v1.9.0 | Central de notificações: model `Notification` com `fingerprint`/`broadcastId`/`expiresAt`, segregação alertas automáticos × notificações do sistema. Sino no UserMenu com badge, dropdown com duas seções (Alertas financeiros + Notificações). Studio: aba Notificações para envio por plano/usuário com histórico de broadcasts. AlertsView: seções separadas, Limpar tudo, Marcar todas como lidas. Banner de manutenção em pill. Notificação de boas-vindas automática. Studio Painel redesenhado: layout 2 colunas (Sistema/Servidor), gauges SVG para RAM/Heap/CPU, métricas `lastSeenAt` (online agora / ativos hoje), versionamento de branch git. `User.lastSeenAt` atualizado a cada navegação. Fix type guards em GoalsView e TagPicker. |
 | **CS-17** | ✅ v1.10.0 | Reembolso Especial (`/km-reimbursement`): módulo corporativo completo com 5 modelos (`KmConfig`, `KmPeriod`, `KmRoute`, `KmReceipt`, `KmExpense`), campos de veículo em `KmConfig`. Fluxo: nova solicitação → trajetos com Google Maps arrastável → notas de combustível → despesas extras → resumo SAP → envio com Transaction D+5 dias úteis. Lugares Salvos (`/km-reimbursement/places`) com rotas configuráveis armazenadas como JSON (`routeGoing`/`routeReturn`). PDF server-side (`@react-pdf/renderer`) com mapas embutidos via Google Static Maps API, polyline de rota usando `KmPlace` como fonte da verdade. PDF redesign v2: fundo cinza `#F5F6F9`, padrão de bolinhas SVG, header escuro com logotipo tipográfico `Ly`+`fx`, mini-header nas páginas 2+, cards brancos por trajeto, resumo com `wrap={false}`, footer "Demonstrativo de Rotas". `bodySizeLimit: "5mb"` nas Server Actions. |
 
+### CS-23 — Containerização Docker ✅ v1.11.1
+
+Infraestrutura Docker implementada para deploy autônomo:
+
+- **`Dockerfile`** — multi-stage: `deps` (npm ci) → `builder` (prisma generate + next build) → `runner` (standalone mínimo, usuário não-root)
+- **`next.config.ts`** — `output: "standalone"` — gera `.next/standalone/server.js` com dependências mínimas
+- **`docker-compose.yml`** — produção, porta 4000, `env_file: .env`, `extra_hosts: host.docker.internal:host-gateway`
+- **`docker-compose.dev.yml`** — desenvolvimento, porta 3000, bind mount com volumes para `node_modules` e `.next`
+- **`.env.docker.example`** — template documentando a troca `localhost → host.docker.internal`
+- **Scripts npm**: `docker:build`, `docker:up`, `docker:down`, `docker:logs`, `docker:dev`
+
+**Para usar em produção:**
+1. Copiar `.env.docker.example` → `.env`, substituir `localhost` por `host.docker.internal` no `DATABASE_URL`
+2. `npm run docker:up` — build + start em background
+3. Acesso em `http://localhost:4000`
+
 ### Próximas evoluções sugeridas
 
 - **CS-20** — Studio: aba Roadmap/Backlog
 - **CS-21** — Importação OFX/CSV: leitura de extratos bancários para lançamento semi-automático
 - **CS-22** — Sistema de logo padronizado em SVG paths para todos os contextos
-- **CS-23** — Containerização Docker para autonomia de deploy
 - **Deploy em produção**: PostgreSQL + domínio próprio → v2.0.0
 
 ---
 
-*Última atualização: 07/06/2026. Versão atual: 1.10.0.*
+*Última atualização: 07/06/2026. Versão atual: 1.11.1.*

@@ -1,5 +1,5 @@
 # Lyfx — Índice de Documentação
-> Registro central de todos os documentos do projeto · v1.11.0 · Junho 2026
+> Registro central de todos os documentos do projeto · v1.11.1 · Junho 2026
 > **Regra:** atualizar este arquivo em todo merge para `master` (E7 — passo obrigatório).
 
 ---
@@ -27,6 +27,20 @@
 | `QA-TEST-PLAN.md` | `/docs/QA-TEST-PLAN.md` | v1.11.0 | Agent Smith / QA | Plano de testes executável com 321 casos. Cobre autenticação, todos os módulos, Studio G2, Reembolso Especial (CS-17/CS-25), Central de Notificações (CS-18/CS-19), segurança, isolamento multi-usuário e fluxos E2E. Atualizado em v1.11.0 com casos de feriados nacionais (KM-11b/c/d). |
 | `PEDAGOGY_V2.md` | `/docs/PEDAGOGY_V2.md` | v2.0 | Conteudistas / Desenvolvedores | Metodologia pedagógica do módulo `/education`. Define estrutura das pílulas (concept/why/how/quiz), taxonomia de tópicos, critérios editoriais e modelo de progressão por trilhas. |
 | **`DOC-INDEX.md`** | `/docs/DOC-INDEX.md` | v1.10.0 | Todos | **Este arquivo.** Índice central de toda a documentação do projeto. |
+
+---
+
+### Infraestrutura Docker — adicionada em v1.11.1
+
+> Arquivos de infraestrutura e templates criados em CS-23.
+
+| Arquivo | Caminho | Versão | Descrição |
+|---|---|---|---|
+| `Dockerfile` | `/Dockerfile` | v1.11.1 | Build multi-stage: deps (npm ci) → builder (prisma generate + next build) → runner (standalone mínimo, usuário não-root nextjs:1001). Fix explícito do Prisma client no runner. |
+| `docker-compose.yml` | `/docker-compose.yml` | v1.11.1 | Produção: porta 4000, `env_file: .env`, `extra_hosts: host.docker.internal:host-gateway` (resolve host no Linux). |
+| `docker-compose.dev.yml` | `/docker-compose.dev.yml` | v1.11.1 | Desenvolvimento: porta 3000, bind mount para live reload, volumes anônimos para node_modules e .next. |
+| `.dockerignore` | `/.dockerignore` | v1.11.1 | Exclui `.env*`, `node_modules`, `.next`, `*.db`, docs do contexto de build. |
+| `.env.docker.example` | `/.env.docker.example` | v1.11.1 | Template de `.env` para uso com Docker — documenta troca de `localhost` → `host.docker.internal` no DATABASE_URL. |
 
 ---
 
@@ -79,4 +93,4 @@ Este índice é **obrigatório** no checklist E7 de release. Atualizar quando:
 
 ---
 
-*Índice gerado em 07/06/2026 · Versão da plataforma: v1.10.0*
+*Índice gerado em 07/06/2026 · Versão da plataforma: v1.11.1*

@@ -285,7 +285,7 @@ git push origin develop
 
 | Branch | Versão | Conteúdo |
 |--------|--------|----------|
-| `master` | v1.10.0 | CS-01 a CS-17 implementados e QA aprovado — inclui Reembolso Especial completo |
-| `develop` | v1.10.0 | Idêntico ao master — base para próximos trabalhos |
+| `master` | v1.11.0 | CS-01 a CS-30 implementados e QA aprovado — inclui lote de qualidade/segurança v1.11.0 |
+| `develop` | v1.11.1 | CS-23 Docker containerization — aguardando aprovação de release para master |
 
-Próximos releases previstos: `v1.11.0` — Studio Roadmap/Backlog (CS-20) · `v1.12.0` — Importação OFX/CSV (CS-21).
+Próximos releases previstos: `v1.12.0` — Studio Roadmap/Backlog (CS-20) · `v1.13.0` — Importação OFX/CSV (CS-21).
