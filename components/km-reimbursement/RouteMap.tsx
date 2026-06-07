@@ -13,8 +13,12 @@ interface RouteMapProps {
   onClose?: () => void;
   /** Persisted DirectionsResult from previous save — used to extract via_waypoints for route reconstruction */
   initialDirections?: google.maps.DirectionsResult | null;
-  /** Called whenever directions are loaded or changed (initial + drag) */
-  onDirectionsChange?: (d: google.maps.DirectionsResult) => void;
+  /**
+   * Called whenever directions are loaded or changed.
+   * `isUserChange = true` only when the user explicitly dragged the route.
+   * `isUserChange = false` for the initial auto-calculation.
+   */
+  onDirectionsChange?: (d: google.maps.DirectionsResult, isUserChange: boolean) => void;
 }
 
 // ── Dark map style ────────────────────────────────────────────────────────────
@@ -141,12 +145,14 @@ function MapTypeToggle({
             onMouseLeave={() => setHov(null)}
             className="h-7 px-2.5 text-[9px] font-semibold cursor-pointer border-0 transition-colors select-none tracking-wide"
             style={{
-              ...(active
-                ? overlayBtnActive
-                : hovering
-                ? { ...overlayBtnBase, ...overlayBtnHover }
-                : { background: "transparent", color: "rgba(255,255,255,0.5)" }),
               borderRadius: 0,
+              // Apenas background e cor — sem border shorthand para não conflitar com borderRight
+              background: active
+                ? "rgba(34,211,238,0.2)"
+                : hovering
+                ? "rgba(34,211,238,0.15)"
+                : "transparent",
+              color: active || hovering ? "var(--color-cyan)" : "rgba(255,255,255,0.5)",
               borderRight: i < 2 ? "1px solid rgba(255,255,255,0.1)" : "none",
             }}
           >
@@ -259,7 +265,7 @@ function MapWithDirections({
     return null;
   }, []);
 
-  const updateRouteInfo = useCallback((result: google.maps.DirectionsResult) => {
+  const updateRouteInfo = useCallback((result: google.maps.DirectionsResult, isUserChange = false) => {
     // Garante que o resultado passado ao form sempre tem overview_polyline como string
     const encoded = extractEncodedPolyline(result);
     const enriched = encoded
@@ -270,7 +276,7 @@ function MapWithDirections({
           ),
         } as google.maps.DirectionsResult
       : result;
-    if (onDirectionsChange) onDirectionsChange(enriched);
+    if (onDirectionsChange) onDirectionsChange(enriched, isUserChange);
     const leg = result.routes[0]?.legs[0];
     if (leg?.distance?.value) {
       const km = Math.round((leg.distance.value / 1000) * 10) / 10;
@@ -296,7 +302,8 @@ function MapWithDirections({
         : result;
       skipNextChange.current = true;
       setDirections(enriched);
-      updateRouteInfo(enriched);
+      // isUserChange = false — este cálculo é automático (origin/destination do form)
+      updateRouteInfo(enriched, false);
     }
   }, [updateRouteInfo, extractEncodedPolyline]);
 
@@ -349,7 +356,8 @@ function MapWithDirections({
             onDirectionsChanged={() => {
               if (skipNextChange.current) { skipNextChange.current = false; return; }
               const updated = rendererRef.current?.getDirections();
-              if (updated) updateRouteInfo(updated);
+              // isUserChange = true — o usuário arrastou a rota
+              if (updated) updateRouteInfo(updated, true);
             }}
           />
         )}

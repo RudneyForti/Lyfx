@@ -134,7 +134,7 @@ export function PeriodList({ periods }: { periods: KmPeriodSummary[] }) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-[family-name:var(--font-display)] italic text-[36px] font-bold tracking-tight text-[var(--color-f1)] mb-2 leading-tight">
-              Reem<span className="text-[var(--color-cyan)]">bolso KM</span>
+              Reem<span className="text-[var(--color-cyan)]">bolso Especial</span>
             </h1>
             <p className="text-[var(--color-f3)] text-sm">
               Controle de quilometragem, combustível e despesas de viagem.

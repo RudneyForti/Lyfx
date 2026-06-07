@@ -4,6 +4,27 @@ import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/session";
 import { db } from "@/lib/db";
 
+// ── Helper: busca polyline padrão via Directions API ──────────────────────────
+async function fetchDefaultPolyline(origin: string, destination: string): Promise<string | null> {
+  try {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) return null;
+    const params = new URLSearchParams({ origin, destination, key: apiKey });
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json() as {
+      status?: string;
+      routes?: { overview_polyline?: { points?: string } }[];
+    };
+    if (data.status !== "OK") return null;
+    return data?.routes?.[0]?.overview_polyline?.points ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type KmConfigData = {
@@ -288,6 +309,9 @@ export async function createKmRoute(data: {
   direction?: string;
 }): Promise<void> {
   const userId = await requireAuth();
+  // Se nenhum polyline foi capturado no frontend, busca o padrão do Google
+  const poly = data.routePolyline
+    ?? await fetchDefaultPolyline(data.origin, data.destination);
   await db.kmRoute.create({
     data: {
       userId,
@@ -296,7 +320,7 @@ export async function createKmRoute(data: {
       origin: data.origin,
       destination: data.destination,
       km: data.km,
-      routePolyline: data.routePolyline ?? null,
+      routePolyline: poly ?? null,
       notes: data.notes ?? null,
       placeId: data.placeId ?? null,
       direction: data.direction ?? null,
@@ -320,15 +344,23 @@ export async function createKmRoutesBulk(routes: Array<{
   if (routes.length === 0) return;
   const userId = await requireAuth();
   const periodId = routes[0].periodId;
+  // Busca polylines em paralelo para os trajetos sem polyline
+  const polys = await Promise.all(
+    routes.map(r =>
+      r.routePolyline
+        ? Promise.resolve(r.routePolyline)
+        : fetchDefaultPolyline(r.origin, r.destination)
+    )
+  );
   await db.kmRoute.createMany({
-    data: routes.map(r => ({
+    data: routes.map((r, i) => ({
       userId,
       periodId: r.periodId,
       date: new Date(r.date),
       origin: r.origin,
       destination: r.destination,
       km: r.km,
-      routePolyline: r.routePolyline ?? null,
+      routePolyline: polys[i] ?? null,
       notes: r.notes ?? null,
       placeId: r.placeId ?? null,
       direction: r.direction ?? null,
@@ -349,6 +381,11 @@ export async function updateKmRoute(id: string, data: {
   const userId = await requireAuth();
   const route = await db.kmRoute.findFirst({ where: { id, userId } });
   if (!route) return;
+  // Usa o polyline capturado pelo frontend; se veio null (mapa não aberto),
+  // preserva o que já está no banco; se o banco também é null, busca o padrão.
+  const poly = data.routePolyline
+    ?? route.routePolyline
+    ?? await fetchDefaultPolyline(data.origin, data.destination);
   await db.kmRoute.update({
     where: { id },
     data: {
@@ -356,7 +393,7 @@ export async function updateKmRoute(id: string, data: {
       origin: data.origin,
       destination: data.destination,
       km: data.km,
-      routePolyline: data.routePolyline ?? null,
+      routePolyline: poly ?? null,
       notes: data.notes ?? null,
       // preserve placeId/direction on update
     },
@@ -484,7 +521,7 @@ export async function submitPeriod(id: string): Promise<void> {
     data: {
       userId,
       date: expectedPayAt,
-      description: `Reembolso KM - ${period.name}`,
+      description: `Reembolso Especial - ${period.name}`,
       amount: period.grandTotal,
       type: "credit",
       category: "credit_variable",

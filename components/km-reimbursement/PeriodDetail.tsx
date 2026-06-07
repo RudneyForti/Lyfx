@@ -157,13 +157,24 @@ function RouteForm({ periodId, route, places, onDone, prefill }: {
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  // Callback do mapa: extrai km E polyline do resultado
-  function handleMapDirections(result: google.maps.DirectionsResult) {
+  // Callback do mapa: extrai km e (opcionalmente) polyline do resultado.
+  // `isUserChange = true` apenas quando o usuário arrastou a rota manualmente;
+  // no cálculo automático inicial o polyline salvo é preservado.
+  function handleMapDirections(result: google.maps.DirectionsResult, isUserChange: boolean) {
     setMapDirections(result);
     const leg = result.routes?.[0]?.legs?.[0];
     if (leg?.distance?.value) {
       const km = Math.round((leg.distance.value / 1000) * 10) / 10;
-      setForm(f => ({ ...f, km: String(km), routePolyline: extractPolyline(result) }));
+      setForm(f => ({
+        ...f,
+        km: String(km),
+        // Atualiza o polyline somente se:
+        //   a) o usuário arrastou a rota (isUserChange), OU
+        //   b) ainda não há polyline (rota nova ou endereço trocado → routePolyline = null)
+        routePolyline: isUserChange || !f.routePolyline
+          ? (extractPolyline(result) ?? f.routePolyline)
+          : f.routePolyline,
+      }));
     }
   }
 
