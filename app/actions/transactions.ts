@@ -10,13 +10,16 @@ const INCLUDE_TAGS = {
   tags: { include: { tag: true } },
 } as const;
 
-function mapTx(tx: any): Transaction {
+// [CS-29] Tipo inferido do resultado do findMany com INCLUDE_TAGS — elimina any
+type TxWithTags = Awaited<ReturnType<typeof db.transaction.findMany<{ include: typeof INCLUDE_TAGS }>>>[number];
+
+function mapTx(tx: TxWithTags): Transaction {
   return {
     ...tx,
     type: tx.type as TransactionType,
     category: tx.category as TransactionCategory,
     recurrence: tx.recurrence as Recurrence,
-    tags: tx.tags?.map((tt: any) => tt.tag) ?? [],
+    tags: tx.tags?.map((tt) => tt.tag) ?? [],
   };
 }
 

@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
+import { PT_MONTHS } from "@/lib/i18n";
 
 export interface MonthProjection {
   year: number;
@@ -12,8 +13,6 @@ export interface MonthProjection {
   free: number;
   items: { description: string; amount: number; type: "income" | "expense"; isAnnual: boolean }[];
 }
-
-const PT_MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 export async function getProjections(): Promise<MonthProjection[]> {
   const userId = await requireAuth();

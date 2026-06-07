@@ -9,6 +9,7 @@ import {
   IconLoader2, IconAlertTriangle, IconCircleCheck, IconSparkles,
   IconTrendingDown,
 } from "@tabler/icons-react";
+import { PT_MONTHS } from "@/lib/i18n";
 
 const GOAL_COLORS = ["#22D3EE","#A3E635","#FBBF24","#A78BFA","#FB923C","#F472B6","#F87171","#60A5FA"];
 
@@ -19,8 +20,6 @@ type Goal = {
   color: string; monthlyAmount: number; status: string;
   payments: Payment[];
 };
-
-const PT_MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 type ActiveLiability = { id: string; name: string; interestRate: number; currentBalance: number };
 
