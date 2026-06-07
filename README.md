@@ -4,7 +4,8 @@
 
 ![Next.js](https://img.shields.io/badge/Next.js-16.2.6-black?style=flat-square&logo=next.js)
 ![Prisma](https://img.shields.io/badge/Prisma-v7-2D3748?style=flat-square&logo=prisma)
-![SQLite](https://img.shields.io/badge/SQLite-local-003B57?style=flat-square&logo=sqlite)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-containerizado-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
 ![Version](https://img.shields.io/badge/version-1.11.2-22D3EE?style=flat-square)
@@ -42,30 +43,42 @@ O Lyfx aplica o conceito do **DRE (Demonstrativo de Resultado do Exercício)** �
 ## Stack
 
 - **Next.js 16.2.6** — App Router, Server Components, Server Actions, Turbopack
-- **Prisma v7** — ORM com adapter `better-sqlite3`
-- **SQLite** — banco local em `dev.db`
+- **Prisma v7** — ORM com adapter nativo para PostgreSQL
+- **PostgreSQL 18** — banco containerizado via Docker (volumes nomeados, dados persistentes)
+- **Docker** — dois ambientes isolados: Dev (porta 3000) e Prod (porta 4000)
 - **Tailwind CSS v4** — design system via `@theme` em `globals.css`
 - **React 19** — com `useTransition` para ações assíncronas
 - **bcryptjs** — hash de senhas sem dependências nativas
 
 ## Como rodar
 
+O projeto roda inteiramente via Docker — banco de dados e aplicação em containers isolados.
+
 ```bash
-# 1. Instalar dependências
-npm install
+# 1. Copiar o template de variáveis e preencher com suas credenciais
+cp .env.docker.example .env
 
-# 2. Criar o banco e gerar o client Prisma
-npx prisma db push
-npx prisma generate
-
-# 3. Criar o arquivo .env com a senha do Studio
-echo ADMIN_SECRET="sua-senha-aqui" > .env
-
-# 4. Iniciar o servidor
-npm run dev
+# 2. Subir o ambiente de desenvolvimento (banco + app com live reload)
+npm run docker:dev
 ```
 
 Acesse `http://localhost:3000`.
+
+### Ambiente de produção
+
+```bash
+# Build + banco + migrate (automático) + app
+npm run docker:up
+```
+
+Acesse `http://localhost:4000`.
+
+### Comandos úteis
+
+```bash
+npm run docker:logs    # acompanhar logs em tempo real
+npm run docker:down    # parar todos os containers
+```
 
 ## Documentação técnica
 
