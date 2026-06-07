@@ -1,20 +1,65 @@
 # Lyfx — Produção (master / porta 4000)
-# Uso: docker compose up -d | docker compose down | docker compose logs -f | docker compose ps
+# Uso: docker compose --env-file .env up -d
 
 services:
+
+  # ── Banco de dados ──────────────────────────────────────────────────────────
+  db-prod:
+    image: postgres:18-alpine
+    container_name: lyfx-db-prod
+    environment:
+      POSTGRES_DB: lyfx_prod
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}   # compose interpola do --env-file (sem aspas)
+    volumes:
+      - lyfx_prod_data:/var/lib/postgresql   # PG18+: mount no pai, não em /data
+    ports:
+      - "5434:5432" # acesso externo (pgAdmin/psql) na porta 5434
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lyfx_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Migração de schema ──────────────────────────────────────────────────────
+  migrate:
+    build:
+      context: .
+      target: migrator
+    container_name: lyfx-migrate
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db-prod:5432/lyfx_prod
+    depends_on:
+      db-prod:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Aplicação ───────────────────────────────────────────────────────────────
   lyfx:
     build: .
     container_name: lyfx-prod
     ports:
-      - "4000:3000"      # host:container
-    env_file:
-      - .env             # DATABASE_URL deve usar host.docker.internal, não localhost
+      - "4000:3000"
+    environment:
+      # Variáveis construídas via interpolação do compose (sem aspas no valor final)
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db-prod:5432/lyfx_prod
+      SESSION_SECRET: ${SESSION_SECRET}
+      ADMIN_SECRET: ${ADMIN_SECRET}
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+    depends_on:
+      db-prod:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"  # resolve host no Linux; no-op no Windows/Mac
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s   # tempo para o Next.js standalone iniciar
+      start_period: 30s
+
+volumes:
+  lyfx_prod_data:
+    name: lyfx_prod_data

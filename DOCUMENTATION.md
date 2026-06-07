@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.11.1 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.11.2 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -1981,10 +1981,26 @@ Infraestrutura Docker implementada para deploy autônomo:
 - **`.env.docker.example`** — template documentando a troca `localhost → host.docker.internal`
 - **Scripts npm**: `docker:build`, `docker:up`, `docker:down`, `docker:logs`, `docker:dev`
 
-**Para usar em produção:**
-1. Copiar `.env.docker.example` → `.env`, substituir `localhost` por `host.docker.internal` no `DATABASE_URL`
-2. `npm run docker:up` — build + start em background
-3. Acesso em `http://localhost:4000`
+**Dois grupos de containers (v1.11.2):**
+
+| Grupo | Compose | Containers | Porta |
+|---|---|---|---|
+| Dev | `docker-compose.dev.yml` | `lyfx-db-dev` (PG18) + `lyfx-dev` (Next.js) | 3000 |
+| Prod | `docker-compose.yml` | `lyfx-db-prod` (PG18) + `lyfx-migrate` + `lyfx-prod` (Next.js) | 4000 |
+
+**Para usar:**
+```bash
+# Dev (lyfx/)
+npm run docker:dev
+
+# Prod (lyfx-production/)
+npm run docker:up
+```
+
+**Migração de dados prod (primeira vez):**
+1. `npm run docker:up` — sobe db-prod vazio + aplica schema via migrate
+2. Dump do banco nativo: `pg_dump -U postgres -h localhost lyfx_prod > backup.sql`
+3. Restaurar: `docker exec -i lyfx-db-prod psql -U postgres -d lyfx_prod < backup.sql`
 
 ### Próximas evoluções sugeridas
 
@@ -1995,4 +2011,4 @@ Infraestrutura Docker implementada para deploy autônomo:
 
 ---
 
-*Última atualização: 07/06/2026. Versão atual: 1.11.1.*
+*Última atualização: 07/06/2026. Versão atual: 1.11.2.*

@@ -1,8 +1,28 @@
 # Lyfx — Desenvolvimento (develop / porta 3000)
-# Uso: docker compose -f docker-compose.dev.yml up
-# Scripts: npm run docker:dev
+# Uso: npm run docker:dev   →   docker compose --env-file .env -f docker-compose.dev.yml up
 
 services:
+
+  # ── Banco de dados ──────────────────────────────────────────────────────────
+  db-dev:
+    image: postgres:18-alpine
+    container_name: lyfx-db-dev
+    environment:
+      POSTGRES_DB: lyfx_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}   # compose interpola do --env-file (sem aspas)
+    volumes:
+      - lyfx_dev_data:/var/lib/postgresql   # PG18+: mount no pai, não em /data
+    ports:
+      - "5433:5432" # acesso externo (pgAdmin/psql) na porta 5433
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lyfx_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Aplicação ───────────────────────────────────────────────────────────────
   lyfx-dev:
     image: node:22-alpine
     container_name: lyfx-dev
@@ -13,20 +33,29 @@ services:
       - .:/app                  # bind mount — código local refletido no container
       - /app/node_modules       # volume anônimo — preserva node_modules do container
       - /app/.next              # volume anônimo — preserva cache de build
-    env_file:
-      - .env
     environment:
-      - NODE_ENV=development
+      # Variáveis construídas via interpolação do compose (sem aspas no valor final)
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db-dev:5432/lyfx_dev
+      SESSION_SECRET: ${SESSION_SECRET}
+      ADMIN_SECRET: ${ADMIN_SECRET}
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+    depends_on:
+      db-dev:
+        condition: service_healthy
     command: >
       sh -c "npm install &&
              npx prisma generate &&
+             npx prisma db push &&
              npm run dev"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s  # tempo para npm install + prisma generate + next dev compilar
+      start_period: 120s
+
+volumes:
+  lyfx_dev_data:
+    name: lyfx_dev_data
