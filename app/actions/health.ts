@@ -16,11 +16,16 @@ export async function getHealthData(month: number, year: number) {
   const settings = await getSettings();
 
   // Média de despesas dos últimos 3 meses completos (base para calcular meses de reserva)
+  // [CS-28] Paralelizado com Promise.all — era sequencial (3 awaits em loop)
+  const pastMonths = [1, 2, 3].map((i) => {
+    const d = new Date(year, month - 1 - i, 1);
+    return getDRESummary(d.getMonth() + 1, d.getFullYear());
+  });
+  const pastDREs = await Promise.all(pastMonths);
+
   let totalExpenses = 0;
   let monthsWithData = 0;
-  for (let i = 1; i <= 3; i++) {
-    const d     = new Date(year, month - 1 - i, 1);
-    const dre   = await getDRESummary(d.getMonth() + 1, d.getFullYear());
+  for (const dre of pastDREs) {
     if (dre.debits.total > 0) {
       totalExpenses += dre.debits.total;
       monthsWithData++;
