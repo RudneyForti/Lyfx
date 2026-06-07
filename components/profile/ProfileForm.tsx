@@ -118,14 +118,16 @@ export function ProfileForm({ user }: Props) {
     reader.readAsDataURL(file);
   }
 
-  // ViaCEP auto-fill
+  // ViaCEP auto-fill — [CS-28] AbortController com timeout de 5s
   async function handleCepBlur() {
     const raw = form.zipCode.replace(/\D/g, "");
     if (raw.length !== 8) return;
     setCepLoading(true);
     setCepError("");
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`);
+      const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`, { signal: controller.signal });
       const data = await res.json();
       if (data.erro) {
         setCepError("CEP não encontrado.");
@@ -137,9 +139,14 @@ export function ProfileForm({ user }: Props) {
           street: data.logradouro ?? f.street,
         }));
       }
-    } catch {
-      setCepError("Erro ao buscar CEP.");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setCepError("Tempo esgotado ao buscar CEP. Tente novamente.");
+      } else {
+        setCepError("Erro ao buscar CEP.");
+      }
     } finally {
+      clearTimeout(timeoutId);
       setCepLoading(false);
     }
   }
