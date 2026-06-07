@@ -179,6 +179,7 @@ Nunca assumir que aprovação de implementação = aprovação de release para p
 6. **Release só com aprovação explícita** — o agente nunca faz `develop → master` por conta própria
 7. **Todo merge para `master` exige documentação atualizada** — `DOCUMENTATION.md` (seções técnicas afetadas) e `docs/FEATURES.md` (seções de produto afetadas) devem estar atualizados antes do merge. Sem documentação, sem merge.
 8. **Toda nova feature exige plano de testes** — qualquer lote que inclua nova funcionalidade deve atualizar `docs/QA-TEST-PLAN.md` com cenários de teste automatizados para a feature antes do merge para `master`.
+9. **`docs/DOC-INDEX.md` é obrigatório em todo merge** — qualquer alteração em documentos (novo arquivo, renomeação, arquivamento, mudança de versão) deve ser refletida no índice antes do merge para `master`.
 
 ---
 
@@ -256,7 +257,15 @@ Para cada nova funcionalidade, adicionar seção com:
 
 Se apenas bugfixes no lote → verificar se algum teste existente ficou desatualizado e corrigir.
 
-### 8. Fazer o merge e a tag
+### 8. Atualizar `docs/DOC-INDEX.md` *(obrigatório em todo merge)*
+
+Revisar o índice central de documentação e atualizar conforme o que mudou no lote:
+- Novo documento criado → adicionar linha na tabela correspondente
+- Documento movido ou renomeado → atualizar caminho
+- Documento arquivado → mover linha para a seção de arquivo
+- Versão de documento alterada → atualizar coluna **Versão**
+
+### 9. Fazer o merge e a tag
 
 ```bash
 git checkout master

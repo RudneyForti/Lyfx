@@ -20,7 +20,7 @@ develop  ← desenvolvimento (branch base para todo trabalho)
 |-------|-------------|
 | **E3 — Implementar** | Criar branch de trabalho **a partir de `develop`**: `git checkout develop && git checkout -b fix/nome` ou `feature/nome` |
 | **E6 — Commit** | Merge da branch de trabalho em `develop`: `git checkout develop && git merge fix/nome --no-ff` → push → **deletar branch imediatamente** |
-| **E7 — Release** | **Perguntar primeiro:** *"O lote está em `develop`. Quer validar antes ou posso fazer o release para `master`?"* — só avançar com resposta afirmativa explícita. Executar o checklist completo em `docs/GIT-WORKFLOW.md#e7` antes do merge: (1) determinar versão via `VERSIONING.md`, (2) atualizar `package.json`, (3) atualizar badge e rodapé do `README.md`, (4) adicionar linha no histórico de `VERSIONING.md`, (5) atualizar seções técnicas afetadas em `DOCUMENTATION.md`, (6) atualizar seções de produto afetadas em `docs/FEATURES.md`, (7) se o lote incluiu nova feature → atualizar `docs/QA-TEST-PLAN.md` com plano de testes automatizado para a funcionalidade, (8) fazer merge + tag + sync develop |
+| **E7 — Release** | **Perguntar primeiro:** *"O lote está em `develop`. Quer validar antes ou posso fazer o release para `master`?"* — só avançar com resposta afirmativa explícita. Executar o checklist completo em `docs/GIT-WORKFLOW.md#e7` antes do merge: (1) determinar versão via `VERSIONING.md`, (2) atualizar `package.json`, (3) atualizar badge e rodapé do `README.md`, (4) adicionar linha no histórico de `VERSIONING.md`, (5) atualizar seções técnicas afetadas em `DOCUMENTATION.md`, (6) atualizar seções de produto afetadas em `docs/FEATURES.md`, (7) se o lote incluiu nova feature → atualizar `docs/QA-TEST-PLAN.md` com plano de testes automatizado para a funcionalidade, (8) atualizar `docs/DOC-INDEX.md` — versões, novos arquivos, arquivamentos, (9) fazer merge + tag + sync develop |
 
 ## Regras obrigatórias
 
@@ -32,6 +32,7 @@ develop  ← desenvolvimento (branch base para todo trabalho)
 - Branch de trabalho existe apenas durante a implementação — nasce e morre no mesmo lote de CSs
 - **Todo merge para `master` exige** `DOCUMENTATION.md` e `docs/FEATURES.md` atualizados — sem documentação, sem merge
 - **Toda nova feature exige** plano de testes atualizado em `docs/QA-TEST-PLAN.md` antes do merge
+- **`docs/DOC-INDEX.md` é obrigatório em todo merge** — refletir qualquer novo arquivo, renomeação, arquivamento ou mudança de versão
 
 ## Nomenclatura de branches
 
