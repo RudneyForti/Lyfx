@@ -10,7 +10,20 @@ COPY prisma ./prisma/
 RUN npm ci
 
 # ─────────────────────────────────────────────
-# Stage 2 — Build
+# Stage 2 — Migrator (prisma db push)
+# ─────────────────────────────────────────────
+FROM node:22-alpine AS migrator
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
+COPY prisma ./prisma/
+COPY prisma.config.ts ./
+
+CMD ["npx", "prisma", "db", "push"]
+
+# ─────────────────────────────────────────────
+# Stage 3 — Build
 # ─────────────────────────────────────────────
 FROM node:22-alpine AS builder
 WORKDIR /app
@@ -25,7 +38,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ─────────────────────────────────────────────
-# Stage 3 — Runner (imagem mínima)
+# Stage 4 — Runner (imagem mínima)
 # ─────────────────────────────────────────────
 FROM node:22-alpine AS runner
 WORKDIR /app
