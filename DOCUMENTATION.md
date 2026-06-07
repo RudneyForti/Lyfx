@@ -1918,6 +1918,40 @@ COPY --from=builder --chown=nextjs:nodejs /app/lib/generated/prisma ./lib/genera
 
 **Onde está**: `Dockerfile` (stage runner, linhas após `COPY .next/static`).
 
+### PostgreSQL 18 Docker — volume deve ser montado em `/var/lib/postgresql`
+
+**Sintoma**: container `postgres:18-alpine` inicia mas fica em loop com erro: *"there appears to be PostgreSQL data in /var/lib/postgresql/data (unused mount/volume)"*.
+
+**Causa**: a partir do PostgreSQL 18, a imagem Docker oficial mudou o diretório esperado para o mount. Versões anteriores usavam `/var/lib/postgresql/data`; a partir da 18, o mount deve ser no diretório pai `/var/lib/postgresql` — o banco cria automaticamente um subdiretório versionado.
+
+**Solução**: nos compose files, usar:
+```yaml
+volumes:
+  - lyfx_dev_data:/var/lib/postgresql   # correto para PG18+
+  # NÃO usar: lyfx_dev_data:/var/lib/postgresql/data
+```
+
+**Onde está**: `docker-compose.yml` e `docker-compose.dev.yml`.
+
+### Docker Compose v5 — `env_file` não remove aspas dos valores
+
+**Sintoma**: variáveis do `.env` chegam ao container com aspas literais: `DATABASE_URL` vira `"postgresql://..."` (com aspas), quebrando a conexão Prisma. `POSTGRES_PASSWORD` chega como `"senha"` e o PostgreSQL rejeita.
+
+**Causa**: Docker Compose v5 (e `docker run --env-file`) não faz strip de aspas duplas nos valores do `.env`. Se o arquivo tem `VAR="valor"`, o container recebe `VAR` com valor `"valor"` — incluindo as aspas como parte do string.
+
+**Solução**: usar `--env-file` no comando `docker compose` para interpolação `${VAR}` (o parser do Compose faz strip de aspas), em vez de `env_file:` na service definition para variáveis críticas:
+```yaml
+# compose file: usa interpolação ${} — aspas removidas pelo Compose
+environment:
+  DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db-dev:5432/lyfx_dev
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+# comando: passa o .env para o Compose resolver as variáveis
+# npm run docker:dev → docker compose --env-file .env -f docker-compose.dev.yml up
+```
+
+**Onde está**: todos os scripts `docker:*` em `package.json` usam `--env-file .env`.
+
 ### Docker — `localhost` não resolve o PostgreSQL do host
 
 **Sintoma**: container sobe mas falha na conexão com o banco: `ECONNREFUSED 127.0.0.1:5432`.
