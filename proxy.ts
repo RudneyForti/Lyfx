@@ -44,7 +44,10 @@ export async function proxy(request: NextRequest) {
   const sessionValid = rawCookie ? await isValidSession(rawCookie) : false;
 
   if (!sessionValid && !isPublic) {
-    // CS-13: preservar rota original para restaurar após login
+    // CS-13: preservar rota original para restaurar após login.
+    // pathname vem de request.nextUrl.pathname — Next.js garante que é sempre
+    // relativo (nunca "//evil.com"). A segunda linha de defesa contra open redirect
+    // está em app/login/actions.ts (target.startsWith("/")).
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
@@ -61,5 +64,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon\\.ico).*)"],
+  // CS-31: exclui estáticos do Next.js, assets e favicon (.ico e .svg)
+  matcher: ["/((?!_next/static|_next/image|assets/|favicon\\.ico|favicon\\.svg).*)"],
 };

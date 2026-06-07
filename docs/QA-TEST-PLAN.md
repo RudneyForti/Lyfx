@@ -2097,6 +2097,55 @@
 
 ---
 
+### SEC-19 — Proxy middleware: rota protegida sem sessão redireciona para /login [CS-31]
+**Prioridade:** CRÍTICO
+**Passos:** Apagar o cookie `lyfx_session` via DevTools; acessar `/dashboard` diretamente pela URL
+**Resultado esperado:** Middleware intercepta antes da renderização; redirect imediato para `/login?redirect=/dashboard`. Nenhum conteúdo do dashboard é servido.
+
+---
+
+### SEC-20 — Proxy middleware: redirect preserva rota original [CS-31]
+**Prioridade:** ALTO
+**Passos:** Sem sessão, acessar `/transactions`; fazer login; verificar destino após autenticação
+**Resultado esperado:** Após login bem-sucedido, usuário é redirecionado para `/transactions` (não para `/dashboard`).
+
+---
+
+### SEC-21 — Proxy middleware: cookie com HMAC inválido é rejeitado na borda [CS-31]
+**Prioridade:** CRÍTICO
+**Passos:** Via DevTools, editar o cookie `lyfx_session` corrompendo os últimos 4 caracteres do HMAC; recarregar `/dashboard`
+**Resultado esperado:** Middleware rejeita o cookie (validação HMAC via Web Crypto); redirect para `/login`. Não passa pela renderização do layout.
+
+---
+
+### SEC-22 — Proxy middleware: usuário autenticado acessando /login é redirecionado [CS-31]
+**Prioridade:** MÉDIO
+**Passos:** Com sessão válida, navegar para `/login`
+**Resultado esperado:** Middleware detecta sessão válida; redirect automático para `/dashboard`. Tela de login não é exibida.
+
+---
+
+### SEC-23 — Headers HTTP de segurança presentes em todas as respostas [CS-31]
+**Prioridade:** ALTO
+**Passos:** Abrir DevTools → Network; carregar qualquer página do sistema; inspecionar Response Headers
+**Resultado esperado:** Presença obrigatória de: `x-frame-options: DENY`, `x-content-type-options: nosniff`, `referrer-policy: strict-origin-when-cross-origin`, `permissions-policy: camera=(), microphone=(), geolocation=(self), payment=()`, `x-xss-protection: 1; mode=block`
+
+---
+
+### SEC-24 — X-Frame-Options impede clickjacking [CS-31]
+**Prioridade:** ALTO
+**Passos:** Criar HTML local com `<iframe src="http://localhost:3000/dashboard">`; abrir no browser
+**Resultado esperado:** Browser recusa carregar o Lyfx no iframe (`x-frame-options: DENY`). Console exibe erro de framing.
+
+---
+
+### SEC-25 — Página 404 customizada exibe identidade visual Lyfx [CS-31]
+**Prioridade:** BAIXO
+**Passos:** Acessar qualquer rota inexistente, ex: `/rota-que-nao-existe`
+**Resultado esperado:** Página exibe expressão matemática `f(404) = ∄` em Playfair Display com cyan; botões "Voltar ao Dashboard" e "Início" funcionais. Não exibe a página padrão do Next.js.
+
+---
+
 ## 23. Isolamento Multi-Usuário
 
 ### ISO-01 — Transações isoladas entre usuários
@@ -2250,10 +2299,10 @@
 | 19 | Reembolso Especial (CS-17) | 32 | 8 | 14 | 9 | 1 |
 | 20 | Central de Notificações (CS-18/CS-19) | 19 | 5 | 9 | 5 | 0 |
 | 21 | Fluxos Transversais E2E | 12 | 4 | 7 | 1 | 0 |
-| 22 | Segurança | 18 | 11 | 5 | 2 | 0 |
+| 22 | Segurança | 25 | 13 | 8 | 3 | 1 |
 | 23 | Isolamento Multi-Usuário | 11 | 4 | 6 | 1 | 0 |
 | 24 | Componentes Transversais | 8 | 0 | 2 | 3 | 3 |
-| **TOTAL** | | **317** | **56** | **136** | **107** | **17** |
+| **TOTAL** | | **324** | **58** | **139** | **108** | **18** |
 
 ### Cobertura por Área
 
