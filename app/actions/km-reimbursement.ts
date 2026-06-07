@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/session";
 import { db } from "@/lib/db";
+import { addBusinessDays } from "@/lib/km-utils";
 
 // ── Helper: busca polyline padrão via Directions API ──────────────────────────
 async function fetchDefaultPolyline(origin: string, destination: string): Promise<string | null> {
@@ -130,15 +131,7 @@ export type KmPlaceData = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function addBusinessDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  let added = 0;
-  while (added < days) {
-    d.setDate(d.getDate() + 1);
-    if (d.getDay() !== 0 && d.getDay() !== 6) added++;
-  }
-  return d;
-}
+// [CS-25] addBusinessDays movido para lib/km-utils.ts (agora async com feriados nacionais)
 
 async function recalcPeriodInternal(periodId: string, userId: string) {
   const [routes, receipts, expenses, config] = await Promise.all([
@@ -515,7 +508,8 @@ export async function submitPeriod(id: string): Promise<void> {
 
   const paymentDays = config?.paymentDays ?? 5;
   const submittedAt   = new Date();
-  const expectedPayAt = addBusinessDays(submittedAt, paymentDays);
+  // [CS-25] addBusinessDays agora async — inclui feriados nacionais via BrasilAPI
+  const expectedPayAt = await addBusinessDays(submittedAt, paymentDays);
 
   const tx = await db.transaction.create({
     data: {
