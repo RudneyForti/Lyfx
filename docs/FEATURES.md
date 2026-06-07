@@ -1,6 +1,6 @@
 # Lyfx — Guia Completo de Funcionalidades
 > Documento de referência para analistas financeiros, gestores de produto e material de capacitação
-> Versão 1.10.0 · Junho 2026
+> Versão 1.11.0 · Junho 2026
 
 ---
 
@@ -1124,7 +1124,7 @@ O Reembolso Especial automatiza toda essa cadeia: calcula a taxa por km com base
 
 **7. Marcar como enviado**: ao confirmar o envio, a plataforma:
 - Registra a data de envio
-- Calcula a **data prevista de pagamento (D+5 dias úteis)** — pulando automaticamente fins de semana
+- Calcula a **data prevista de pagamento (D+5 dias úteis)** — pulando automaticamente fins de semana e **feriados nacionais** (integração com calendário oficial via BrasilAPI)
 - Cria uma **Transação de crédito** no valor total com a data D+5, que aparece no Dashboard e no DRE como receita variável futura
 - A transação tem a descrição "Reembolso Especial — [nome do período]" para rastreabilidade
 
@@ -1276,5 +1276,5 @@ Um período de Reembolso Especial percorre o seguinte caminho:
 
 ---
 
-*Versão 1.10.0 · Junho 2026*  
+*Versão 1.11.0 · Junho 2026*  
 *Para o plano de testes detalhado, consultar `docs/QA-TEST-PLAN.md`. Para referência técnica (schema, arquitetura, decisões), consultar `DOCUMENTATION.md`.*

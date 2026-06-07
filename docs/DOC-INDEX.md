@@ -1,5 +1,5 @@
 # Lyfx — Índice de Documentação
-> Registro central de todos os documentos do projeto · v1.10.0 · Junho 2026
+> Registro central de todos os documentos do projeto · v1.11.0 · Junho 2026
 > **Regra:** atualizar este arquivo em todo merge para `master` (E7 — passo obrigatório).
 
 ---
@@ -24,9 +24,22 @@
 |---|---|---|---|---|
 | `FEATURES.md` | `/docs/FEATURES.md` | v1.10.0 | Analistas / Gestores / Capacitação | Guia completo de funcionalidades em linguagem não-técnica. Responde: o que faz, como usar, onde vai a informação, valor ao usuário e referencial de negócio. Não contém rotas, Prisma ou código. Cobre todos os módulos do sistema (seções 1–4.21). |
 | `GIT-WORKFLOW.md` | `/docs/GIT-WORKFLOW.md` | v1.10.0 | Desenvolvedores / Agentes | Fluxo Git detalhado: branches `master`/`develop`, pipeline de sessão (1–8), checklist E7 de release completo, convenção de portas (3000 dev / 4000 prod), worktree de produção e regras invioláveis. |
-| `QA-TEST-PLAN.md` | `/docs/QA-TEST-PLAN.md` | v1.10.0 | Agent Smith / QA | Plano de testes executável com 317 casos (56 críticos, 136 altos, 107 médios, 17 baixos). Cobre autenticação, todos os módulos, Studio G2, Reembolso Especial (CS-17), Central de Notificações (CS-18/CS-19), segurança, isolamento multi-usuário e fluxos E2E. Gerado pelo Agent Smith. |
+| `QA-TEST-PLAN.md` | `/docs/QA-TEST-PLAN.md` | v1.11.0 | Agent Smith / QA | Plano de testes executável com 321 casos. Cobre autenticação, todos os módulos, Studio G2, Reembolso Especial (CS-17/CS-25), Central de Notificações (CS-18/CS-19), segurança, isolamento multi-usuário e fluxos E2E. Atualizado em v1.11.0 com casos de feriados nacionais (KM-11b/c/d). |
 | `PEDAGOGY_V2.md` | `/docs/PEDAGOGY_V2.md` | v2.0 | Conteudistas / Desenvolvedores | Metodologia pedagógica do módulo `/education`. Define estrutura das pílulas (concept/why/how/quiz), taxonomia de tópicos, critérios editoriais e modelo de progressão por trilhas. |
 | **`DOC-INDEX.md`** | `/docs/DOC-INDEX.md` | v1.10.0 | Todos | **Este arquivo.** Índice central de toda a documentação do projeto. |
+
+---
+
+### Libs criadas no lote v1.11.0
+
+> Arquivos de código com papel de documentação implícita — citados aqui para rastreabilidade.
+
+| Arquivo | Caminho | Versão | Descrição |
+|---|---|---|---|
+| `holidays.ts` | `/lib/holidays.ts` | v1.11.0 | Cache de feriados nacionais via BrasilAPI. `getHolidays(year)` retorna `Set<"YYYY-MM-DD">` com fallback gracioso se API offline. Criado em CS-25. |
+| `km-utils.ts` | `/lib/km-utils.ts` | v1.11.0 | `addBusinessDays(date, days): Promise<Date>` — async, considera feriados. Movido de `app/actions/km-reimbursement.ts`. Criado em CS-25. |
+| `alert-engine.ts` | `/lib/alert-engine.ts` | v1.11.0 | Motor centralizado de detecção de condições danger. `computeDangerConditions(userId)` consumido por `getAlerts()` e `syncDangerAlerts()`. Criado em CS-27. |
+| `i18n.ts` | `/lib/i18n.ts` | v1.11.0 | Constantes de internacionalização pt-BR. `PT_MONTHS` — fonte única de verdade para nomes de meses. Criado em CS-29. |
 
 ---
 

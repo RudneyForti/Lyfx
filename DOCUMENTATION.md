@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.10.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.11.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -901,7 +901,7 @@ Módulo gamificado de educação financeira baseado em pílulas de conhecimento.
 - Progresso: tabela `PillProgress` — uma linha por usuário/pílula; re-leituras não sobrescrevem o primeiro registro
 - Streak: calculado on-the-fly a partir das datas de conclusão (semanas com ≥ 1 pílula)
 
-**Nota técnica**: as queries de `PillProgress` usam `better-sqlite3` diretamente (`lib/db-pills.ts`) porque o Turbopack mantém cache compilado do client Prisma sem o modelo recém-adicionado. As operações CRUD de todos os outros modelos continuam via Prisma normalmente.
+**Nota técnica v1.9.1+**: workaround `lib/db-pills.ts` (better-sqlite3 direto) removido em v1.11.0 (CS-30). `PillProgress` usa `db.pillProgress` via Prisma normalmente após migração para PostgreSQL.
 
 ---
 
@@ -981,20 +981,28 @@ minRequired = kmAmount × config.minFuelPct  // ex: kmAmount × 0.15
 isValid = fuelTotal >= minRequired
 ```
 
-#### D+5 dias úteis
+#### D+5 dias úteis com feriados nacionais
+
+Desde **v1.11.0 (CS-25)**, `addBusinessDays` é `async` e considera feriados nacionais via BrasilAPI.
+Localização: `lib/km-utils.ts` (movido de `app/actions/km-reimbursement.ts`).
 
 ```typescript
-function addBusinessDays(date: Date, days: number): Date {
-  let d = new Date(date);
-  let added = 0;
-  while (added < days) {
-    d.setDate(d.getDate() + 1);
-    if (d.getDay() !== 0 && d.getDay() !== 6) added++;
-    // 0 = domingo, 6 = sábado
-  }
-  return d;
-}
-// expectedPayAt = addBusinessDays(submittedAt, config.paymentDays)
+// lib/holidays.ts — cache em memória por ano
+export async function getHolidays(year: number): Promise<Set<string>>
+// Fonte: GET https://brasilapi.com.br/api/feriados/v1/{ano}
+// Fallback: Set vazio se API offline (D+5 calcula apenas sáb/dom)
+// Cache: next: { revalidate: 86400 } + Map<number, Set<string>> in-memory
+
+// lib/km-utils.ts — função principal
+export async function addBusinessDays(startDate: Date, days: number): Promise<Date>
+// Pula: sábado (6), domingo (0) e feriados nacionais
+// Guard: days inválido (NaN, negativo) → safeDays = 0
+// Virada de ano: carrega feriados do próximo ano automaticamente
+```
+
+Uso em `submitPeriod`:
+```typescript
+const expectedPayAt = await addBusinessDays(submittedAt, config.paymentDays)
 ```
 
 #### Integração Google Maps
@@ -1843,7 +1851,7 @@ Esta seção documenta problemas reais encontrados em desenvolvimento, com causa
 
 **Solução**: parar o servidor, rodar `npx prisma generate`, reiniciar. Se persistir, deletar `.next/` e reiniciar.
 
-**Caso especial `PillProgress`**: modelo adicionado em v1.5.0 exibiu esse problema. Resolvido usando `better-sqlite3` diretamente em `lib/db-pills.ts` (sem Prisma) para as queries de `PillProgress`.
+**Caso especial `PillProgress`**: modelo adicionado em v1.5.0 exibiu esse problema. Workaround `lib/db-pills.ts` removido em v1.11.0 — PostgreSQL não apresenta o problema de cache do Turbopack.
 
 ### `NEXT_PUBLIC_*` vars não recarregadas em runtime
 
@@ -1896,6 +1904,16 @@ Necessário para PDFs com múltiplas imagens de mapa embutidas em base64.
 **Causa**: ao criar o cookie com `path: "/studio"`, a deleção também deve especificar `path: "/studio"`. Se deletar sem `path`, o browser procura o cookie no `path: "/"` (que não existe) e não encontra nada para deletar.
 
 **Onde está**: `app/studio/actions.ts` → `adminLogout()` especifica `path: "/studio"` na deleção de `lyfx_admin` e `path: "/"` na deleção de `lyfx_session`.
+
+### BrasilAPI — cache in-memory não persiste entre workers
+
+**Sintoma** (futuro, em ambiente serverless/multi-processo): feriados buscados novamente a cada cold start.
+
+**Causa**: `lib/holidays.ts` usa `Map` em módulo Node.js. Em ambientes com múltiplos workers (Vercel, PM2 cluster), cada instância tem sua própria memória — o cache não é compartilhado entre processos.
+
+**Comportamento atual**: aceitável para uso pessoal (single-process). Para multi-processo futuro: mover cache para Redis, banco ou `AppConfig`.
+
+**Fallback**: se BrasilAPI estiver offline, `getHolidays` retorna `Set` vazio silenciosamente — D+5 calcula apenas por sáb/dom sem lançar erro.
 
 ---
 
