@@ -54,3 +54,4 @@ dev-server.log
 # base de conhecimento (PDFs — arquivos grandes, não versionados)
 docs/Base de Conhecimento/
 .claude/agents/Agent_Smith/Base de Conhecimento/
+*.sql
