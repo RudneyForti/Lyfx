@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { CATEGORIES } from "@/lib/categories";
+import { computeDangerConditions } from "@/lib/alert-engine";
 
 export interface Alert {
   id: string;
@@ -31,7 +32,12 @@ export async function getAlerts(): Promise<Alert[]> {
   const startOfMonth = new Date(yr, mo - 1, 1);
   const endOfMonth = new Date(yr, mo, 0, 23, 59, 59);
 
-  // ── 1. Budget alerts ─────────────────────────────────────────────
+  // ── 1–2, 4–5: Condições danger via motor centralizado [CS-27] ────────────
+  // computeDangerConditions cobre: budget ≥100%, goals em atraso,
+  // seasonal ≤1m, passivos críticos.
+  const dangerConditions = await computeDangerConditions(userId);
+
+  // Precisamos de dados locais para enriquecer labels e detectar warnings
   const [budgets, monthTx] = await Promise.all([
     db.budget.findMany({ where: { userId } }),
     db.transaction.findMany({
@@ -45,11 +51,19 @@ export async function getAlerts(): Promise<Alert[]> {
     spentByCategory[tx.category] = (spentByCategory[tx.category] ?? 0) + tx.amount;
   }
 
+  // IDs dos budgets já cobertos como danger (para não duplicar como warning)
+  const dangerBudgetIds = new Set(
+    dangerConditions.filter((c) => c.type === "budget").map((c) => c.fingerprint)
+  );
+
+  // Budget danger: enriquecer com label de categoria e detalhes de valor
   for (const budget of budgets) {
     const spent = spentByCategory[budget.category] ?? 0;
     const pct = budget.amount > 0 ? spent / budget.amount : 0;
     const catLabel = CATEGORIES.find((c) => c.value === budget.category)?.label ?? budget.category;
+
     if (pct >= 1) {
+      // danger: vem do motor central — usar label enriquecido localmente
       alerts.push({
         id: `budget-${budget.id}`,
         type: "budget",
@@ -58,7 +72,8 @@ export async function getAlerts(): Promise<Alert[]> {
         description: `Gasto de ${fmt(spent)} sobre limite de ${fmt(budget.amount)} (${Math.round(pct * 100)}%).`,
         link: "/budget",
       });
-    } else if (pct >= 0.8) {
+    } else if (pct >= 0.8 && !dangerBudgetIds.has(`budget-${budget.id}`)) {
+      // warning: exclusivo do getAlerts — não existe em syncDangerAlerts
       alerts.push({
         id: `budget-${budget.id}`,
         type: "budget",
@@ -70,7 +85,7 @@ export async function getAlerts(): Promise<Alert[]> {
     }
   }
 
-  // ── 2. Goal payment alerts ───────────────────────────────────────
+  // ── 2. Goal payment alerts ───────────────────────────────────────────────
   const goalPayments = await db.goalPayment.findMany({
     where: {
       paid: false,
@@ -97,7 +112,7 @@ export async function getAlerts(): Promise<Alert[]> {
     });
   }
 
-  // ── 3. Negative projection alerts ───────────────────────────────
+  // ── 3. Negative projection alerts ───────────────────────────────────────
   const [recurring, installments] = await Promise.all([
     db.transaction.findMany({
       where: { userId, recurrence: { in: ["monthly", "yearly"] } },
@@ -149,11 +164,16 @@ export async function getAlerts(): Promise<Alert[]> {
     }
   }
 
-  // ── 4. Seasonal expense alerts ───────────────────────────────────
+  // ── 4. Seasonal expense alerts (warning ≤2m + danger via motor) ─────────
   const yearlyTx = await db.transaction.findMany({
     where: { userId, recurrence: "yearly", type: "debit" },
     select: { id: true, description: true, amount: true, date: true },
   });
+
+  // IDs dos sazonais já cobertos como danger pelo motor central
+  const dangerSeasonalIds = new Set(
+    dangerConditions.filter((c) => c.type === "seasonal").map((c) => c.fingerprint)
+  );
 
   for (const tx of yearlyTx) {
     let next = new Date(now.getFullYear(), tx.date.getMonth(), tx.date.getDate());
@@ -165,10 +185,11 @@ export async function getAlerts(): Promise<Alert[]> {
     if (diffMonths <= 2) {
       const monthsLeft = Math.max(1, Math.ceil(diffMonths));
       const monthly = tx.amount / monthsLeft;
+      const isDanger = dangerSeasonalIds.has(`seasonal-${tx.id}`);
       alerts.push({
         id: `seasonal-${tx.id}`,
         type: "seasonal",
-        severity: diffMonths <= 1 ? "danger" : "warning",
+        severity: isDanger ? "danger" : "warning",
         title: `Despesa sazonal próxima — ${tx.description}`,
         description: `${fmt(tx.amount)} previsto para ${monthLabel(next)}. Provisione ${fmt(monthly)}/mês.`,
         link: "/fixed-expenses",
@@ -176,7 +197,7 @@ export async function getAlerts(): Promise<Alert[]> {
     }
   }
 
-  // ── 5. Passivos críticos (cheque especial / rotativo) ────────────────
+  // ── 5. Passivos críticos — label enriquecido com taxa anual ─────────────
   // CS-08: apenas passivos com saldo > 0 geram alerta crítico
   const criticalLiabilities = await db.liability.findMany({
     where: {
