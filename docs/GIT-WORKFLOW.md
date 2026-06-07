@@ -177,6 +177,9 @@ Nunca assumir que aprovação de implementação = aprovação de release para p
 4. **Sempre usar `--no-ff`** nos merges — preserva histórico de quem fez o quê
 5. **`master` só avança via `develop`** — nunca via branch de trabalho diretamente
 6. **Release só com aprovação explícita** — o agente nunca faz `develop → master` por conta própria
+7. **Todo merge para `master` exige documentação atualizada** — `DOCUMENTATION.md` (seções técnicas afetadas) e `docs/FEATURES.md` (seções de produto afetadas) devem estar atualizados antes do merge. Sem documentação, sem merge.
+8. **Toda nova feature exige plano de testes** — qualquer lote que inclua nova funcionalidade deve atualizar `docs/QA-TEST-PLAN.md` com cenários de teste automatizados para a feature antes do merge para `master`.
+9. **`docs/DOC-INDEX.md` é obrigatório em todo merge** — qualquer alteração em documentos (novo arquivo, renomeação, arquivamento, mudança de versão) deve ser refletida no índice antes do merge para `master`.
 
 ---
 
@@ -222,7 +225,7 @@ Adicionar linha na tabela de histórico:
 
 Remover a entrada de "Próximos marcos" correspondente se ela existir.
 
-### 5. Atualizar `DOCUMENTATION.md`
+### 5. Atualizar `DOCUMENTATION.md` — planta técnica
 
 **Cabeçalho** (linha 2):
 ```markdown
@@ -230,12 +233,39 @@ Remover a entrada de "Próximos marcos" correspondente se ela existir.
 ```
 
 **Seções afetadas** — atualizar apenas as seções que o lote tocou:
-- Novo módulo → adicionar entrada em "Funcionalidades"
+- Novo módulo → rotas, Server Actions, schema Prisma, fórmulas de cálculo, fluxo de dados
 - Mudança de autenticação → atualizar "Autenticação e Sessão"
-- Novo campo no schema → atualizar "Schema do Banco de Dados"
-- Nova decisão arquitetural → adicionar em "Decisões Arquiteturais"
+- Novo campo no schema → atualizar "Schema do Banco de Dados" com modelo completo anotado
+- Nova integração externa → documentar endpoint, parâmetros, resposta esperada, gotchas
+- Nova decisão arquitetural → adicionar em "Decisões Arquiteturais" com justificativa técnica
 
-### 6. Fazer o merge e a tag
+### 6. Atualizar `docs/FEATURES.md` — narrativa de produto
+
+Audiência: analista, gestor, usuário em capacitação — linguagem não-técnica.
+
+**Seções afetadas** — atualizar apenas as seções que o lote tocou:
+- Nova feature → novo capítulo com: o que faz, como usar, onde vai a informação, interação com outros módulos, valor ao usuário, referencial de negócio
+- Feature modificada → atualizar descrição, fluxo e impactos
+- Não mencionar rotas, Prisma, código ou nomes de variáveis neste documento
+
+### 7. Atualizar `docs/QA-TEST-PLAN.md` *(obrigatório se o lote incluiu nova feature)*
+
+Para cada nova funcionalidade, adicionar seção com:
+- Cenários de teste (happy path + edge cases)
+- Critérios de aceite mensuráveis
+- Passos de reprodução para Agent Smith
+
+Se apenas bugfixes no lote → verificar se algum teste existente ficou desatualizado e corrigir.
+
+### 8. Atualizar `docs/DOC-INDEX.md` *(obrigatório em todo merge)*
+
+Revisar o índice central de documentação e atualizar conforme o que mudou no lote:
+- Novo documento criado → adicionar linha na tabela correspondente
+- Documento movido ou renomeado → atualizar caminho
+- Documento arquivado → mover linha para a seção de arquivo
+- Versão de documento alterada → atualizar coluna **Versão**
+
+### 9. Fazer o merge e a tag
 
 ```bash
 git checkout master
@@ -251,11 +281,11 @@ git push origin develop
 
 ---
 
-## Estado atual (25/05/2026)
+## Estado atual (07/06/2026)
 
 | Branch | Versão | Conteúdo |
 |--------|--------|----------|
-| `master` | v1.5.0 | 14 CSs implementados e QA aprovado (CS-01 a CS-14) |
-| `develop` | v1.5.0 | Idêntico ao master — base para próximos trabalhos |
+| `master` | v1.10.0 | CS-01 a CS-17 implementados e QA aprovado — inclui Reembolso Especial completo |
+| `develop` | v1.10.0 | Idêntico ao master — base para próximos trabalhos |
 
-Próximo release previsto: `v1.6.0` — Módulo de Educação Financeira (`/education`).
+Próximos releases previstos: `v1.11.0` — Studio Roadmap/Backlog (CS-20) · `v1.12.0` — Importação OFX/CSV (CS-21).

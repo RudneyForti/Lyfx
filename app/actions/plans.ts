@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { ALL_MODULE_KEYS, ALL_MODULES } from "@/lib/modules";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/app/studio/actions";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,7 @@ export async function createPlan(data: {
   isDefault?: boolean;
   modules: string[];
 }): Promise<{ ok: boolean; error?: string; id?: string }> {
+  await requireAdmin();
   try {
     if (!data.name.trim()) return { ok: false, error: "Nome obrigatório" };
 
@@ -128,6 +130,7 @@ export async function updatePlan(
     modules?: string[];
   }
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
   try {
     await db.$transaction(async (tx) => {
       await tx.plan.update({
@@ -165,6 +168,7 @@ export async function updatePlan(
 // ── Delete ───────────────────────────────────────────────────────────────────
 
 export async function deletePlan(id: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
   try {
     await db.plan.delete({ where: { id } });
     revalidatePath("/studio");
@@ -179,6 +183,7 @@ export async function migrateAndDeletePlan(
   fromId: string,
   toId: string | null
 ): Promise<{ ok: boolean; moved: number; error?: string }> {
+  await requireAdmin();
   try {
     const result = await db.user.updateMany({
       where: { planId: fromId },
@@ -198,6 +203,7 @@ export async function assignUserToPlan(
   userId: string,
   planId: string | null
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
   try {
     await db.user.update({
       where: { id: userId },
@@ -213,6 +219,7 @@ export async function assignUserToPlan(
 // ── Seed Insider plan ─────────────────────────────────────────────────────────
 
 export async function ensureInsiderPlan(): Promise<{ ok: boolean; created: boolean; error?: string }> {
+  await requireAdmin();
   try {
     const existing = await db.plan.findFirst({ where: { name: "Insider" } });
     if (existing) return { ok: true, created: false };
@@ -238,6 +245,7 @@ export async function ensureInsiderPlan(): Promise<{ ok: boolean; created: boole
 // ── Seed default plan ─────────────────────────────────────────────────────────
 
 export async function ensureDefaultPlan(): Promise<{ ok: boolean; created: boolean; error?: string }> {
+  await requireAdmin();
   try {
     const existing = await db.plan.findFirst({ where: { isDefault: true } });
     if (existing) return { ok: true, created: false };

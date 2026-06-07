@@ -1,6 +1,6 @@
 # Lyfx — Guia Completo de Funcionalidades
-> Documento de referência para analistas financeiros e avaliadores de produto
-> Versão 1.6.3 · Maio 2026
+> Documento de referência para analistas financeiros, gestores de produto e material de capacitação
+> Versão 1.10.0 · Junho 2026
 
 ---
 
@@ -30,6 +30,7 @@
    - 4.18 [Educação](#418-educação)
    - 4.19 [Perfil](#419-perfil)
    - 4.20 [Studio (Administração)](#420-studio-administração)
+   - 4.21 [Reembolso Especial](#421-reembolso-especial)
 5. [Fluxos Transversais](#5-fluxos-transversais)
 
 ---
@@ -589,41 +590,54 @@ Seção recolhível dedicada à estratégia de quitação acelerada via método 
 
 ---
 
-### 4.10 Alertas
+### 4.10 Alertas e Notificações
 
 **Rota**: `/alerts`  
 **Acesso**: requer login
 
-Central de alertas proativos gerados automaticamente pelo sistema com base na análise dos dados do usuário. O usuário não precisa monitorar cada módulo individualmente — o sistema faz isso e consolida os pontos de atenção em um único lugar.
+O sistema de alertas e notificações do Lyfx opera em duas camadas distintas, com propósitos e comportamentos diferentes.
 
-#### Tipos de Alerta
+#### Camada 1 — Alertas Financeiros Automáticos
 
-**Alerta de Orçamento — Aviso** (⚠): uma categoria de despesa atingiu 80% ou mais da alocação definida no Orçamento, mas ainda não ultrapassou o limite. Alerta antecipado.
+Calculados em tempo real a cada acesso, com base no estado atual dos dados do usuário. **Não são persistidos no banco** — aparecem enquanto a condição existe e desaparecem quando resolvida. O usuário não pode descartá-los manualmente; eles somem sozinhos quando o problema é corrigido.
 
-**Alerta de Orçamento — Crítico** (🔴): uma categoria ultrapassou 100% da alocação. Estouro confirmado.
+| Tipo | Severidade | Quando aparece |
+|---|---|---|
+| Orçamento — Aviso | ⚠ Amarelo | Categoria atingiu 80–99% da alocação definida |
+| Orçamento — Crítico | 🔴 Vermelho | Categoria ultrapassou 100% da alocação (estouro) |
+| Meta — Aviso | ⚠ Amarelo | Cobrança do mês atual ainda não paga |
+| Meta — Crítico | 🔴 Vermelho | Cobrança vencida (data passada) não paga |
+| Projeção — Aviso | ⚠ Amarelo | Algum dos próximos 12 meses com saldo projetado negativo |
+| Sazonal — Aviso | ⚠ Amarelo | Despesa anual com vencimento em ≤ 2 meses |
+| Passivo Crítico — Perigo | 🔴 Vermelho | Cheque especial ou crédito rotativo ativo (saldo > 0) |
 
-**Alerta de Meta — Aviso** (⚠): existe uma cobrança de meta programada para o mês atual que ainda não foi marcada como paga.
+O alerta de Passivo Crítico é especialmente importante: além de exibir a taxa ao mês, calcula automaticamente o equivalente ao ano pela fórmula de juros compostos, tornando visível a devastação real de taxas predatórias. Dívida com 12% ao mês equivale a 286% ao ano — um número que por si só motiva ação.
 
-**Alerta de Meta — Crítico** (🔴): existe uma cobrança de meta vencida (data no passado) que não foi paga.
+Cada alerta tem link direto para o módulo responsável, permitindo ir direto ao ponto e resolver o problema sem navegar pela plataforma.
 
-**Alerta de Projeção — Crítico** (🔴): algum dos próximos 12 meses tem saldo livre projetado negativo — as saídas comprometidas superam as entradas comprometidas naquele mês.
+#### Camada 2 — Notificações do Sistema
 
-**Alerta Sazonal — Aviso** (⚠): existe uma despesa anual com vencimento nos próximos 2 meses. Lembrete para garantir que os recursos estão reservados.
+Mensagens enviadas pelo administrador ou geradas automaticamente por eventos do sistema. **São persistidas no banco** e ficam disponíveis até serem lidas ou descartadas pelo usuário.
 
-**Alerta de Passivo Crítico — Perigo** (🔴): um passivo do tipo "Cheque especial" ou "Crédito rotativo" está ativo (saldo devedor > 0). Esses tipos de dívida têm taxas predatórias. O alerta exibe a taxa ao mês, o equivalente ao ano calculado pela fórmula de juros compostos e orienta a quitação imediata.
+**Sino no menu do usuário**: ícone no canto superior direito da tela com badge vermelho indicando notificações não lidas. Ao clicar, abre um dropdown com duas seções:
+- **Alertas financeiros**: resumo dos alertas críticos ativos (quantidade e tipo)
+- **Notificações**: mensagens individuais do sistema, cada uma com botão para excluir
 
-#### Interface
+**Tipos de notificação:**
+- **Boas-vindas**: enviada automaticamente ao criar um novo usuário via Studio
+- **Comunicados**: enviadas pelo administrador via Studio, podendo ser direcionadas a um usuário específico ou a todos os usuários de um plano
 
-Os alertas são agrupados por severidade (crítico primeiro, aviso depois) e cada card exibe:
-- Ícone de severidade (vermelho ou âmbar)
-- Badge identificando o tipo de alerta
-- Título descritivo
-- Explicação detalhada
-- Botão de link direto para o módulo relevante (ex: um alerta de orçamento leva para `/budget`)
+**Diferença crucial entre alertas e notificações**: alertas não têm botão de excluir — eles existem enquanto o problema existir. Notificações podem ser descartadas individualmente ou em massa ("Limpar tudo"), pois são comunicados que o usuário pode dispensar após leitura.
 
-Chips no topo mostram a contagem de alertas por tipo para uma visão rápida do panorama.
+#### Interface da página `/alerts`
 
-**Estado "Tudo em Ordem"**: quando não há nenhum alerta ativo, a página exibe ícone de sino verde e mensagem de confirmação.
+A página consolida ambas as camadas em visão organizada:
+- Alertas financeiros agrupados por severidade (crítico antes de aviso)
+- Seção de notificações do sistema separada
+- Chips no topo com contagens por tipo
+- **Estado "Tudo em Ordem"**: ícone de sino verde quando não há alertas nem notificações pendentes
+
+**Por que isso importa para o negócio**: a maioria das pessoas perde dinheiro não por falta de dados, mas por falta de visibilidade oportuna dos problemas. Um alerta de passivo crítico que aparece na tela antes de um compromisso financeiro pode evitar uma decisão que custaria centenas de reais em juros. O sistema de alertas é o mecanismo central de intervenção proativa da plataforma.
 
 ---
 
@@ -989,52 +1003,180 @@ Formulário separado na parte inferior da página:
 **Rota**: `/studio`  
 **Acesso**: senha separada (`ADMIN_SECRET`) — independente da sessão do usuário
 
-Painel de administração da plataforma. Acessível via link discreto na tela de login.
+Painel de administração da plataforma. Acessível via link discreto na tela de login. Organizado em 8 abas: **Painel · Usuários · Planos · Módulos · Notas · Dados · Schema · Documentação**.
 
 #### Autenticação do Studio
 
-Formulário de senha separado. A senha do Studio é configurada via variável de ambiente e não é a mesma senha do usuário. A sessão do Studio expira em 2 horas. O botão "← Login" retorna para a tela de login do aplicativo.
+Formulário de senha separado. A senha do Studio é configurada pelo administrador e não tem relação com as senhas dos usuários do aplicativo. A sessão do Studio expira em 2 horas — tempo suficiente para as operações administrativas típicas, com expiração curta por segurança.
 
-**Logout do Studio**: ao sair do Studio, a sessão do Studio **e** a sessão do usuário são encerradas simultaneamente, redirecionando para a landing page.
+O botão "← Login" retorna para a tela de login do aplicativo sem encerrar a sessão.
 
-#### Aba Schema
+**Logout do Studio**: ao clicar em Sair, a sessão do Studio **e** a sessão do usuário são encerradas simultaneamente. O motivo: o administrador costuma acessar o Studio a partir de uma sessão de usuário já aberta. Encerrar ambas em uma única operação evita que a conta fique aberta no navegador após o trabalho administrativo.
 
-Visualização completa de todas as tabelas do banco de dados:
-- Nome de cada tabela
-- Todos os campos com tipo, obrigatoriedade e descrição
-- Relações entre modelos
-- Constraints únicas
+#### Aba Painel
 
-Expandível por tabela para não sobrecarregar visualmente.
+Dashboard de gestão do software. Responde à pergunta "como está a saúde operacional da plataforma?".
 
-#### Aba Docs
+**Métricas do sistema** (6 cards):
+- Usuários cadastrados
+- Total de registros no banco (todas as tabelas)
+- Espaço em disco utilizado pelo banco de dados
+- Número de planos ativos
+- Versão em desenvolvimento (ambiente dev)
+- Versão em produção (ambiente prod) — permite comparar as duas versões ao mesmo tempo
 
-Renderização completa do arquivo `DOCUMENTATION.md` (documentação técnica) diretamente no painel.
+**Gauges operacionais**: indicadores visuais de RAM, memória de heap e uso de CPU do servidor. O usuário sem conhecimento técnico pode verificar se "o servidor está sobrecarregado" de forma intuitiva.
 
-**Índice lateral clicável** (TOC): lista automática de todos os títulos h2, h3 e h4 do documento, com indentação visual progressiva. Clicar em qualquer item do índice faz scroll suave até o heading correspondente.
+**Configurações globais**:
+- **Modo manutenção**: ao ativar, exibe um banner amarelo no topo de todas as telas da plataforma, avisando todos os usuários simultaneamente. Útil durante atualizações ou durante trabalhos técnicos.
+- **Mensagem do banner**: texto configurável que aparece no banner de manutenção — permite orientar os usuários sobre o que está acontecendo e quando voltará ao normal.
 
 #### Aba Usuários
 
-Lista de todos os usuários cadastrados com avatar, nome, e-mail e data de cadastro.
+Gestão completa dos usuários da plataforma.
 
-**Reset de senha**: campo inline para cada usuário. Ao digitar a nova senha (mínimo 6 caracteres) e confirmar, a senha é alterada via hash bcrypt.
+- **Lista**: avatar, nome, e-mail, data de cadastro e indicador de quando o usuário esteve online pela última vez
+- **Reset de senha**: o administrador pode redefinir a senha de qualquer usuário sem conhecer a senha atual — necessário quando o usuário esquece e não há recuperação por e-mail
+- **Criar usuário**: formulário inline para criar novas contas. Ao criar, uma notificação de boas-vindas é enviada automaticamente ao novo usuário
+- **Deletar usuário**: exclusão completa e irreversível com todos os dados associados. Confirmação inline antes de executar
 
-**Criar usuário**: formulário inline com nome, e-mail e senha. A página atualiza automaticamente após a criação.
+#### Aba Planos
 
-**Deletar usuário**: botão vermelho com confirmação inline. A exclusão remove em cascade todos os dados do usuário: transações, tags, orçamentos, metas, cobranças de metas, passivos, configurações, instituições, contas, bens e despesas de bens.
+Controle de acesso baseado em planos. Define quais módulos cada grupo de usuários pode ver na plataforma.
+
+Dois planos padrão:
+- **Full**: acesso a todos os módulos estáveis (sem módulos em beta)
+- **Insider**: acesso a todos os módulos incluindo os que estão em desenvolvimento/beta
+
+O Studio cria os planos automaticamente com o clique de um botão. A distinção entre Full e Insider permite liberar funcionalidades novas para usuários de confiança antes de disponibilizar para todos.
+
+#### Aba Módulos
+
+Lista todos os módulos do sistema com controle de visibilidade.
+
+**Toggle Beta por módulo**: o administrador pode marcar qualquer módulo como "em beta" a qualquer momento, sem precisar reiniciar o servidor. Módulos marcados como beta exibem um chip amarelo "Beta" na barra lateral para todos os usuários — comunicando que a funcionalidade está disponível mas ainda em desenvolvimento.
+
+Isso permite o lançamento gradual de novos módulos: libera-se para usuários Insider primeiro (plan Insider inclui betas), coleta feedback, depois remove o badge beta quando o módulo estiver maduro.
+
+#### Aba Notas
+
+Editor Markdown persistente para anotações administrativas. O administrador pode documentar decisões, pendências, observações sobre usuários ou qualquer informação relevante para a operação.
+
+Funciona como um bloco de notas rico: suporte a títulos, listas, checklists, citações e blocos de código. Slash commands no estilo Notion (`/h1`, `/bold`, `/todo`, etc.) aceleram a formatação. Atalhos de teclado (`Ctrl+B`, `Ctrl+I`, `Ctrl+S`) para quem prefere o teclado.
+
+#### Aba Notificações
+
+Envio de comunicados para os usuários da plataforma.
+
+- **Por plano**: envia uma notificação para todos os usuários de um plano (ex: avisar todos os usuários Full sobre uma nova funcionalidade)
+- **Por usuário**: envia para um usuário específico
+- **Histórico de broadcasts**: lista dos comunicados já enviados com data e destinatário
+
+As notificações aparecem no sino do usuário na plataforma principal.
 
 #### Aba Dados
 
-**Seção Sistema**: três cards com métricas globais:
-- Número total de usuários
-- Total de registros em todas as tabelas combinadas
-- Tamanho do arquivo de banco de dados em disco (formatado em B/KB/MB/GB)
+Visão dos dados em produção.
 
-**Filtro por usuário**: combobox digitável para selecionar um usuário por nome ou e-mail. Ao selecionar:
-- Contadores de registros por tipo (transações, tags, orçamentos, metas)
-- Tabela com as 10 transações mais recentes do usuário
+- **Filtro por usuário**: combobox para selecionar qualquer usuário e ver suas métricas (contagem de registros por tipo, transações recentes)
+- **Visão global**: as 10 transações mais recentes de todo o sistema quando nenhum usuário está selecionado
 
-**Sem filtro**: exibe as 10 transações mais recentes de todo o sistema.
+#### Aba Schema
+
+Diagrama ERD (Entity-Relationship Diagram) interativo do banco de dados. Cada tabela pode ser expandida/colapsada individualmente para facilitar a leitura. Linhas de relação mostram as conexões entre tabelas. Ideal para auditorias e para entender a estrutura de dados da plataforma.
+
+#### Aba Documentação
+
+Renderização completa da documentação técnica (`DOCUMENTATION.md`) diretamente no painel, com índice lateral clicável. Permite ao administrador consultar a documentação técnica sem precisar abrir o repositório.
+
+---
+
+### 4.21 Reembolso Especial
+
+**Rota**: `/km-reimbursement`  
+**Acesso**: requer login · plano com módulo habilitado
+
+Módulo corporativo completo para controle de reembolso de quilometragem e despesas de viagem. Criado para profissionais que precisam prestar contas ao empregador e precisam de documentação rastreável, cálculo automático e geração de relatório formal.
+
+#### O problema que resolve
+
+Quem trabalha com mobilidade corporativa conhece o ciclo: anotar cada trajeto num bloco de notas, calcular manualmente os quilômetros, encontrar todas as notas de combustível, somar cada pedágio e estacionamento, montar um relatório no Excel ou Google Sheets e copiar tudo para o SAP no fechamento do mês. Qualquer erro nesse processo resulta em reembolso errado ou em retrabalho.
+
+O Reembolso Especial automatiza toda essa cadeia: calcula a taxa por km com base no preço real do combustível que o usuário abasteceu, valida se há documentação suficiente (mínimo de 15% do valor em km, por exigência contábil), monta o demonstrativo formatado para copiar direto no SAP, e gera um PDF de apresentação profissional como comprovante.
+
+#### Como funciona — o fluxo completo
+
+**1. Abrir uma solicitação**: o usuário cria um período informando nome, datas (início e fim — pode ser 1 dia ou o mês inteiro), tipo de combustível e dados do veículo.
+
+**2. Registrar trajetos**: para cada deslocamento, informa origem, destino e quilometragem. O sistema integra com o Google Maps: ao digitar os endereços, o mapa calcula a distância automaticamente. O usuário pode arrastar os pontos do trajeto no mapa para ajustar rotas alternativas. A quilometragem é preenchida automaticamente mas é editável.
+
+**3. Registrar notas de combustível**: para cada abastecimento, informa data, tipo de combustível, litros e valor total. O sistema calcula automaticamente o **preço médio ponderado por litro** — se o usuário abasteceu com preços diferentes ao longo do período, a média leva em conta a quantidade de cada abastecimento. A fórmula: preço médio = soma dos valores totais ÷ soma dos litros.
+
+**4. Registrar despesas extras**: pedágios, estacionamentos, hospedagens, alimentação, taxi e outras despesas relacionadas à viagem corporativa.
+
+**5. Verificar o resumo**: a plataforma exibe o demonstrativo completo:
+- Combustível: tipo, preço médio por litro, taxa calculada (ex: 25% do preço da gasolina)
+- Quilômetros rodados e valor por km
+- Total km + total despesas extras + **GRAND TOTAL**
+- Validação: valor total das notas de combustível apresentadas vs. mínimo exigido (15% do valor km)
+
+**6. Copiar para o SAP**: um botão copia o resumo formatado na estrutura exata que o sistema corporativo espera, eliminando digitação manual e erros de transcrição.
+
+**7. Marcar como enviado**: ao confirmar o envio, a plataforma:
+- Registra a data de envio
+- Calcula a **data prevista de pagamento (D+5 dias úteis)** — pulando automaticamente fins de semana
+- Cria uma **Transação de crédito** no valor total com a data D+5, que aparece no Dashboard e no DRE como receita variável futura
+- A transação tem a descrição "Reembolso Especial — [nome do período]" para rastreabilidade
+
+**8. Dar baixa quando receber**: quando o pagamento cair na conta, o usuário confirma e a transação já está registrada no mês correto.
+
+#### Onde a informação vai e como interage com outros módulos
+
+| Dado coletado | Onde aparece | Como afeta |
+|---|---|---|
+| Período com datas | `/km-reimbursement` (histórico) | Rastreio de solicitações abertas/enviadas |
+| Trajetos com km | Resumo + PDF | Compõe o valor de km a reembolsar |
+| Notas de combustível | Resumo + validação 15% | Define o preço médio e valida documentação |
+| Despesas extras | Resumo + PDF | Soma ao valor total da solicitação |
+| Grand total ao enviar | `/transactions` como credit_variable | Aparece no DRE → Saúde Financeira → Projeções |
+| D+5 dias úteis | Data da transação criada | Aparece no mês correto no Dashboard/Relatórios |
+
+#### Lugares Salvos
+
+Sub-módulo em `/km-reimbursement/places` para cadastrar rotas frequentes — o trajeto casa→escritório, por exemplo, que se repete dezenas de vezes por mês.
+
+Ao salvar um lugar, o usuário configura:
+- Nome do lugar (ex: "Casa → Sede")
+- Endereço de origem e destino
+- Rota preferida (configurada visualmente no mapa)
+- Veículos associados
+
+Na hora de registrar trajetos no período, um clique no lugar salvo preenche automaticamente origem, destino e quilometragem, evitando re-digitação a cada lançamento.
+
+#### Configurações
+
+Em `/km-reimbursement/settings`, o usuário pode ajustar:
+- **Taxa gasolina**: percentual do preço por litro que constitui o reembolso (padrão: 25%)
+- **Taxa etanol**: percentual equivalente para etanol (padrão: 36% — etanol exige mais litros por km)
+- **Mínimo de notas**: percentual mínimo do valor km que deve ser coberto por notas de combustível para aprovação contábil (padrão: 15%)
+- **Prazo de pagamento**: dias úteis até o pagamento esperado (padrão: D+5)
+
+#### O PDF — Demonstrativo de Rotas
+
+O PDF gerado é um documento de apresentação profissional, não apenas um relatório de dados. É gerado pelo servidor (não no navegador), garantindo consistência visual independente do dispositivo do usuário.
+
+Conteúdo do PDF:
+- **Cabeçalho**: logotipo Lyfx, título "Demonstrativo de Rotas", nome do período, datas, veículo, valor total e quilometragem total
+- **Página de trajetos**: cada trajeto em card separado com origem, destino, km e observações. Cada trajeto tem o mapa da rota embutido como imagem (via Google Static Maps API)
+- **Resumo consolidado**: todos os cálculos, validação de combustível e datas de envio/pagamento esperado
+
+O PDF serve como comprovante formal da solicitação, adequado para arquivamento e auditoria.
+
+#### Por que 25% da gasolina como taxa?
+
+A taxa de reembolso por km tenta capturar o custo real de rodar um veículo. Estudos de custos operacionais de frotas (ex: metodologia do DNIT/ANTT e literatura de fleet management) indicam que combustível representa aproximadamente 25-30% do custo total por km para veículos de passeio (o restante inclui depreciação, pneus, manutenção, seguro). O Lyfx usa 25% como padrão conservador, mas permite que o usuário ajuste conforme a política da empresa.
+
+A taxa de etanol é maior (36%) porque veículos flex consomem em média 30-40% mais litros por km rodado com etanol vs. gasolina, o que justifica uma taxa percentual mais alta sobre o preço do litro para chegar ao mesmo valor por km.
 
 ---
 
@@ -1115,7 +1257,24 @@ Ao acessar `/education`:
 5. O streak semanal é recalculado na próxima renderização do hub
 6. A próxima pílula não concluída da mesma trilha é sugerida automaticamente
 
+### Fluxo I — Reembolso Especial e seu ciclo de vida
+
+Um período de Reembolso Especial percorre o seguinte caminho:
+
+1. **Criação**: usuário cria período em `/km-reimbursement/new` com nome, datas, combustível, veículo → KmPeriod criado com status `open`
+2. **Lançamentos**: usuário registra trajetos (KmRoute), notas de combustível (KmReceipt) e despesas extras (KmExpense) — a cada novo lançamento, os totais do período são recalculados automaticamente
+3. **Resumo**: aba "Resumo" mostra demonstrativo formatado para cópia no SAP; validação de combustível mostra verde/vermelho
+4. **Envio**: ao clicar "Marcar como enviado":
+   - KmPeriod.status → `submitted`
+   - Data de envio registrada
+   - D+5 dias úteis calculado (pulando sábados e domingos)
+   - **Transaction criada**: tipo `credit`, categoria `credit_variable`, amount = grandTotal, date = D+5, description = "Reembolso Especial — {nome}"
+   - transactionId salvo no KmPeriod para rastreabilidade
+5. **Impacto no Dashboard**: a Transaction criada aparece no DRE do mês do D+5, afetando KPI de receita e score de saúde
+6. **Reabrir (se necessário)**: ao reabrir um período, a Transaction é deletada e o KmPeriod volta para `open`
+7. **PDF**: disponível a qualquer momento após ter trajetos; gerado pelo servidor com mapas de rota embutidos
+
 ---
 
-*Versão 1.6.3 · Maio 2026*  
+*Versão 1.10.0 · Junho 2026*  
 *Para o plano de testes detalhado, consultar `docs/QA-TEST-PLAN.md`. Para referência técnica (schema, arquitetura, decisões), consultar `DOCUMENTATION.md`.*

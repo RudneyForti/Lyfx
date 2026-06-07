@@ -10,11 +10,13 @@
 3. [Schema do Banco de Dados](#3-schema-do-banco-de-dados)
 4. [Tabela de Relacionamentos](#4-tabela-de-relacionamentos)
 5. [Modelo de Categorias](#5-modelo-de-categorias)
-6. [Funcionalidades](#6-funcionalidades)
+6. [Referência Técnica por Módulo](#6-referência-técnica-por-módulo)
 7. [Interações entre Módulos](#7-interações-entre-módulos)
 8. [Autenticação e Sessão](#8-autenticação-e-sessão)
 9. [Arquitetura de Arquivos](#9-arquitetura-de-arquivos)
 10. [Decisões Arquiteturais](#10-decisões-arquiteturais)
+10.1 [Fórmulas e Cálculos Técnicos](#101-fórmulas-e-cálculos-técnicos)
+10.2 [Gotchas Técnicos Conhecidos](#102-gotchas-técnicos-conhecidos)
 11. [Próximos Passos](#11-próximos-passos)
 
 ---
@@ -351,6 +353,131 @@ Nota: módulos são entidades estáticas definidas em lib/modules.ts — apenas 
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
 Chaves conhecidas: "maintenanceMode" ("true"/"false"), "maintenanceBanner" (mensagem), "betaModules" (JSON array de chaves), "adminNotes" (Markdown livre). Lido via lib/config.ts sem autenticação de admin.
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        NOTIFICATION                             │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ title           │ String       │ Título da notificação          │
+│ message         │ String?      │ Corpo da mensagem              │
+│ read            │ Boolean      │ false por padrão               │
+│ readAt          │ DateTime?    │ Preenchido ao marcar como lida │
+│ fingerprint     │ String?      │ Hash único (alertas auto)      │
+│                 │              │ null = notificação do sistema  │
+│ broadcastId     │ String?      │ Agrupa notificações em lote    │
+│ expiresAt       │ DateTime?    │ TTL — alertas expiram em 7d    │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Nota: fingerprint null = notificação do sistema (descartável pelo usuário).
+fingerprint preenchido = alerta automático convertido (não descartável pelo usuário — guard em deleteNotification).
+deleteNotification filtra WHERE { id, userId, fingerprint: null } — impede exclusão de alertas auto.
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         KM_CONFIG                               │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ @unique — um por usuário       │
+│ gasolineRate    │ Float        │ @default(0.25) — 25%           │
+│ ethanolRate     │ Float        │ @default(0.36) — 36%           │
+│ minFuelPct      │ Float        │ @default(0.15) — 15% mínimo    │
+│ paymentDays     │ Int          │ @default(5) — D+5 dias úteis   │
+│ vehiclePlate    │ String?      │ Placa do veículo               │
+│ vehicleMake     │ String?      │ Marca (ex: Toyota)             │
+│ vehicleModel    │ String?      │ Modelo (ex: Corolla)           │
+│ vehicleYear     │ Int?         │ Ano do veículo                 │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Nota: criado via upsert na primeira visita às configurações. userId é unique.
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         KM_PERIOD                               │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ name            │ String       │ Nome do período                │
+│ startDate       │ DateTime     │ Início do período              │
+│ endDate         │ DateTime     │ Fim do período                 │
+│ fuelType        │ String       │ "gasoline" | "ethanol"         │
+│ status          │ String       │ "open" | "submitted"           │
+│ submittedAt     │ DateTime?    │ Data de envio                  │
+│ expectedPayAt   │ DateTime?    │ submittedAt + paymentDays úteis│
+│ totalKm         │ Float        │ Σ(route.km)                    │
+│ fuelPriceAvg    │ Float        │ Σ(receipt.total)/Σ(receipt.lit)│
+│ ratePerKm       │ Float        │ fuelPriceAvg × fuelRate        │
+│ kmAmount        │ Float        │ totalKm × ratePerKm            │
+│ extraAmount     │ Float        │ Σ(expense.amount)              │
+│ grandTotal      │ Float        │ kmAmount + extraAmount         │
+│ notes           │ String?      │ Observações gerais             │
+│ transactionId   │ String?      │ FK lógica → Transaction.id     │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+│ routes          │ Relation     │ → KmRoute[]                    │
+│ receipts        │ Relation     │ → KmReceipt[]                  │
+│ expenses        │ Relation     │ → KmExpense[]                  │
+└─────────────────┴──────────────┴────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                          KM_ROUTE                               │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ periodId        │ String (FK)  │ → KmPeriod.id (cascade)        │
+│ date            │ DateTime     │ Data do deslocamento           │
+│ origin          │ String       │ Endereço de origem             │
+│ destination     │ String       │ Endereço de destino            │
+│ km              │ Float        │ Quilometragem do trajeto        │
+│ notes           │ String?      │ Observações                    │
+│ polyline        │ String?      │ Encoded polyline do trajeto     │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+└─────────────────┴──────────────┴────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         KM_RECEIPT                              │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ periodId        │ String (FK)  │ → KmPeriod.id (cascade)        │
+│ date            │ DateTime     │ Data do abastecimento          │
+│ fuelType        │ String       │ "gasoline" | "ethanol"         │
+│ liters          │ Float        │ Litros abastecidos             │
+│ totalAmount     │ Float        │ Valor total da nota            │
+│ notes           │ String?      │ Observações                    │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+└─────────────────┴──────────────┴────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         KM_EXPENSE                              │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ periodId        │ String (FK)  │ → KmPeriod.id (cascade)        │
+│ type            │ String       │ "toll"|"parking"|              │
+│                 │              │ "accommodation"|"food"|        │
+│                 │              │ "taxi"|"other"                 │
+│ date            │ DateTime     │ Data da despesa                │
+│ amount          │ Float        │ Valor em reais                 │
+│ notes           │ String?      │ Observações                    │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+└─────────────────┴──────────────┴────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                          KM_PLACE                               │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ name            │ String       │ Nome do lugar salvo            │
+│ address         │ String       │ Endereço completo              │
+│ routeGoing      │ String?      │ JSON: [{lat,lng}] (ida)        │
+│ routeReturn     │ String?      │ JSON: [{lat,lng}] (volta)      │
+│ distanceGoing   │ Float?       │ Km da rota de ida              │
+│ distanceReturn  │ Float?       │ Km da rota de volta            │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ updatedAt       │ DateTime     │ Auto: updatedAt                │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Nota: routeGoing/routeReturn armazenam polylines como JSON stringify de array de waypoints.
+A polyline é usada na geração do PDF (Google Static Maps path parameter).
 ```
 
 ### Diagrama de relações
@@ -425,7 +552,10 @@ Esta distinção permite que a DRE mostre não apenas o saldo, mas a **qualidade
 
 ---
 
-## 6. Funcionalidades
+## 6. Referência Técnica por Módulo
+
+> **Descrições de produto e valor de negócio**: consultar `docs/FEATURES.md`.  
+> Esta seção documenta rotas, Server Actions, schema relevante e comportamentos técnicos específicos de cada módulo.
 
 ### 6.1 Landing Page (`/`)
 
@@ -772,6 +902,152 @@ Módulo gamificado de educação financeira baseado em pílulas de conhecimento.
 - Streak: calculado on-the-fly a partir das datas de conclusão (semanas com ≥ 1 pílula)
 
 **Nota técnica**: as queries de `PillProgress` usam `better-sqlite3` diretamente (`lib/db-pills.ts`) porque o Turbopack mantém cache compilado do client Prisma sem o modelo recém-adicionado. As operações CRUD de todos os outros modelos continuam via Prisma normalmente.
+
+---
+
+### 6.20 Reembolso Especial (`/km-reimbursement`)
+
+Módulo corporativo completo de controle de quilometragem. Adicionado em v1.10.0 (CS-17).
+
+#### Rotas
+
+| Rota | Componente | O que faz |
+|---|---|---|
+| `/km-reimbursement` | `PeriodList.tsx` | Histórico de períodos (abertos e enviados) + KPIs |
+| `/km-reimbursement/new` | `NewPeriodForm.tsx` | Formulário de nova solicitação |
+| `/km-reimbursement/[id]` | `PeriodDetail.tsx` | 4 abas: Trajetos, Combustível, Despesas, Resumo |
+| `/km-reimbursement/places` | `PlacesPage.tsx` | CRUD de lugares salvos com mapa |
+| `/km-reimbursement/settings` | `KmSettings.tsx` | Taxas de cálculo + dados do veículo |
+
+#### Server Actions (`app/actions/km-reimbursement.ts`)
+
+**Config:**
+- `getKmConfig()` → upsert default se não existir (userId é unique)
+- `saveKmConfig(data)` → atualiza taxas e dados do veículo
+
+**Períodos:**
+- `getKmPeriods()` → KmPeriod[] com `_count` de routes/receipts/expenses
+- `getKmPeriod(id)` → KmPeriod com routes, receipts, expenses incluídos
+- `createKmPeriod(data)` → cria e retorna o novo período
+- `deleteKmPeriod(id)` → cascade automático (Prisma cascade nas relações)
+- `recalcPeriod(id)` → recalcula todos os campos derivados e persiste (chamado após qualquer mutação nos filhos)
+
+**Trajetos:**
+- `createKmRoute(data)` → cria KmRoute → chama `recalcPeriod`
+- `updateKmRoute(id, data)` → atualiza → chama `recalcPeriod`
+- `deleteKmRoute(id)` → remove → chama `recalcPeriod`
+
+**Combustível:**
+- `createKmReceipt(data)` → cria KmReceipt → chama `recalcPeriod`
+- `deleteKmReceipt(id)` → remove → chama `recalcPeriod`
+
+**Despesas:**
+- `createKmExpense(data)` → cria KmExpense → chama `recalcPeriod`
+- `deleteKmExpense(id)` → remove → chama `recalcPeriod`
+
+**Fluxo de envio:**
+- `submitPeriod(id)` → muda status para "submitted", calcula D+5 dias úteis, cria Transaction, salva transactionId
+- `reopenPeriod(id)` → volta para "open", deleta Transaction, limpa submittedAt/expectedPayAt/transactionId
+
+**Lugares:**
+- `getKmPlaces()` → KmPlace[] do usuário
+- `createKmPlace(data)` → cria lugar salvo
+- `updateKmPlace(id, data)` → atualiza (incluindo routeGoing/routeReturn como JSON)
+- `deleteKmPlace(id)` → remove
+
+#### Fórmulas de cálculo
+
+```typescript
+// Preço médio ponderado de combustível
+fuelPriceAvg = Σ(receipt.totalAmount) / Σ(receipt.liters)
+// Exemplo: R$100 (15L) + R$80 (12L) = R$180 / 27L = R$6,67/L
+
+// Taxa por km
+ratePerKm = fuelPriceAvg × config.gasolineRate  // ou ethanolRate
+// Exemplo: R$6,67 × 0.25 = R$1,67/km
+
+// Valor da quilometragem
+kmAmount = totalKm × ratePerKm
+
+// Extra
+extraAmount = Σ(expense.amount)
+
+// Total geral
+grandTotal = kmAmount + extraAmount
+
+// Validação combustível (mínimo de notas)
+fuelTotal = Σ(receipt.totalAmount)
+minRequired = kmAmount × config.minFuelPct  // ex: kmAmount × 0.15
+isValid = fuelTotal >= minRequired
+```
+
+#### D+5 dias úteis
+
+```typescript
+function addBusinessDays(date: Date, days: number): Date {
+  let d = new Date(date);
+  let added = 0;
+  while (added < days) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) added++;
+    // 0 = domingo, 6 = sábado
+  }
+  return d;
+}
+// expectedPayAt = addBusinessDays(submittedAt, config.paymentDays)
+```
+
+#### Integração Google Maps
+
+**DirectionsService** (no browser, componente `RouteMap.tsx`):
+- `@react-google-maps/api` com `DirectionsService` + `DirectionsRenderer draggable={true}`
+- Ao selecionar origem/destino → DirectionsService busca rota → `route.legs[0].distance.value` em metros → dividido por 1000 → km
+- O usuário pode arrastar waypoints → km recalculado pelo evento `onDirectionsChanged`
+
+**Polyline para PDF** (`fetchDefaultPolyline` em `km-reimbursement.ts`):
+- Server-side: `fetch` para `https://maps.googleapis.com/maps/api/directions/json`
+- Parâmetros: `origin`, `destination`, `key: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+- Resposta: usa `data.routes[0].overview_polyline.points` (encoded polyline string)
+- **Gotcha crítico**: a API retorna `overview_polyline` (objeto com `.points`) e NÃO `overview_path` (array de LatLng). A key correta é `data.routes[0].overview_polyline.points`.
+- Se a API falha ou `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` não está configurada → retorna `null` → PDF gerado sem imagem de mapa
+- `NEXT_PUBLIC_*` vars requerem restart do servidor para ter efeito (embedded em build time)
+
+**KmPlace como fonte da verdade do polyline**:
+- Ao salvar um lugar via `updateKmPlace`, o polyline configurado no mapa é salvo em `routeGoing`/`routeReturn` como JSON stringify
+- Na geração do PDF, `PeriodPdf.tsx` usa o polyline do `KmRoute.polyline` se disponível; caso contrário chama `fetchDefaultPolyline(origin, destination)` como fallback
+- Isso significa que rotas configuradas via KmPlaces têm mapas mais fiéis no PDF do que rotas digitadas manualmente
+
+#### Geração do PDF (`components/km-reimbursement/PeriodPdf.tsx`)
+
+O PDF é gerado **server-side** via `@react-pdf/renderer` v4.5.1. Não usa o browser do usuário para renderizar — o React tree é renderizado em Node.js pelo servidor.
+
+**Arquitetura:**
+- `PeriodPdf.tsx` → componente React que retorna `<Document><Page>...</Page></Document>`
+- A rota de API (ou Server Action) chama `renderToBuffer(createElement(PeriodPdf, { period, routes, config }))` → retorna `Buffer` → enviado como `application/pdf`
+- `bodySizeLimit: "5mb"` configurado nas Server Actions para suportar PDFs com múltiplas imagens de mapa
+
+**Imagens de mapa no PDF:**
+- Para cada KmRoute, busca `fetchStaticMapImage(polyline)` → URL do Google Static Maps API com `path=enc:{polyline}`
+- Static Maps API retorna JPEG → `fetch` → `arrayBuffer` → converte para base64 → embeddado em `<Image src="data:image/jpeg;base64,..." />`
+- Base64 dentro do PDF funciona em react-pdf v4 (Image aceita data URI)
+
+**Tipografia (sem carregar fontes externas):**
+- Logo "Ly" + "fx": usa `Times-BoldItalic` (fonte built-in do PDF spec) — aproximação de Georgia Bold Italic sem dependency de arquivo de fonte
+- Corpo: fonte padrão (Helvetica)
+
+**Padrão de bolinhas no fundo:**
+- `DOT_POSITIONS` gerado uma única vez no nível do módulo (fora do componente) — `for` loop duplo para cada célula de 30pt × 30pt na página A4 (595 × 842pt)
+- Renderizado como `<Svg><Circle />...</Svg>` com `position: absolute, top: 0, left: 0` fixed → aparece em todas as páginas
+- Geração fora do componente evita recalcular a cada render do PDF
+
+**Mini-header nas páginas 2+:**
+- `<View fixed render={({ pageNumber }) => pageNumber > 1 ? <content /> : null} />`
+- O `render` prop é necessário pois `fixed` renderiza em todas as páginas — o condicional impede que apareça na página 1 (que tem o header completo)
+- `paddingTop: 56` na `<Page>` acomoda o mini-header sem sobrepor o conteúdo
+
+**`wrap={false}` no bloco de resumo:**
+- Evita que o bloco "Resumo" seja cortado entre páginas
+- Se não cabe na página atual, react-pdf quebra para a próxima página antes de começar o bloco
 
 ---
 
@@ -1405,6 +1681,221 @@ Usa o Agent Smith para auditar a action completePill
 | `master` (porta 4000) | `lyfx-production/prod.db` — dados reais do usuário |
 
 **Motivo**: banco compartilhado entre dev e produção criava risco de corrupção de dados (migrações de schema em `develop` afetariam produção imediatamente). O isolamento via `.env` gitignored é automático — merges nunca tocam o arquivo de configuração de nenhum ambiente, preservando o apontamento de banco de cada um indefinidamente.
+
+---
+
+## 10.1 Fórmulas e Cálculos Técnicos
+
+Referência de todas as fórmulas calculadas em memória (sem persistência de resultado, ou com resultado persistido após o cálculo). Importante para auditar e corrigir bugs de cálculo sem varrer o código.
+
+### Score de Saúde Financeira (`lib/health.ts` → `computeHealthScore`)
+
+```typescript
+// Dados de entrada:
+//   dre: DRESummary (mês atual)
+//   avgExpenses3m: média de despesas dos últimos 3 meses
+//   reserveAmount: settings.reserveBalance > 0 ? settings.reserveBalance : acumulado_debit_longterm
+
+// Dimensão Comprometimento (0–30 pts)
+committedRatio = dre.debits.committed / dre.credits.total  // ex: 0.40 = 40%
+committedScore = committedRatio <= 0.30 ? 30 : Math.max(0, 30 - (committedRatio - 0.30) * 100)
+
+// Dimensão Poupança (0–25 pts)
+savingsRatio = dre.saved / dre.credits.total  // saved = debit_longterm
+savingsScore = savingsRatio >= 0.20 ? 25 : (savingsRatio / 0.20) * 25
+
+// Dimensão Resultado (0–25 pts)
+netBalance = dre.margins.net  // receita - todas as despesas
+resultScore = netBalance <= 0 ? 0 : Math.min(25, (netBalance / dre.credits.total) * 100)
+
+// Dimensão Reserva (0–20 pts)
+reserveMonths = avgExpenses3m > 0 ? reserveAmount / avgExpenses3m : 0
+reserveScore = reserveMonths >= 6 ? 20 : (reserveMonths / 6) * 20
+
+// Score final
+totalScore = committedScore + savingsScore + resultScore + reserveScore  // 0–100
+
+// Perfis
+// 0–39  → "Em Recuperação"   (vermelho)
+// 40–59 → "Estabilizado"     (âmbar)
+// 60–79 → "Em Construção"    (cyan)
+// 80–100→ "Livre"            (verde)
+```
+
+### DRE em Cascata (`app/actions/transactions.ts` → `getDRESummary`)
+
+```typescript
+// Agrupamento por tipo de categoria:
+credits.fixed    = Σ(tx.amount WHERE type="credit" AND category="credit_fixed")
+credits.variable = Σ(tx.amount WHERE type="credit" AND category="credit_variable")
+credits.total    = credits.fixed + credits.variable
+
+debits.fixed       = Σ(tx.amount WHERE category="debit_fixed")
+debits.variable    = Σ(tx.amount WHERE category="debit_variable")
+debits.committed   = Σ(tx.amount WHERE category="debit_committed")
+debits.longterm    = Σ(tx.amount WHERE category="debit_longterm")
+debits.seasonal    = Σ(tx.amount WHERE category="debit_seasonal")
+debits.unexpected  = Σ(tx.amount WHERE category="debit_unexpected")
+debits.intentional = Σ(tx.amount WHERE category="debit_intentional")
+debits.total       = soma de todos os débitos
+
+// Margens
+margins.afterFixed     = credits.total - debits.fixed
+margins.afterVariable  = margins.afterFixed - debits.variable
+margins.afterCommitted = margins.afterVariable - debits.committed
+margins.net            = credits.total - debits.total
+
+// Campo derivado
+saved = debits.longterm  // atalho para KPI "Poupado" no dashboard
+```
+
+### Projeções (`app/actions/projections.ts` → `getProjections`)
+
+```typescript
+// Para cada mês M dos próximos 12:
+//   1. Filtrar transações recorrentes mensais onde:
+//      - recurrence = "monthly"
+//      - date.getDate() qualquer (o dia não muda)
+//      - recurrenceEndsAt is null OR recurrenceEndsAt >= início do mês M
+//   2. Filtrar transações recorrentes anuais onde:
+//      - recurrence = "yearly"
+//      - date.getMonth() === M.getMonth()  // mesmo mês do ano
+//   3. Filtrar parcelas onde:
+//      - installmentGroupId não-nulo
+//      - date está dentro do mês M
+//      - date >= hoje (parcelas passadas ignoradas)
+
+// Saldo projetado para M:
+projectedBalance[M] = Σ(income para M) - Σ(expenses para M)
+// income = type="credit", expense = type="debit"
+```
+
+### Metas — distribuição de cobranças (`app/actions/goals.ts` → `createGoal`)
+
+```typescript
+// Garante que a soma exata seja targetAmount:
+months = meses entre hoje e deadline (inclusivo)
+baseAmount = Math.floor((targetAmount / months) * 100) / 100  // centavos para baixo
+lastAmount = targetAmount - baseAmount * (months - 1)          // absorve resíduo
+
+// GoalPayment gerado para cada mês:
+for (let i = 0; i < months; i++) {
+  dueDate = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1)
+  amount = i === months - 1 ? lastAmount : baseAmount
+  // cria GoalPayment com goalId, dueDate, amount, paid=false
+}
+```
+
+### Amortização de passivos (`lib/liabilities.ts` → `monthsToPayoff`)
+
+```typescript
+function monthsToPayoff(balance: number, monthlyRate: number, payment: number): number {
+  if (payment <= balance * monthlyRate) return Infinity  // pagamento não cobre juros
+  // Fórmula de amortização:
+  return Math.ceil(
+    -Math.log(1 - (balance * monthlyRate) / payment) / Math.log(1 + monthlyRate)
+  )
+}
+// monthlyRate: taxa como decimal — ex: 5% a.m. → 0.05
+// Alerta "nunca quitado": payment <= balance * monthlyRate
+
+// Taxa anual equivalente (para exibição no alerta de passivo crítico):
+annualRate = Math.pow(1 + monthlyRate, 12) - 1
+// ex: 12% a.m. → (1.12)^12 - 1 ≈ 2.86 = 286% a.a.
+```
+
+### Provisão Sazonal (`components/fixed-expenses/FixedExpensesView.tsx` → `ProvisaoSazonal`)
+
+```typescript
+// Para cada despesa anual:
+today = new Date()
+nextOccurrence = new Date(expense.date.getFullYear(), expense.date.getMonth(), expense.date.getDate())
+if (nextOccurrence <= today) nextOccurrence.setFullYear(today.getFullYear() + 1)
+
+monthsRemaining = differenceInMonths(nextOccurrence, today) || 1  // mínimo 1 mês
+monthlyProvision = expense.amount / monthsRemaining
+
+// Urgência:
+urgency = monthsRemaining <= 2 ? "danger" : monthsRemaining <= 4 ? "warning" : "ok"
+```
+
+---
+
+## 10.2 Gotchas Técnicos Conhecidos
+
+Esta seção documenta problemas reais encontrados em desenvolvimento, com causa-raiz e solução definitiva. Consultar aqui antes de investigar problemas similares.
+
+### Prisma v7 — adapter obrigatório para SQLite
+
+**Sintoma**: `db.qualquerModelo.findMany()` falha com `Cannot read properties of undefined`.
+
+**Causa**: Prisma v7 removeu suporte nativo ao SQLite na datasource. O client precisa ser instanciado com `{ adapter: new PrismaBetterSqlite3(new BetterSqlite3(dbUrl)) }`.
+
+**Onde está**: `lib/db.ts`. Instanciação singleton via `const globalForPrisma = global as any; globalForPrisma.prisma ??= new PrismaClient({ adapter })`.
+
+**Após `db push`**: sempre rodar `npx prisma generate` — o client não reconhece modelos novos até ser regerado. O worktree de produção tem client separado e precisa de `generate` independente.
+
+### Turbopack — cache de módulos com `"use server"`
+
+**Sintoma**: novo modelo adicionado ao schema é reconhecido pelo Prisma em queries, mas componente cliente não o vê / `db.novoModelo` é undefined no servidor.
+
+**Causa**: Turbopack mantém cache compilado do bundle do client. `"use server"` modules são compilados separadamente e podem ter o client gerado antes do `prisma generate`.
+
+**Solução**: parar o servidor, rodar `npx prisma generate`, reiniciar. Se persistir, deletar `.next/` e reiniciar.
+
+**Caso especial `PillProgress`**: modelo adicionado em v1.5.0 exibiu esse problema. Resolvido usando `better-sqlite3` diretamente em `lib/db-pills.ts` (sem Prisma) para as queries de `PillProgress`.
+
+### `NEXT_PUBLIC_*` vars não recarregadas em runtime
+
+**Sintoma**: variável existe no `.env` mas continua `undefined` no código mesmo após adicionar.
+
+**Causa**: `NEXT_PUBLIC_*` são embedded em tempo de build/start — não são lidas em runtime. Adicionar ao `.env` não tem efeito sem reiniciar o servidor (`npm run dev`).
+
+**Afeta**: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — adicionada ao `.env` de produção mas requerendo restart para ter efeito.
+
+### Google Maps — `overview_polyline.points` vs `overview_path`
+
+**Sintoma**: PDF gerado sem mapa de rota, mesmo com API key configurada.
+
+**Causa**: confusão entre os dois campos da response da Directions API:
+- `routes[0].overview_polyline` → objeto com `.points` (encoded polyline string) ✅ correto
+- `routes[0].overview_path` → array de `LatLng` ❌ não existe na REST API; existe no JS SDK client-side
+
+**Onde está o fix**: `fetchDefaultPolyline` em `app/actions/km-reimbursement.ts` usa `data.routes[0].overview_polyline.points`.
+
+### `deleteMany` vs `delete` para deleção com userId
+
+**Sintoma**: deleção via `db.model.delete({ where: { id, userId } })` não está protegendo corretamente contra IDOR.
+
+**Causa**: `delete()` do Prisma só aceita campos que fazem parte da PK no `where`. Para modelos com PK = `id`, o `userId` no `where` é **silenciosamente ignorado**. Qualquer usuário que souber o `id` pode deletar o registro de outro usuário.
+
+**Solução**: usar `deleteMany({ where: { id, userId } })` — o `deleteMany` aceita qualquer campo no `where` e retorna `{ count: 0 }` se o registro não pertence ao usuário (sem erro, mas sem deleção).
+
+**Auditoria v1.3.1**: todos os Server Actions foram revisados para usar `deleteMany` com `userId`.
+
+### bodySizeLimit nas Server Actions
+
+**Sintoma**: upload de PDF ou avatar grande retorna `413 Payload Too Large`.
+
+**Causa**: Next.js tem limite padrão de 1MB em Server Actions (body do POST).
+
+**Solução**: em `next.config.ts`:
+```typescript
+experimental: {
+  serverActions: {
+    bodySizeLimit: "5mb"
+  }
+}
+```
+Necessário para PDFs com múltiplas imagens de mapa embutidas em base64.
+
+### Cookie path no logout do Studio
+
+**Sintoma**: logout do Studio não remove o cookie `lyfx_admin`; cookie persiste após logout.
+
+**Causa**: ao criar o cookie com `path: "/studio"`, a deleção também deve especificar `path: "/studio"`. Se deletar sem `path`, o browser procura o cookie no `path: "/"` (que não existe) e não encontra nada para deletar.
+
+**Onde está**: `app/studio/actions.ts` → `adminLogout()` especifica `path: "/studio"` na deleção de `lyfx_admin` e `path: "/"` na deleção de `lyfx_session`.
 
 ---
 

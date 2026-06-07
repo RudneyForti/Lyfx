@@ -2,20 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
+import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
-import {
-  selectPillProgress,
-  selectPillExists,
-  insertPillProgress,
-  selectCompletedDates,
-} from "@/lib/db-pills";
 import type { PillProgressRecord, StreakData, WeekData } from "@/lib/pills";
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 export async function getPillProgress(): Promise<PillProgressRecord[]> {
   const userId = await requireAuth();
-  const rows = await selectPillProgress(userId);
+  // [CS-30] Usa db.pillProgress diretamente — lib/db-pills.ts removido
+  const rows = await db.pillProgress.findMany({
+    where: { userId },
+    orderBy: { completedAt: "asc" },
+  });
   return rows.map((r) => ({
     pillId: r.pillId,
     profile: r.profile,
@@ -35,17 +34,22 @@ export async function completePill(data: {
 }): Promise<{ alreadyCompleted: boolean }> {
   const userId = await requireAuth();
 
-  const alreadyCompleted = await selectPillExists(userId, data.pillId);
+  const existing = await db.pillProgress.findUnique({
+    where: { userId_pillId: { userId, pillId: data.pillId } },
+  });
+  const alreadyCompleted = !!existing;
 
   if (!alreadyCompleted) {
-    await insertPillProgress({
-      id: randomUUID(),
-      userId,
-      pillId: data.pillId,
-      profile: data.profile,
-      completedAt: new Date().toISOString(),
-      timeSpentSeconds: data.timeSpentSeconds,
-      quizCorrect: data.quizCorrect,
+    await db.pillProgress.create({
+      data: {
+        id: randomUUID(),
+        userId,
+        pillId: data.pillId,
+        profile: data.profile,
+        completedAt: new Date(),
+        timeSpentSeconds: data.timeSpentSeconds,
+        quizCorrect: data.quizCorrect,
+      },
     });
     revalidatePath("/education");
   }
@@ -57,8 +61,11 @@ export async function completePill(data: {
 
 export async function getStreakData(): Promise<StreakData> {
   const userId = await requireAuth();
-  const dates = await selectCompletedDates(userId);
-  const completedDates = dates.map((d) => new Date(d));
+  const rows = await db.pillProgress.findMany({
+    where: { userId },
+    select: { completedAt: true },
+  });
+  const completedDates = rows.map((r) => new Date(r.completedAt));
 
   const now = new Date();
   const weekHistory: WeekData[] = [];

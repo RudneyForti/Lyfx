@@ -10,13 +10,16 @@ const INCLUDE_TAGS = {
   tags: { include: { tag: true } },
 } as const;
 
-function mapTx(tx: any): Transaction {
+// [CS-29] Tipo inferido do resultado do findMany com INCLUDE_TAGS — elimina any
+type TxWithTags = Awaited<ReturnType<typeof db.transaction.findMany<{ include: typeof INCLUDE_TAGS }>>>[number];
+
+function mapTx(tx: TxWithTags): Transaction {
   return {
     ...tx,
     type: tx.type as TransactionType,
     category: tx.category as TransactionCategory,
     recurrence: tx.recurrence as Recurrence,
-    tags: tx.tags?.map((tt: any) => tt.tag) ?? [],
+    tags: tx.tags?.map((tt) => tt.tag) ?? [],
   };
 }
 
@@ -34,22 +37,27 @@ export async function createTransaction(data: {
   reimbursable?: boolean;
   accountId?: string;
   tagIds?: string[];
-}) {
-  const userId = await requireAuth();
-  const { tagIds, recurrenceEndsAt, ...rest } = data;
-  await db.transaction.create({
-    data: {
-      ...rest,
-      userId,
-      date: new Date(rest.date),
-      recurrenceEndsAt: recurrenceEndsAt ? new Date(recurrenceEndsAt) : undefined,
-      tags: tagIds?.length
-        ? { create: tagIds.map((tagId) => ({ tagId })) }
-        : undefined,
-    },
-  });
-  revalidatePath("/dashboard");
-  revalidatePath("/transactions");
+}): Promise<{ ok: true } | { error: string }> {
+  try {
+    const userId = await requireAuth();
+    const { tagIds, recurrenceEndsAt, ...rest } = data;
+    await db.transaction.create({
+      data: {
+        ...rest,
+        userId,
+        date: new Date(rest.date),
+        recurrenceEndsAt: recurrenceEndsAt ? new Date(recurrenceEndsAt) : undefined,
+        tags: tagIds?.length
+          ? { create: tagIds.map((tagId) => ({ tagId })) }
+          : undefined,
+      },
+    });
+    revalidatePath("/dashboard");
+    revalidatePath("/transactions");
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao criar transação." };
+  }
 }
 
 export async function getTransactions(params?: {
@@ -89,23 +97,28 @@ export async function updateTransaction(
     reimbursable?: boolean;
     tagIds?: string[];
   }
-) {
-  const userId = await requireAuth();
-  const { tagIds, ...rest } = data;
-  await db.transaction.update({
-    where: { id, userId },
-    data: {
-      ...rest,
-      date: new Date(rest.date),
-      tags:
-        tagIds !== undefined
-          ? { deleteMany: {}, create: tagIds.map((tagId) => ({ tagId })) }
-          : undefined,
-    },
-  });
-  revalidatePath("/dashboard");
-  revalidatePath("/transactions");
-  revalidatePath("/planning");
+): Promise<{ ok: true } | { error: string }> {
+  try {
+    const userId = await requireAuth();
+    const { tagIds, ...rest } = data;
+    await db.transaction.update({
+      where: { id, userId },
+      data: {
+        ...rest,
+        date: new Date(rest.date),
+        tags:
+          tagIds !== undefined
+            ? { deleteMany: {}, create: tagIds.map((tagId) => ({ tagId })) }
+            : undefined,
+      },
+    });
+    revalidatePath("/dashboard");
+    revalidatePath("/transactions");
+    revalidatePath("/planning");
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao atualizar transação." };
+  }
 }
 
 export async function updateFutureInstallments(
@@ -154,23 +167,33 @@ export async function updateFutureInstallments(
   revalidatePath("/projections");
 }
 
-export async function deleteTransaction(id: string) {
-  const userId = await requireAuth();
-  // [FIX B-2] Use deleteMany — delete() ignores non-PK fields in where
-  await db.transaction.deleteMany({ where: { id, userId } });
-  revalidatePath("/dashboard");
-  revalidatePath("/transactions");
-  revalidatePath("/planning");
-  revalidatePath("/projections");
+export async function deleteTransaction(id: string): Promise<{ ok: true } | { error: string }> {
+  try {
+    const userId = await requireAuth();
+    // [FIX B-2] Use deleteMany — delete() ignores non-PK fields in where
+    await db.transaction.deleteMany({ where: { id, userId } });
+    revalidatePath("/dashboard");
+    revalidatePath("/transactions");
+    revalidatePath("/planning");
+    revalidatePath("/projections");
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao excluir transação." };
+  }
 }
 
-export async function deleteInstallmentGroup(groupId: string) {
-  const userId = await requireAuth();
-  await db.transaction.deleteMany({ where: { installmentGroupId: groupId, userId } });
-  revalidatePath("/dashboard");
-  revalidatePath("/transactions");
-  revalidatePath("/planning");
-  revalidatePath("/projections");
+export async function deleteInstallmentGroup(groupId: string): Promise<{ ok: true } | { error: string }> {
+  try {
+    const userId = await requireAuth();
+    await db.transaction.deleteMany({ where: { installmentGroupId: groupId, userId } });
+    revalidatePath("/dashboard");
+    revalidatePath("/transactions");
+    revalidatePath("/planning");
+    revalidatePath("/projections");
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao excluir parcelas." };
+  }
 }
 
 export async function createInstallments(data: {

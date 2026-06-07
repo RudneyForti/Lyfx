@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { getSessionUserId } from "@/lib/session";
+import { requireAuth } from "@/lib/session";
 
+// [CS-29] requireUser local busca o objeto User completo (necessário para changePassword).
+// Usa requireAuth() internamente em vez de getSessionUserId diretamente.
 async function requireUser() {
-  const userId = await getSessionUserId();
-  if (!userId) throw new Error("Não autenticado.");
+  const userId = await requireAuth();
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("Usuário não encontrado.");
   return user;
