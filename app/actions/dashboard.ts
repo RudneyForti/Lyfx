@@ -4,8 +4,7 @@ import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { getDRESummary } from "./transactions";
 import { getHealthData } from "./health";
-
-const PT_MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+import { PT_MONTHS } from "@/lib/i18n";
 
 export async function getDashboardData(month: number, year: number) {
   const userId = await requireAuth();

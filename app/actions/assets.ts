@@ -1,14 +1,8 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { getSessionUserId } from "@/lib/session";
-
-async function requireUser() {
-  const userId = await getSessionUserId();
-  if (!userId) throw new Error("Não autenticado.");
-  return userId;
-}
+import { requireAuth } from "@/lib/session";
 
 // [FIX M-1] Parse Brazilian decimal format: "1.234,56" → 1234.56
 function parseBR(v: string | number | null | undefined): number | null {
@@ -22,7 +16,7 @@ function parseBR(v: string | number | null | undefined): number | null {
 const INCLUDE_EXPENSES = { expenses: { orderBy: { dueDate: "asc" as const } } };
 
 export async function getAssets() {
-  const userId = await requireUser();
+  const userId = await requireAuth();
   return db.asset.findMany({
     where: { userId },
     include: INCLUDE_EXPENSES,
@@ -31,7 +25,7 @@ export async function getAssets() {
 }
 
 export async function getAssetsSummary() {
-  const userId = await requireUser();
+  const userId = await requireAuth();
   const assets = await db.asset.findMany({
     where: { userId },
     include: { expenses: true },
@@ -57,7 +51,7 @@ export async function createAsset(data: {
   purchaseDate?: string | null;
   notes?: string | null;
 }) {
-  const userId = await requireUser();
+  const userId = await requireAuth();
   const asset = await db.asset.create({
     data: {
       userId,
@@ -92,7 +86,7 @@ export async function updateAsset(id: string, data: {
   purchaseDate?: string | null;
   notes?: string | null;
 }) {
-  const userId = await requireUser();
+  const userId = await requireAuth();
   await db.asset.updateMany({
     where: { id, userId },
     data: {
@@ -109,7 +103,7 @@ export async function updateAsset(id: string, data: {
 }
 
 export async function deleteAsset(id: string) {
-  const userId = await requireUser();
+  const userId = await requireAuth();
   await db.asset.deleteMany({ where: { id, userId } });
   revalidatePath("/assets");
   revalidatePath("/dashboard");
@@ -125,7 +119,7 @@ export async function createAssetExpense(data: {
   dueDate?: string | null;
   notes?: string | null;
 }) {
-  const userId = await requireUser();
+  const userId = await requireAuth();
   // [FIX B-5] Verify the asset belongs to this user before adding expense
   const asset = await db.asset.findFirst({ where: { id: data.assetId, userId } });
   if (!asset) throw new Error("Bem não encontrado.");
@@ -151,7 +145,7 @@ export async function updateAssetExpense(id: string, data: {
   dueDate?: string | null;
   notes?: string | null;
 }) {
-  const userId = await requireUser();
+  const userId = await requireAuth();
   await db.assetExpense.updateMany({
     where: { id, userId },
     data: {
@@ -165,7 +159,7 @@ export async function updateAssetExpense(id: string, data: {
 }
 
 export async function toggleExpensePaid(id: string, paid: boolean) {
-  const userId = await requireUser();
+  const userId = await requireAuth();
   await db.assetExpense.updateMany({
     where: { id, userId },
     data: { paid, paidAt: paid ? new Date() : null },
@@ -174,7 +168,7 @@ export async function toggleExpensePaid(id: string, paid: boolean) {
 }
 
 export async function deleteAssetExpense(id: string) {
-  const userId = await requireUser();
+  const userId = await requireAuth();
   await db.assetExpense.deleteMany({ where: { id, userId } });
   revalidatePath("/assets");
 }
