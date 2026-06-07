@@ -1,5 +1,5 @@
 # Lyfx — Produção (master / porta 4000)
-# Uso: docker compose up -d | docker compose down | docker compose logs -f
+# Uso: docker compose up -d | docker compose down | docker compose logs -f | docker compose ps
 
 services:
   lyfx:
@@ -12,3 +12,9 @@ services:
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"  # resolve host no Linux; no-op no Windows/Mac
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s   # tempo para o Next.js standalone iniciar
