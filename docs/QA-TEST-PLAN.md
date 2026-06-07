@@ -1,4 +1,9 @@
 # Lyfx — Plano de Testes v1.5.0
+
+> **⚠️ DESATUALIZADO — Este plano cobre até v1.5.0 (22/05/2026).**
+> Módulos não cobertos: Reembolso Especial (CS-17), Central de Notificações (CS-18/CS-19), Studio G2 (v1.8.0).
+> **Regenerar com Agent Smith antes do próximo ciclo de QA completo.** Usar como base para delta de v1.5.0 → v1.10.0.
+
 > Casos de teste executáveis · Gerado em 22/05/2026
 > Baseado em análise do Agent Smith (QA Specialist) · Myers · WAHH · Hendrickson · Kaner
 
