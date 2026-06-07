@@ -42,9 +42,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# ⚠️  Gotcha Prisma + standalone: o tracing do Next.js não inclui
-#     automaticamente o client gerado (.prisma/client). Copiar explicitamente.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+# ⚠️  Gotcha Prisma v7 + standalone: o client é gerado em lib/generated/prisma
+#     (não em node_modules/.prisma como nas versões anteriores). Copiar explicitamente
+#     pois o tracing do Next.js não inclui arquivos gerados dinamicamente.
+COPY --from=builder --chown=nextjs:nodejs /app/lib/generated/prisma ./lib/generated/prisma
 
 USER nextjs
 

@@ -1911,9 +1911,9 @@ Necessário para PDFs com múltiplas imagens de mapa embutidas em base64.
 
 **Causa**: o tracing automático do Next.js standalone (`outputFileTracingIncludes`) não inclui os arquivos gerados pelo `npx prisma generate` em `node_modules/.prisma/client`. O standalone captura apenas importações estáticas — o Prisma client é carregado dinamicamente em runtime.
 
-**Solução**: no `Dockerfile`, após copiar `.next/standalone`, copiar o diretório gerado explicitamente:
+**Solução**: no `Dockerfile`, após copiar `.next/standalone`, copiar o diretório gerado explicitamente. **Atenção ao caminho:** no Prisma v7, o client é gerado em `lib/generated/prisma` (não em `node_modules/.prisma` como nas versões anteriores):
 ```dockerfile
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/lib/generated/prisma ./lib/generated/prisma
 ```
 
 **Onde está**: `Dockerfile` (stage runner, linhas após `COPY .next/static`).
