@@ -261,7 +261,7 @@ model Notification {
   @@index([broadcastId])
 }
 
-// ── CS-17: Reembolso KM ───────────────────────────────────────────────────────
+// ── CS-17: Reembolso Especial ─────────────────────────────────────────────────
 
 model KmConfig {
   id           String   @id @default(cuid())

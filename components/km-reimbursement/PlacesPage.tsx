@@ -396,7 +396,7 @@ export function PlacesPage({ places }: { places: KmPlaceData[] }) {
           Voltar para histórico
         </Link>
         <div className="text-[9px] font-bold tracking-[2.5px] uppercase text-[var(--color-cyan)] mb-2 flex items-center gap-2 after:content-[''] after:w-8 after:h-px after:bg-[var(--color-cyan-border)]">
-          Reembolso KM
+          Reembolso Especial
         </div>
         <div className="flex items-end justify-between gap-4">
           <div>
