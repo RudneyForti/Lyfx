@@ -1,0 +1,14 @@
+# Lyfx — Produção (master / porta 4000)
+# Uso: docker compose up -d | docker compose down | docker compose logs -f
+
+services:
+  lyfx:
+    build: .
+    container_name: lyfx-prod
+    ports:
+      - "4000:3000"      # host:container
+    env_file:
+      - .env             # DATABASE_URL deve usar host.docker.internal, não localhost
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # resolve host no Linux; no-op no Windows/Mac
