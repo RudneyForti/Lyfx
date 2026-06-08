@@ -6,7 +6,8 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, setAppConfig, saveAdminNotes, adminSendNotification, adminGetManualNotifications, adminDeleteNotification, adminUpdateNotification, adminGetEventLog, getServerMetrics, getAdminSecurityLog } from "./actions";
-import type { LiveSchema, AppConfigEntry, NotifBroadcast, AuditEvent, ServerMetrics, AdminSecurityEvent } from "./actions";
+import type { LiveSchema, AppConfigEntry, NotifBroadcast, AuditEvent, ServerMetrics, AdminSecurityEvent, KanbanBoard } from "./actions";
+import { KanbanBoard as KanbanBoardComponent } from "@/components/studio/KanbanBoard";
 import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan, ensureInsiderPlan, migrateAndDeletePlan } from "@/app/actions/plans";
 import { ALL_MODULES } from "@/lib/modules";
 import {
@@ -15,6 +16,7 @@ import {
   IconFileDescription, IconUserPlus, IconFilter, IconPackage, IconPlus, IconEdit,
   IconCheck, IconZoomIn, IconApps, IconAdjustments, IconPencil, IconStar, IconBell, IconSend,
   IconShieldCheck, IconShieldX, IconShieldExclamation, IconShieldLock, IconRefresh,
+  IconLayoutKanban,
 } from "@tabler/icons-react";
 
 /* ── Login gate ── */
@@ -121,8 +123,8 @@ function LogoutButton() {
 type StudioData = Awaited<ReturnType<typeof import("./actions").getStudioData>>;
 type PlanItem = StudioData["plans"][number];
 
-export function StudioMain({ data, docs, liveSchema, appConfig }: { data: StudioData; docs: string; liveSchema: LiveSchema; appConfig: AppConfigEntry[] }) {
-  const [tab, setTab] = useState<"schema" | "users" | "plans" | "modules" | "panel" | "notes" | "data" | "docs" | "notifications" | "security">("panel");
+export function StudioMain({ data, docs, liveSchema, appConfig, kanbanBoard }: { data: StudioData; docs: string; liveSchema: LiveSchema; appConfig: AppConfigEntry[]; kanbanBoard: KanbanBoard }) {
+  const [tab, setTab] = useState<"schema" | "users" | "plans" | "modules" | "panel" | "notes" | "data" | "docs" | "notifications" | "security" | "roadmap">("panel");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
 
@@ -133,6 +135,7 @@ export function StudioMain({ data, docs, liveSchema, appConfig }: { data: Studio
     { key: "modules",       label: "Módulos",        icon: <IconApps size={14} /> },
     { key: "notifications", label: "Notificações",   icon: <IconBell size={14} /> },
     { key: "security",      label: "Segurança",      icon: <IconShieldCheck size={14} /> },
+    { key: "roadmap",       label: "Roadmap",        icon: <IconLayoutKanban size={14} /> },
     { key: "notes",         label: "Notas",          icon: <IconPencil size={14} /> },
     { key: "data",          label: "Dados",          icon: <IconTable size={14} /> },
     { key: "schema",        label: "Schema",         icon: <IconDatabase size={14} /> },
@@ -182,7 +185,7 @@ export function StudioMain({ data, docs, liveSchema, appConfig }: { data: Studio
       </div>
 
       {/* Content */}
-      <div style={{ padding: tab === "docs" || tab === "notes" ? 0 : 28, maxWidth: tab === "docs" || tab === "schema" || tab === "notes" || tab === "panel" ? "none" : 900 }}>
+      <div style={{ padding: tab === "docs" || tab === "notes" ? 0 : 28, maxWidth: tab === "docs" || tab === "schema" || tab === "notes" || tab === "panel" || tab === "roadmap" ? "none" : 900 }}>
         {tab === "schema"        && <SchemaTab expanded={expanded} setExpanded={setExpanded} liveSchema={liveSchema} />}
         {tab === "users"         && <UsersTab users={data.users} plans={data.plans} />}
         {tab === "plans"         && <PlansTab plans={data.plans} users={data.users} />}
@@ -190,6 +193,7 @@ export function StudioMain({ data, docs, liveSchema, appConfig }: { data: Studio
         {tab === "panel"         && <ControlPanelTab appConfig={appConfig} data={data} />}
         {tab === "notifications" && <NotificationsTab users={data.users} plans={data.plans} />}
         {tab === "security"      && <SecurityTab users={data.users} />}
+        {tab === "roadmap"       && <KanbanBoardComponent initialBoard={kanbanBoard} />}
         {tab === "notes"         && <NotesTab appConfig={appConfig} />}
         {tab === "data"          && <DataTab data={data} />}
         {tab === "docs"          && <DocsTab content={docs} />}

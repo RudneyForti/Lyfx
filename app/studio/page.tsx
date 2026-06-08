@@ -1,4 +1,4 @@
-import { getAdminSession, getStudioData, getDocumentation, getLiveSchema, getAppConfig } from "./actions";
+import { getAdminSession, getStudioData, getDocumentation, getLiveSchema, getAppConfig, getKanbanBoard } from "./actions";
 import { StudioLoginForm, StudioMain } from "./StudioClient";
 
 export const dynamic = "force-dynamic";
@@ -10,11 +10,12 @@ export default async function StudioPage() {
     return <StudioLoginForm />;
   }
 
-  const [data, docs, liveSchema, appConfig] = await Promise.all([
+  const [data, docs, liveSchema, appConfig, kanbanBoard] = await Promise.all([
     getStudioData(),
     getDocumentation(),
     getLiveSchema(),
     getAppConfig(),
+    getKanbanBoard(),
   ]);
-  return <StudioMain data={data} docs={docs} liveSchema={liveSchema} appConfig={appConfig} />;
+  return <StudioMain data={data} docs={docs} liveSchema={liveSchema} appConfig={appConfig} kanbanBoard={kanbanBoard} />;
 }
