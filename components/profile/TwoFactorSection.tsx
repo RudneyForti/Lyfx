@@ -106,7 +106,7 @@ function SetupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
   useEffect(() => {
     start(async () => {
       const res = await initTwoFactorSetup();
-      if ("error" in res) { setError(res.error as string); setStep("qr"); return; }
+      if ("error" in res) { setError(res.error ?? ""); setStep("qr"); return; }
       setQrUrl(res.qrCodeUrl);
       setSecret(res.secret);
       setStep("qr");
@@ -122,7 +122,7 @@ function SetupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
     setError("");
     start(async () => {
       const res = await confirmTwoFactorSetup(code);
-      if ("error" in res) { setError(res.error); return; }
+      if ("error" in res) { setError(res.error ?? ""); return; }
       setBackupCodes(res.backupCodes);
       setStep("backup");
     });
@@ -285,7 +285,7 @@ function DisableModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
     setError("");
     start(async () => {
       const res = await disableTwoFactor(code);
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error ?? ""); return; }
       onSuccess();
       onClose();
     });
@@ -350,7 +350,7 @@ function RegenModal({ onClose }: { onClose: () => void }) {
     setError("");
     start(async () => {
       const res = await regenerateBackupCodes(code);
-      if ("error" in res) { setError(res.error); return; }
+      if ("error" in res) { setError(res.error ?? ""); return; }
       setBackupCodes(res.backupCodes);
     });
   }
