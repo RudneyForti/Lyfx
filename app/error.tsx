@@ -10,9 +10,16 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Logar o erro sem expor detalhes ao usuário
     console.error("[Lyfx] Erro inesperado:", error.digest ?? "sem digest");
   }, [error]);
+
+  const gradientText = {
+    fontFamily: "var(--font-display)",
+    background: "linear-gradient(135deg, #f87171 0%, rgba(248,113,113,0.45) 100%)",
+    WebkitBackgroundClip: "text" as const,
+    WebkitTextFillColor: "transparent" as const,
+    backgroundClip: "text" as const,
+  };
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center p-6">
@@ -25,7 +32,7 @@ export default function GlobalError({
         }}
       />
 
-      {/* Brilho difuso vermelho atrás da expressão */}
+      {/* Brilho difuso vermelho */}
       <div
         className="pointer-events-none fixed inset-0"
         style={{
@@ -34,56 +41,41 @@ export default function GlobalError({
         }}
       />
 
-      <div className="relative z-10 text-center max-w-md flex flex-col items-center gap-6">
+      <div className="relative z-10 text-center max-w-xs flex flex-col items-center gap-8">
+
         {/* Logotipo */}
-        <div className="font-[family-name:var(--font-display)] italic text-[22px] font-bold text-[var(--color-f1)] leading-none mb-2">
+        <div className="font-[family-name:var(--font-display)] italic text-[22px] font-bold text-[var(--color-f1)] leading-none">
           Ly<span className="text-[var(--color-cyan)]">fx</span>
         </div>
 
         {/* Expressão matemática principal */}
-        <div className="flex flex-col items-center gap-1">
-          {/* lim f(t) numa linha, t→0 subscrito após f(t) */}
-          <div className="flex items-baseline gap-4">
-            {/* lim */}
-            <span
-              className="text-[88px] font-bold tracking-tight leading-none"
-              style={{
-                fontFamily: "var(--font-display)",
-                background: "linear-gradient(135deg, #f87171 0%, rgba(248,113,113,0.45) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              lim
-            </span>
+        <div className="flex flex-col items-center gap-3">
 
-            {/* f(t) + t→0 subscrito */}
-            <div className="flex items-end leading-none">
-              <span
-                className="text-[88px] font-bold tracking-tight leading-none"
-                style={{
-                  fontFamily: "var(--font-display)",
-                  background: "linear-gradient(135deg, #f87171 0%, rgba(248,113,113,0.45) 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
-              >
-                f(t)
+          {/* lim com t→0 subscrito + f(t) alinhado */}
+          <div className="flex items-end gap-4">
+
+            {/* bloco lim / t→0 */}
+            <div className="flex flex-col items-center leading-none">
+              <span className="text-[88px] font-bold tracking-tight leading-none" style={gradientText}>
+                lim
               </span>
               <span
-                className="text-[20px] font-medium leading-none mb-2"
-                style={{ fontFamily: "var(--font-display)", color: "#f87171cc" }}
+                className="text-[17px] font-medium leading-none mt-1"
+                style={{ fontFamily: "var(--font-display)", color: "#f87171bb" }}
               >
-                t→0
+                t → 0
               </span>
             </div>
+
+            {/* f(t) — mb compensa a altura do subscrito para alinhar com lim */}
+            <span className="text-[88px] font-bold tracking-tight leading-none mb-[26px]" style={gradientText}>
+              f(t)
+            </span>
           </div>
 
-          {/* separador = */}
+          {/* = */}
           <div
-            className="text-[32px] leading-none text-[var(--color-f4)] -my-1"
+            className="text-[32px] leading-none text-[var(--color-f4)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             =
@@ -117,7 +109,7 @@ export default function GlobalError({
         </div>
 
         {/* Ações */}
-        <div className="flex gap-3 mt-2">
+        <div className="flex gap-3">
           <button
             onClick={reset}
             className="h-[40px] px-6 rounded-pill bg-[var(--color-cyan)] text-[var(--color-bg)] text-[13px] font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer"
