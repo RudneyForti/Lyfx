@@ -45,7 +45,7 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const rawCookie = request.cookies.get("lyfx_session")?.value;
 
-  const publicPaths = ["/", "/login", "/studio", "/api/clear-session"];
+  const publicPaths = ["/", "/login", "/studio", "/api/clear-session", "/api/auth"];
   const isPublic = publicPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
 
   // Validar HMAC — cookie existente mas com assinatura inválida é tratado como ausente
