@@ -684,6 +684,16 @@
       "labels": ["bug", "hydration", "qa"],
       "version": "1.15.0",
       "completedAt": "2026-06-08T11:00:00.000Z"
+    },
+    {
+      "id": "cs-42",
+      "columnId": "done",
+      "csNumber": "CS-42",
+      "title": "GoalsView — hydration mismatch no display de meses das parcelas + pluralização e preview incorretos",
+      "description": "BUG encontrado no QA v1.14.0 (M-03 test): GoalsView.tsx usava getMonth()/getFullYear() (timezone local) para exibir o mês das parcelas de metas, causando hydration mismatch (server='Ago' vs client='Jul'). Raiz: datas de pagamento armazenadas como UTC midnight (e.g. 2026-08-01T00:00:00Z) → UTC-3 client deslocava 1 mês atrás. Correções: (1) linha 240: getUTCMonth()/getUTCFullYear(); (2) linha 50: getUTCMonth()/getUTCFullYear() no cálculo de meses do preview — alinhando com o cálculo do server action; (3) linha 124: pluralização corrigida '{months} meses' → '{months} {months===1?\"mês\":\"meses\"}'; (4) targetAmount inicializa com '10000' ao invés de '' para evitar falso 'Valor inválido' ao deixar campo sem tocar.",
+      "labels": ["bug", "hydration", "ux", "qa"],
+      "version": "1.15.0",
+      "completedAt": "2026-06-08T14:00:00.000Z"
     }
   ]
 }
