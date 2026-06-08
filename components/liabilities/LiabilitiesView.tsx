@@ -21,6 +21,7 @@ import {
   IconTrendingDown,
   IconChevronDown,
   IconChevronUp,
+  IconArrowBack,
 } from "@tabler/icons-react";
 
 function fmt(v: number) {
@@ -413,20 +414,31 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [markingPaid, setMarkingPaid] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
 
   const isActive = liability.status === "active";
   const monthlyInterest = liability.currentBalance * (liability.interestRate / 100);
 
   function handleDelete() {
-    if (!confirm(`Excluir "${liability.name}"? Esta ação não pode ser desfeita.`)) return;
+    // CS-45b: window.confirm() removido — confirmação inline
+    setConfirmingDelete(false);
     startTransition(() => deleteLiability(liability.id));
   }
 
   function handleMarkPaid() {
-    if (!confirm(`Marcar "${liability.name}" como quitada?`)) return;
+    // CS-45b: window.confirm() removido — confirmação já feita pelo inline ActionBar (setMarkingPaid)
     setMarkingPaid(false);
     startTransition(async () => {
       await updateLiability(liability.id, { status: "paid_off" });
+    });
+  }
+
+  function handleReactivate() {
+    // CS-46: reativar passivo quitado — confirmação inline
+    setReactivating(false);
+    startTransition(async () => {
+      await updateLiability(liability.id, { status: "active" });
     });
   }
 
@@ -510,6 +522,30 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {!isActive && (
+              <button
+                onClick={() => setReactivating(true)}
+                disabled={isPending}
+                title="Reativar"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--color-f4)",
+                  cursor: "pointer",
+                  padding: 4,
+                  borderRadius: 6,
+                  display: "flex",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = "var(--color-amber)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = "var(--color-f4)")
+                }
+              >
+                <IconArrowBack size={14} />
+              </button>
+            )}
             {isActive && (
               <>
                 <button
@@ -559,7 +595,7 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
               </>
             )}
             <button
-              onClick={handleDelete}
+              onClick={() => setConfirmingDelete(true)}
               disabled={isPending}
               title="Excluir"
               style={{
@@ -744,6 +780,108 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
             </button>
             <button
               onClick={() => setMarkingPaid(false)}
+              style={{
+                padding: "4px 8px",
+                borderRadius: 6,
+                background: "none",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-f4)",
+                fontSize: 11,
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+
+        {/* CS-45b: Delete confirmation — inline ActionBar, sem window.confirm() */}
+        {confirmingDelete && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: "10px 14px",
+              borderRadius: 12,
+              background: "rgba(248,113,113,0.06)",
+              border: "1px solid rgba(248,113,113,0.2)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              fontSize: 12,
+            }}
+          >
+            <span style={{ flex: 1, color: "var(--color-f2)" }}>
+              Excluir "{liability.name}"? Esta ação não pode ser desfeita.
+            </span>
+            <button
+              onClick={handleDelete}
+              disabled={isPending}
+              style={{
+                padding: "4px 12px",
+                borderRadius: 6,
+                background: "rgba(248,113,113,0.15)",
+                border: "1px solid rgba(248,113,113,0.3)",
+                color: "var(--color-red)",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Excluir
+            </button>
+            <button
+              onClick={() => setConfirmingDelete(false)}
+              style={{
+                padding: "4px 8px",
+                borderRadius: 6,
+                background: "none",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-f4)",
+                fontSize: 11,
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+
+        {/* CS-46: Reactivation confirmation — inline ActionBar */}
+        {reactivating && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: "10px 14px",
+              borderRadius: 12,
+              background: "var(--color-amber-dim)",
+              border: "1px solid var(--color-amber-border)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              fontSize: 12,
+            }}
+          >
+            <span style={{ flex: 1, color: "var(--color-f2)" }}>
+              Reativar "{liability.name}"?
+            </span>
+            <button
+              onClick={handleReactivate}
+              disabled={isPending}
+              style={{
+                padding: "4px 12px",
+                borderRadius: 6,
+                background: "rgba(251,191,36,0.15)",
+                border: "1px solid rgba(251,191,36,0.30)",
+                color: "var(--color-amber)",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Reativar
+            </button>
+            <button
+              onClick={() => setReactivating(false)}
               style={{
                 padding: "4px 8px",
                 borderRadius: 6,

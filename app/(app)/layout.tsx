@@ -6,17 +6,19 @@ export const dynamic = "force-dynamic";
 import { getSessionUserId } from "@/lib/session";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserMenu } from "@/components/layout/UserMenu";
-import { ALL_MODULE_KEYS } from "@/lib/modules";
+import { ALL_MODULE_KEYS, ALWAYS_ACCESSIBLE, type ModuleKey } from "@/lib/modules";
 import { getConfigBool, getConfigValue } from "@/lib/config";
 import { getUnreadCount, syncDangerAlerts } from "@/app/actions/notifications";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const userId = await getSessionUserId();
 
+  // Resolve current pathname once — used for login redirect and module guard
+  const hdrs = await headers();
+  const pathname = hdrs.get("x-pathname") ?? "/dashboard";
+
   if (!userId) {
     // CS-13: preservar rota original como ?redirect= para restaurar após login
-    const hdrs = await headers();
-    const pathname = hdrs.get("x-pathname") ?? "/dashboard";
     redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
   }
 
@@ -47,6 +49,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const allowedModules: string[] = user.plan
     ? user.plan.modules.map((m) => m.module)
     : ALL_MODULE_KEYS;
+
+  // CS-40 — Module route guard: block direct URL access for modules not in plan
+  // Only enforced when user has an explicit plan assigned (no plan = admin / unrestricted access)
+  if (user.plan) {
+    const segment = pathname.split("/").filter(Boolean)[0]; // e.g. "km-reimbursement"
+    if (segment && !ALWAYS_ACCESSIBLE.includes(segment as ModuleKey) && !allowedModules.includes(segment)) {
+      redirect("/dashboard");
+    }
+  }
 
   return (
     <div

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-06-08T10:45:54.634Z",
+  "lastUpdated": "2026-06-08T16:00:00.000Z",
   "columns": [
     {
       "id": "backlog",
@@ -694,6 +694,36 @@
       "labels": ["bug", "hydration", "ux", "qa"],
       "version": "1.15.0",
       "completedAt": "2026-06-08T14:00:00.000Z"
+    },
+    {
+      "id": "cs-45",
+      "columnId": "done",
+      "csNumber": "CS-45",
+      "title": "globals.css — --color-amber ausente no design system causava badges brancas em 9+ componentes",
+      "description": "BUG encontrado no QA v1.14.0 (L-03 test): variável CSS --color-amber nunca foi adicionada ao @theme inline de app/globals.css apesar de ser usada em 9+ componentes (LiabilitiesView, AlertsView, FixedExpensesView, NotificationPanel, InstitutionsView, ReimbursementsView, PeriodDetail, PeriodList, StudioClient). Resultado: badges de aviso exibiam cor branca (rgb(238,238,238)) em vez de âmbar (#FBBF24). Fix: adicionadas --color-amber: #FBBF24, --color-amber-dim: rgba(251,191,36,0.10), --color-amber-border: rgba(251,191,36,0.22) no bloco de cores após --color-red.",
+      "labels": ["bug", "css", "design-system", "qa"],
+      "version": "1.15.0",
+      "completedAt": "2026-06-08T15:00:00.000Z"
+    },
+    {
+      "id": "cs-45b",
+      "columnId": "done",
+      "csNumber": "CS-45b",
+      "title": "LiabilitiesView — window.confirm() substituído por inline ActionBar em quitação e exclusão",
+      "description": "BUG encontrado no QA v1.14.0 (L-04 test): LiabilitiesView.tsx usava window.confirm() nativo em handleMarkPaid() e handleDelete(), bloqueando automação CDP/browser e rompendo o padrão de UX do sistema. handleMarkPaid() já tinha inline ActionBar (setMarkingPaid) mas chamava window.confirm() internamente como redundância — removido. handleDelete() não tinha inline ActionBar — adicionado estado confirmingDelete + ActionBar vermelho com padrão idêntico ao de quitação.",
+      "labels": ["bug", "ux", "window.confirm", "qa"],
+      "version": "1.15.0",
+      "completedAt": "2026-06-08T15:00:00.000Z"
+    },
+    {
+      "id": "cs-46",
+      "columnId": "done",
+      "csNumber": "CS-46",
+      "title": "LiabilitiesView — botão Reativar ausente em passivos quitados",
+      "description": "BUG encontrado no QA v1.14.0 (L-05 test): cards com status paid_off não tinham botão para reativar o passivo — apenas o botão excluir estava visível. O plano de testes L-05 exige que um passivo quitado possa retornar à lista de ativos. Fix: adicionado estado reactivating + botão Reativar (IconArrowBack, hover âmbar) visível somente em cards !isActive + inline ActionBar âmbar com handler handleReactivate() que chama updateLiability(id, { status: 'active' }).",
+      "labels": ["bug", "ux", "feature-missing", "qa"],
+      "version": "1.15.0",
+      "completedAt": "2026-06-08T15:00:00.000Z"
     }
   ]
 }
