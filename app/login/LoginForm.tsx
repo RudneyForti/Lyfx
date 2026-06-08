@@ -5,6 +5,9 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { IconLogin, IconX, IconEye, IconEyeOff, IconBrain, IconSend, IconLoader2 } from "@tabler/icons-react";
 import { setup, login } from "./actions";
+import { TurnstileWidget } from "@/components/login/TurnstileWidget";
+import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
+import { validatePasswordStrict } from "@/lib/password-strength";
 
 /* ── i18n ── */
 type Lang = "pt" | "en" | "es";
@@ -63,7 +66,7 @@ const TRANSLATIONS: Record<Lang, {
     labelEmail: "E-mail",
     labelPassword: "Senha",
     phPasswordLogin: "••••••••",
-    phPasswordSetup: "Mínimo 6 caracteres",
+    phPasswordSetup: "Mín. 8 chars, maiúscula, número e especial",
     labelConfirm: "Confirmar senha",
     phConfirm: "Repita a senha",
     remember: "Lembrar de mim",
@@ -71,7 +74,7 @@ const TRANSLATIONS: Record<Lang, {
     errName: "Nome obrigatório.",
     errEmail: "E-mail obrigatório.",
     errPassword: "Senha obrigatória.",
-    errPasswordMin: "Senha deve ter ao menos 6 caracteres.",
+    errPasswordMin: "Senha não atende aos requisitos de segurança.",
     errPasswordMatch: "As senhas não coincidem.",
     submitting: "Entrando…",
     successMsg: "Bem-vindo de volta!",
@@ -116,7 +119,7 @@ const TRANSLATIONS: Record<Lang, {
     labelEmail: "E-mail",
     labelPassword: "Password",
     phPasswordLogin: "••••••••",
-    phPasswordSetup: "Minimum 6 characters",
+    phPasswordSetup: "Min. 8 chars, uppercase, number & special",
     labelConfirm: "Confirm password",
     phConfirm: "Repeat password",
     remember: "Remember me",
@@ -124,7 +127,7 @@ const TRANSLATIONS: Record<Lang, {
     errName: "Name is required.",
     errEmail: "Email is required.",
     errPassword: "Password is required.",
-    errPasswordMin: "Password must be at least 6 characters.",
+    errPasswordMin: "Password does not meet security requirements.",
     errPasswordMatch: "Passwords don't match.",
     submitting: "Signing in…",
     successMsg: "Welcome back!",
@@ -169,7 +172,7 @@ const TRANSLATIONS: Record<Lang, {
     labelEmail: "Correo",
     labelPassword: "Contraseña",
     phPasswordLogin: "••••••••",
-    phPasswordSetup: "Mínimo 6 caracteres",
+    phPasswordSetup: "Mín. 8 chars, mayúscula, número y especial",
     labelConfirm: "Confirmar contraseña",
     phConfirm: "Repite la contraseña",
     remember: "Recuérdame",
@@ -177,7 +180,7 @@ const TRANSLATIONS: Record<Lang, {
     errName: "El nombre es obligatorio.",
     errEmail: "El correo es obligatorio.",
     errPassword: "La contraseña es obligatoria.",
-    errPasswordMin: "La contraseña debe tener al menos 6 caracteres.",
+    errPasswordMin: "La contraseña no cumple los requisitos de seguridad.",
     errPasswordMatch: "Las contraseñas no coinciden.",
     submitting: "Entrando…",
     successMsg: "¡Bienvenido de vuelta!",
@@ -271,6 +274,10 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
   const [toast, setToast] = useState<{ show: boolean; msg: string }>({ show: false, msg: "" });
   const [forgotOpen, setForgotOpen] = useState(false);
   const [success, setSuccess] = useState(false);
+  // CS-32: estados de rate limiting
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [blockedMinutes, setBlockedMinutes] = useState<number | null>(null);
 
   // CS-16: detectar idioma do localStorage (set pela LandingPage)
   const [lang, setLang] = useState<Lang>("pt");
@@ -309,7 +316,9 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
     if (mode === "setup") {
       if (!name.trim()) { setError(t.errName); shake(); return; }
       if (!email.trim()) { setError(t.errEmail); shake(); return; }
-      if (password.length < 6) { setError(t.errPasswordMin); shake(); return; }
+      // CS-33: validação de política de senha forte
+      const pwError = validatePasswordStrict(password);
+      if (pwError) { setError(pwError); shake(); return; }
       if (password !== confirm) { setError(t.errPasswordMatch); shake(); return; }
       startTransition(async () => {
         const result = await setup({ name, email, password });
@@ -318,9 +327,37 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
     } else {
       if (!email.trim()) { setError(t.errEmail); shake(); return; }
       if (!password) { setError(t.errPassword); shake(); return; }
+      // CS-32: se CAPTCHA obrigatório mas token ainda não obtido, aguardar
+      if (captchaRequired && !captchaToken) {
+        setError("Complete o desafio de segurança para continuar.");
+        shake();
+        return;
+      }
       startTransition(async () => {
         // CS-13: passa remember e redirectTo para a action
-        const result = await login({ email, password, remember, redirectTo });
+        // CS-32: passa captchaToken quando disponível
+        const result = await login({
+          email,
+          password,
+          remember,
+          redirectTo,
+          captchaToken: captchaToken ?? undefined,
+        });
+        if (!result) return; // redirect aconteceu
+        if ("blocked" in result && result.blocked) {
+          setBlockedMinutes(result.retryAfterMinutes);
+          setError("");
+          return;
+        }
+        if ("captchaRequired" in result && result.captchaRequired) {
+          setCaptchaRequired(true);
+          setCaptchaToken(null);
+          if ("captchaError" in result && result.captchaError) {
+            setError("Desafio de segurança inválido ou expirado. Tente novamente.");
+            shake();
+          }
+          return;
+        }
         if (result?.error) { setError(result.error); shake(); }
         else setSuccess(true);
       });
@@ -430,7 +467,7 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
 
       {/* ── RIGHT PANEL ── */}
       <div
-        className="flex flex-col items-center justify-center relative overflow-hidden w-full md:w-[480px] md:min-w-[480px] px-6"
+        className="flex flex-col items-center justify-center relative overflow-y-auto w-full md:w-[480px] md:min-w-[480px] px-6 py-8"
         style={{ background: "transparent" }}
       >
         {/* Floating card */}
@@ -523,16 +560,37 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
               }
             />
 
+            {/* CS-33: Barra de força — setup only, aparece quando há conteúdo */}
+            {mode === "setup" && (
+              <PasswordStrengthBar password={password} />
+            )}
+
             {/* Confirm — setup only */}
             {mode === "setup" && (
-              <Field
-                id="confirm" label={t.labelConfirm}
-                type={showPw ? "text" : "password"}
-                placeholder={t.phConfirm}
-                value={confirm} onChange={setConfirm}
-                autoComplete="new-password"
-                icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
-              />
+              <div className="flex flex-col gap-1">
+                <Field
+                  id="confirm" label={t.labelConfirm}
+                  type={showPw ? "text" : "password"}
+                  placeholder={t.phConfirm}
+                  value={confirm} onChange={setConfirm}
+                  autoComplete="new-password"
+                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+                />
+                {/* Indicador de match em tempo real */}
+                {confirm.length > 0 && (
+                  confirm === password ? (
+                    <span className="flex items-center gap-1 text-[10px] text-[var(--color-green)]">
+                      <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1,6 4.5,10 11,2"/></svg>
+                      As senhas coincidem
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[10px] text-[var(--color-red)]">
+                      <svg width="7" height="7" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
+                      As senhas não coincidem
+                    </span>
+                  )
+                )}
+              </div>
             )}
           </FadeUp>
 
@@ -576,6 +634,32 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
             </FadeUp>
           )}
 
+          {/* CS-32: Banner de IP bloqueado */}
+          {blockedMinutes !== null && (
+            <div className="rounded-[10px] bg-[var(--color-red-dim)] border border-[var(--color-red-border)] px-4 py-3 mb-3 text-center">
+              <p className="text-[12px] text-[var(--color-red)] font-medium mb-0.5">
+                Acesso temporariamente bloqueado
+              </p>
+              <p className="text-[11px] text-[var(--color-f3)]">
+                Muitas tentativas incorretas. Tente novamente em{" "}
+                <span className="text-[var(--color-f1)] font-semibold">{blockedMinutes} min</span>.
+              </p>
+            </div>
+          )}
+
+          {/* CS-32: Desafio CAPTCHA Turnstile */}
+          {captchaRequired && !blockedMinutes && (
+            <div className="rounded-[10px] bg-[var(--color-bg3)] border border-[var(--color-border2)] px-4 py-4 mb-3">
+              <TurnstileWidget
+                onToken={(token) => {
+                  setCaptchaToken(token);
+                  setError("");
+                }}
+                onExpire={() => setCaptchaToken(null)}
+              />
+            </div>
+          )}
+
           {/* Error */}
           {error && (
             <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-red)] mb-3">
@@ -587,7 +671,7 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
           <FadeUp delay={0.25}>
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || blockedMinutes !== null}
               className="w-full h-[44px] rounded-full text-[14px] font-semibold flex items-center justify-center gap-2 transition-all duration-150 mb-3 cursor-pointer border-none disabled:opacity-70"
               onAnimationEnd={() => setShaking(false)}
               style={{

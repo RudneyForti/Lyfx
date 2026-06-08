@@ -1,8 +1,8 @@
-# Lyfx — Plano de Testes v1.11.0
+# Lyfx — Plano de Testes v1.12.0
 
 > Casos de teste executáveis · Atualizado em 07/06/2026
 > Baseado em análise do Agent Smith (QA Specialist) · Myers · WAHH · Hendrickson · Kaner
-> Cobertura completa: v1.5.0 → v1.11.0 · Inclui CS-17 (Reembolso Especial), CS-18/CS-19 (Notificações), Studio G2, CS-25 (Feriados)
+> Cobertura completa: v1.5.0 → v1.12.0 · Inclui CS-17 (Reembolso Especial), CS-18/CS-19 (Notificações), Studio G2, CS-25 (Feriados), CS-31 (Segurança), CS-32 (Rate Limiting), CS-33 (Política de Senha)
 
 **Como usar este arquivo:**
 - Cada caso é autossuficiente: pré-condições + passos + resultado esperado preciso
@@ -10,8 +10,8 @@
 - Casos SEC e ISO requerem 2 usuários criados via Studio
 - Marcar cada caso: ✅ PASSOU · ❌ FALHOU · ⏭ PULADO
 
-**Ambiente:** `http://localhost:3000` · SQLite/PostgreSQL `dev.db` · Next.js App Router
-**Total de casos:** 370+
+**Ambiente:** `http://localhost:3000` · PostgreSQL `lyfx_dev` · Next.js App Router
+**Total de casos:** 378+
 
 ---
 
@@ -2143,6 +2143,65 @@
 **Prioridade:** BAIXO
 **Passos:** Acessar qualquer rota inexistente, ex: `/rota-que-nao-existe`
 **Resultado esperado:** Página exibe expressão matemática `f(404) = ∄` em Playfair Display com cyan; botões "Voltar ao Dashboard" e "Início" funcionais. Não exibe a página padrão do Next.js.
+
+---
+
+### SEC-26 — Rate limiting: CAPTCHA exibido após threshold de falhas [CS-32]
+**Prioridade:** CRÍTICO
+**Pré-condição:** Studio → Painel → Rate Limiting: definir captchaThreshold=2, blockThreshold=5, window=30
+**Passos:** Na tela de login, submeter credenciais inválidas 2 vezes
+**Resultado esperado:** Na 3ª tentativa, widget Cloudflare Turnstile aparece abaixo dos campos antes de permitir submissão. Sem o widget resolvido, botão não submete.
+
+---
+
+### SEC-27 — Rate limiting: IP bloqueado após threshold de bloqueio [CS-32]
+**Prioridade:** CRÍTICO
+**Pré-condição:** captchaThreshold=2, blockThreshold=5 (mesma config do SEC-26)
+**Passos:** Submeter credenciais inválidas 5 vezes (passando pelo CAPTCHA quando necessário)
+**Resultado esperado:** Banner vermelho "Acesso temporariamente bloqueado. Tente novamente em X min." aparece. Botão "Entrar" fica desabilitado. Não é possível submeter o formulário.
+
+---
+
+### SEC-28 — Rate limiting: desbloqueio automático por janela deslizante [CS-32]
+**Prioridade:** ALTO
+**Pré-condição:** IP bloqueado conforme SEC-27; window=1 (1 minuto para teste rápido)
+**Passos:** Aguardar 1 minuto e recarregar a página de login
+**Resultado esperado:** Banner de bloqueio desaparece; formulário de login volta ao estado normal, permitindo nova tentativa.
+
+---
+
+### SEC-29 — Rate limiting: thresholds configuráveis via Studio [CS-32]
+**Prioridade:** MÉDIO
+**Passos:** Studio → Painel → Segurança — Rate Limiting; alterar "Tentativas antes do CAPTCHA" para 3; clicar Salvar; tentar login com credenciais inválidas 3 vezes
+**Resultado esperado:** CAPTCHA aparece na 4ª tentativa (não na 11ª). Valor salvo persiste após reload do Studio.
+
+---
+
+### SEC-30 — Política de senha: criação de conta rejeita senha fraca [CS-33]
+**Prioridade:** CRÍTICO
+**Passos:** Em `/login` → modo "Criar conta"; preencher nome e e-mail; digitar senha `senha123` (sem maiúscula e sem especial); clicar "Criar conta"
+**Resultado esperado:** Erro exibido descrevendo o requisito faltante. Conta não é criada.
+
+---
+
+### SEC-31 — Política de senha: barra de força exibe nível em tempo real [CS-33]
+**Prioridade:** ALTO
+**Passos:** Em `/login` → modo "Criar conta"; digitar progressivamente no campo Senha: (1) `a` (2) `aBc` (3) `aBc1` (4) `aBc1@xyz`
+**Resultado esperado:** (1) barra vermelha "Fraca"; (2) âmbar "Razoável"; (3) cyan-dim "Boa"; (4) cyan "Forte" + badge verde "Todos os requisitos atendidos"
+
+---
+
+### SEC-32 — Política de senha: indicador de match no campo confirmar [CS-33]
+**Prioridade:** ALTO
+**Passos:** No formulário de criação, preencher Senha com `Abc1@xyz`; digitar `Abc1@xy` no campo Confirmar (1 char a menos)
+**Resultado esperado:** Badge vermelho "As senhas não coincidem" visível. Ao completar `Abc1@xyz` no confirmar: badge muda para verde "As senhas coincidem".
+
+---
+
+### SEC-33 — Política de senha: troca de senha no perfil aplica mesmas regras [CS-33]
+**Prioridade:** ALTO
+**Passos:** Navegar para `/profile` → seção "Alterar senha"; preencher senha atual correta; digitar `novasenha` em "Nova senha" (sem maiúscula/número/especial); clicar "Alterar senha"
+**Resultado esperado:** Erro descrevendo o requisito faltante. Senha não é alterada. Barra de força exibe nível "Razoável" ou inferior.
 
 ---
 

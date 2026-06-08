@@ -1,6 +1,6 @@
 # Lyfx — Guia Completo de Funcionalidades
 > Documento de referência para analistas financeiros, gestores de produto e material de capacitação
-> Versão 1.11.0 · Junho 2026
+> Versão 1.12.0 · Junho 2026
 
 ---
 
@@ -202,9 +202,15 @@ Exibe campos de e-mail e senha, com opção "Lembrar de mim" e link "Esqueci min
 
 **Validações**:
 - Todos os campos são obrigatórios
-- Senha mínima de 6 caracteres
-- No modo setup, a confirmação de senha deve ser idêntica à senha
+- **Política de senha forte** (CS-33): mínimo 8 caracteres com ao menos uma letra maiúscula, uma minúscula, um número e um caractere especial. Barra visual de força com 4 níveis (Fraca / Razoável / Boa / Forte) e lista em tempo real dos requisitos ainda não atendidos.
+- No modo setup, a confirmação de senha deve ser idêntica à senha — indicador em tempo real exibe "As senhas coincidem" (verde) ou "As senhas não coincidem" (vermelho)
 - Botão de submit "treme" (animação shake) quando há erros de validação
+
+**Proteção contra tentativas excessivas** (CS-32):
+- Após 10 falhas de login no mesmo IP em 30 minutos: exibe desafio CAPTCHA (Cloudflare Turnstile) antes de permitir nova tentativa
+- Após 15 falhas: IP bloqueado temporariamente com mensagem "Acesso temporariamente bloqueado" e contagem regressiva em minutos
+- Desbloqueio automático via janela deslizante — sem necessidade de intervenção manual
+- Todos os thresholds e a janela de tempo são configuráveis pelo administrador no Studio
 
 **Modal "Esqueci minha senha"**: ao clicar no link, abre um modal explicando que o Lyfx não envia e-mails de recuperação. A orientação é acessar o perfil para redefinir a senha, ou contatar o administrador que pode redefinir via Studio.
 

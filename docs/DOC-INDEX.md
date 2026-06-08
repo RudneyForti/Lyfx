@@ -1,5 +1,5 @@
 # Lyfx — Índice de Documentação
-> Registro central de todos os documentos do projeto · v1.11.3 · Junho 2026
+> Registro central de todos os documentos do projeto · v1.12.0 · Junho 2026
 > **Regra:** atualizar este arquivo em todo merge para `master` (E7 — passo obrigatório).
 
 ---
@@ -55,6 +55,24 @@
 
 ---
 
+### Libs criadas no lote v1.12.0
+
+> Arquivos de código com papel de documentação implícita — citados aqui para rastreabilidade.
+
+| Arquivo | Caminho | Versão | Descrição |
+|---|---|---|---|
+| `password-strength.ts` | `/lib/password-strength.ts` | v1.12.0 | Utilitário puro de política de senha (CS-33). `checkPasswordRules()` verifica 5 regras. `getPasswordStrength()` retorna 4 níveis. `validatePasswordStrict()` retorna erro da primeira regra que falha. Sem imports server-only — usável em client e server. |
+| `login-attempts.ts` | `/lib/login-attempts.ts` | v1.12.0 | Rate limiting por IP (CS-32). `checkLoginGate()` com janela deslizante — retorna `ok`, `captcha` ou `blocked`. `recordAttempt()` com limpeza lazy de registros >24h. `verifyCaptcha()` via Cloudflare Turnstile API. `getClientIp()` lê `x-forwarded-for`. |
+
+### Componentes criados no lote v1.12.0
+
+| Arquivo | Caminho | Versão | Descrição |
+|---|---|---|---|
+| `PasswordStrengthBar.tsx` | `/components/auth/PasswordStrengthBar.tsx` | v1.12.0 | Barra visual de força de senha (CS-33). 4 segmentos com cor progressiva: vermelho/âmbar/cyan-dim/cyan. Lista de requisitos faltando em tempo real. Badge verde quando todos os requisitos são atendidos. |
+| `TurnstileWidget.tsx` | `/components/login/TurnstileWidget.tsx` | v1.12.0 | Widget Cloudflare Turnstile (CS-32). Carrega script dinamicamente (sem duplicação). Tema dark. Fallback para sitekey de teste. Props: `onToken`, `onExpire`. |
+
+---
+
 ### Libs criadas no lote v1.11.0
 
 > Arquivos de código com papel de documentação implícita — citados aqui para rastreabilidade.
@@ -104,4 +122,4 @@ Este índice é **obrigatório** no checklist E7 de release. Atualizar quando:
 
 ---
 
-*Índice gerado em 07/06/2026 · Versão da plataforma: v1.11.3*
+*Índice gerado em 07/06/2026 · Versão da plataforma: v1.12.0*

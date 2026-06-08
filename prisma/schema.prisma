@@ -363,3 +363,15 @@ model KmPlace {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
+
+// CS-32: Rate limiting — registro de tentativas de login por IP
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  ip        String
+  email     String?  // apenas para auditoria; nunca usado para lookup
+  success   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([ip, success, createdAt]) // consulta principal: contar falhas por IP na janela
+  @@index([createdAt])              // limpeza lazy de registros antigos
+}

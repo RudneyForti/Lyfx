@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/session";
+import { validatePasswordStrict } from "@/lib/password-strength"; // CS-33
 
 // [CS-29] requireUser local busca o objeto User completo (necessário para changePassword).
 // Usa requireAuth() internamente em vez de getSessionUserId diretamente.
@@ -44,7 +45,9 @@ export async function changePassword(data: {
   const user = await requireUser();
   const valid = await bcrypt.compare(data.current, user.password);
   if (!valid) return { error: "Senha atual incorreta." };
-  if (data.next.length < 6) return { error: "Nova senha deve ter ao menos 6 caracteres." };
+  // CS-33: política de senha forte
+  const pwError = validatePasswordStrict(data.next);
+  if (pwError) return { error: pwError };
 
   const hashed = await bcrypt.hash(data.next, 10);
   await db.user.update({ where: { id: user.id }, data: { password: hashed } });
