@@ -106,7 +106,7 @@ function SetupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
   useEffect(() => {
     start(async () => {
       const res = await initTwoFactorSetup();
-      if ("error" in res) { setError(res.error); setStep("qr"); return; }
+      if ("error" in res) { setError(res.error as string); setStep("qr"); return; }
       setQrUrl(res.qrCodeUrl);
       setSecret(res.secret);
       setStep("qr");
