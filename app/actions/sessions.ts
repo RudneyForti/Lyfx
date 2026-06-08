@@ -7,6 +7,7 @@
 
 import { db } from "@/lib/db";
 import { requireSession, invalidateOtherSessions } from "@/lib/session";
+import { logEventBg } from "@/lib/audit"; // CS-35
 
 // ── UA parser mínimo ──────────────────────────────────────────────────────────
 // Sem biblioteca externa — detecta os casos mais comuns por regex.
@@ -74,12 +75,24 @@ export async function revokeSession(targetSessionId: string): Promise<void> {
   await db.session.deleteMany({
     where: { id: targetSessionId, userId },
   });
+
+  // CS-35: log de revogação de sessão
+  logEventBg({ action: "session.revoked", userId, sessionId: targetSessionId });
 }
 
 /** Revoga todas as sessões exceto a atual. */
 export async function revokeAllOtherSessions(): Promise<{ count: number }> {
   const { userId, sessionId } = await requireSession();
+
+  // Conta quantas sessões serão revogadas antes de deletar
+  const toRevoke = await db.session.count({
+    where: { userId, id: { not: sessionId } },
+  });
+
   await invalidateOtherSessions(userId, sessionId);
+
+  // CS-35: log com total de sessões revogadas
+  logEventBg({ action: "session.revoked_all", userId, sessionId, metadata: { count: toRevoke } });
 
   // Retorna a sessão atual para confirmar que ainda está ativa
   const remaining = await db.session.count({ where: { userId } });
