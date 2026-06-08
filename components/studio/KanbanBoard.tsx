@@ -6,6 +6,7 @@ import type { KanbanBoard, KanbanCard, KanbanColumn } from "@/app/studio/actions
 import {
   IconX, IconPlus, IconGripVertical, IconCheck, IconBrandGit,
   IconCalendar, IconTag, IconEdit, IconTrash, IconLoader2,
+  IconSortAscending, IconSortDescending,
 } from "@tabler/icons-react";
 
 /* ── helpers ── */
@@ -561,6 +562,12 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
   const [dragCardId, setDragCardId] = useState<string | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [colSort, setColSort] = useState<Record<string, "asc" | "desc">>({
+    "backlog":     "asc",
+    "in-progress": "asc",
+    "blocked":     "asc",
+    "done":        "desc",   // Concluídas: mais recentes no topo por padrão
+  });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* auto-save with debounce */
@@ -624,9 +631,23 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
 
   /* cards per column, sorted */
   function colCards(colId: string) {
+    const dir = colSort[colId] ?? "asc";
     return board.cards
       .filter(c => c.columnId === colId)
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => {
+        // primary key: completedAt for done column, order for others
+        const aKey = colId === "done" && a.completedAt
+          ? new Date(a.completedAt).getTime()
+          : a.order;
+        const bKey = colId === "done" && b.completedAt
+          ? new Date(b.completedAt).getTime()
+          : b.order;
+        return dir === "asc" ? aKey - bKey : bKey - aKey;
+      });
+  }
+
+  function toggleSort(colId: string) {
+    setColSort(prev => ({ ...prev, [colId]: prev[colId] === "asc" ? "desc" : "asc" }));
   }
 
   const sorted = [...board.columns].sort((a, b) => a.order - b.order);
@@ -701,19 +722,39 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
                     {cards.length}
                   </span>
                 </div>
-                <button
-                  onClick={() => setAddingIn(addingIn === col.id ? null : col.id)}
-                  title="Adicionar card"
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    color: "var(--color-f4)", padding: 2, borderRadius: 4,
-                    display: "flex",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.color = style.accent)}
-                  onMouseLeave={e => (e.currentTarget.style.color = "var(--color-f4)")}
-                >
-                  <IconPlus size={14} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  {/* Sort toggle */}
+                  <button
+                    onClick={() => toggleSort(col.id)}
+                    title={colSort[col.id] === "asc" ? "Mais antigas primeiro — clique para inverter" : "Mais novas primeiro — clique para inverter"}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer",
+                      color: "var(--color-f4)", padding: "2px 4px", borderRadius: 4,
+                      display: "flex", alignItems: "center", gap: 3, fontSize: 10,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = style.accent; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = "var(--color-f4)"; }}
+                  >
+                    {colSort[col.id] === "asc"
+                      ? <><IconSortAscending size={13} /><span style={{ fontSize: 9, letterSpacing: "0.03em" }}>antigas</span></>
+                      : <><IconSortDescending size={13} /><span style={{ fontSize: 9, letterSpacing: "0.03em" }}>novas</span></>
+                    }
+                  </button>
+                  {/* Add card */}
+                  <button
+                    onClick={() => setAddingIn(addingIn === col.id ? null : col.id)}
+                    title="Adicionar card"
+                    style={{
+                      background: "none", border: "none", cursor: "pointer",
+                      color: "var(--color-f4)", padding: 2, borderRadius: 4,
+                      display: "flex",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = style.accent)}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--color-f4)")}
+                  >
+                    <IconPlus size={14} />
+                  </button>
+                </div>
               </div>
 
               {/* New card form */}
