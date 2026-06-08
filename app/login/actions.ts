@@ -10,6 +10,7 @@ import {
   recordAttempt,
   verifyCaptcha,
 } from "@/lib/login-attempts";
+import { validatePasswordStrict } from "@/lib/password-strength";
 
 export async function setup(data: { name: string; email: string; password: string }) {
   const existing = await db.user.count();
@@ -22,7 +23,9 @@ export async function setup(data: { name: string; email: string; password: strin
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(data.email.trim())) return { error: "E-mail inválido." };
 
-  if (data.password.length < 6) return { error: "Senha deve ter ao menos 6 caracteres." };
+  // CS-33: política de senha forte — mínimo 8 chars + upper + lower + número + especial
+  const pwError = validatePasswordStrict(data.password);
+  if (pwError) return { error: pwError };
 
   const hashed = await bcrypt.hash(data.password, 10);
   const user = await db.user.create({
