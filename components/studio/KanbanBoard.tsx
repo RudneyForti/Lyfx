@@ -642,7 +642,9 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
         const bKey = colId === "done" && b.completedAt
           ? new Date(b.completedAt).getTime()
           : b.order;
-        return dir === "asc" ? aKey - bKey : bKey - aKey;
+        if (aKey !== bKey) return dir === "asc" ? aKey - bKey : bKey - aKey;
+        // tiebreaker: order mais alto = adicionado depois = mais recente
+        return dir === "asc" ? a.order - b.order : b.order - a.order;
       });
   }
 
