@@ -364,6 +364,18 @@ model KmPlace {
   updatedAt          DateTime @updatedAt
 }
 
+// CS-36: Contas OAuth vinculadas ao usuário (Google, Microsoft)
+model OAuthAccount {
+  id             String   @id @default(cuid())
+  userId         String
+  provider       String   // "google" | "microsoft"
+  providerUserId String   // sub (Google) ou oid (Microsoft)
+  createdAt      DateTime @default(now())
+
+  @@unique([provider, providerUserId]) // um provedor+id só pode estar em uma conta
+  @@index([userId])
+}
+
 // CS-34: Sessões com estado — permite invalidação server-side e view de sessões ativas
 model Session {
   id          String   @id @default(cuid()) // sessionId armazenado no cookie
