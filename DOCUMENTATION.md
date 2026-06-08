@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.11.2 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.12.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -1310,11 +1310,15 @@ Usuário define nome + valor + prazo
 ### Segurança
 
 - Senhas nunca armazenadas em texto plano — sempre hash bcrypt (salt factor 10)
+- **Política de senha forte** (CS-33, `lib/password-strength.ts`): mínimo 8 caracteres, ao menos 1 maiúscula, 1 minúscula, 1 número, 1 caractere especial. Validação idêntica em `setup()`, `changePassword()` e client-side via `validatePasswordStrict()`
 - Cookie `httpOnly: true` — inacessível via JavaScript no browser
 - Cookie `secure: true` em produção — apenas HTTPS
 - `sameSite: lax` — proteção contra CSRF
 - Proxy valida HMAC-SHA256 completo via Web Crypto API (Edge Runtime) — cookie forjado é rejeitado na borda antes de qualquer renderização
 - Validação completa de existência do usuário no `AppLayout` (Node.js runtime, com acesso ao banco) — segunda linha de defesa
+- **Rate limiting por IP** (CS-32, `lib/login-attempts.ts`): janela deslizante sobre modelo `LoginAttempt`. Três estados: `ok` / `captcha` (exige Cloudflare Turnstile) / `blocked` (retorna `retryAfterMinutes`). Thresholds configuráveis via Studio (AppConfig: `login_captcha_threshold`, `login_block_threshold`, `login_window_minutes`). Limpeza lazy de registros >24h.
+- **CAPTCHA Cloudflare Turnstile** (CS-32): token validado server-side via `POST /turnstile/v0/siteverify`. Em dev sem `TURNSTILE_SECRET_KEY`: bypass automático com aviso no console. Em produção sem a chave: fail-closed (retorna `false`). Widget dark, carregado dinamicamente.
+- Timing side-channel defense: `bcrypt.compare` sempre executa mesmo quando usuário não existe (hash dummy fixo), evitando detecção de e-mails válidos por diferença de latência
 - **Headers HTTP de segurança** (CS-31, `next.config.ts`):
   - `X-Frame-Options: DENY` — bloqueia clickjacking via iframe
   - `X-Content-Type-Options: nosniff` — impede MIME sniffing
