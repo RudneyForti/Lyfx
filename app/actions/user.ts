@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requireAuth, requireSession, invalidateOtherSessions } from "@/lib/session";
 import { validatePasswordStrict } from "@/lib/password-strength"; // CS-33
+import { logEventBg } from "@/lib/audit";                         // CS-35
 
 // [CS-29] requireUser local busca o objeto User completo (necessário para changePassword).
 async function requireUser() {
@@ -56,6 +57,9 @@ export async function changePassword(data: {
 
   // CS-34: revogar todas as outras sessões após troca de senha (segurança)
   await invalidateOtherSessions(userId, sessionId);
+
+  // CS-35: log de troca de senha (fire-and-forget)
+  logEventBg({ action: "auth.password.changed", userId, sessionId });
 
   return { ok: true };
 }
