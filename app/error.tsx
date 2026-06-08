@@ -25,50 +25,72 @@ export default function GlobalError({
         }}
       />
 
+      {/* Brilho difuso vermelho atrás da expressão */}
+      <div
+        className="pointer-events-none fixed inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(248,113,113,0.05) 0%, transparent 70%)",
+        }}
+      />
+
       <div className="relative z-10 text-center max-w-md flex flex-col items-center gap-6">
         {/* Logotipo */}
         <div className="font-[family-name:var(--font-display)] italic text-[22px] font-bold text-[var(--color-f1)] leading-none mb-2">
           Ly<span className="text-[var(--color-cyan)]">fx</span>
         </div>
 
-        {/* Ícone de erro */}
-        <div className="w-16 h-16 rounded-full bg-[var(--color-red-dim)] border border-[var(--color-red-border)] flex items-center justify-center">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--color-red)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {/* Expressão matemática principal */}
+        <div className="flex flex-col items-center gap-1">
+          {/* lim f(t) */}
+          <div
+            className="text-[88px] leading-none font-bold tracking-tight"
+            style={{
+              fontFamily: "var(--font-display)",
+              background: "linear-gradient(135deg, #f87171 0%, rgba(248,113,113,0.45) 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
           >
-            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-            <path d="M12 9v4" />
-            <path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z" />
-            <path d="M12 16h.01" />
-          </svg>
+            lim f(t)
+          </div>
+
+          {/* t → 0 */}
+          <div
+            className="text-[22px] leading-none text-[var(--color-f4)] -mt-2"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            t → 0
+          </div>
+
+          {/* separador = */}
+          <div
+            className="text-[32px] leading-none text-[var(--color-f4)] -my-1"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            =
+          </div>
+
+          {/* ∅ */}
+          <div
+            className="text-[88px] leading-none font-bold tracking-tight text-[var(--color-f3)]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            ∅
+          </div>
         </div>
 
         {/* Mensagem */}
         <div className="flex flex-col gap-2 items-center">
-          <h1
-            className="text-[22px] font-semibold text-[var(--color-f1)]"
-            style={{ fontFamily: "var(--font-display)" }}
+          <p
+            className="text-[15px] font-medium text-[var(--color-f1)]"
+            style={{ fontFamily: "var(--font-display)", fontStyle: "italic" }}
           >
-            Algo deu errado
-          </h1>
-
-          {/* Referência matemática — série divergente */}
-          <p className="text-[13px] text-[var(--color-f4)] font-mono tracking-tight">
-            <span title="limite da função de estado tendendo a zero é conjunto vazio">
-              lim<sub>t→0</sub> f(t) = ∅
-            </span>
+            A função não converge para nenhum estado válido.
           </p>
-
-          <p className="text-[14px] text-[var(--color-f3)] leading-relaxed">
-            Um erro inesperado ocorreu. Tente novamente ou volte para o início.
+          <p className="text-[12px] text-[var(--color-f4)] font-mono tracking-wide">
+            state(t) ∉ ℝ — erro inesperado no tempo t
           </p>
           {error.digest && (
             <p className="text-[11px] text-[var(--color-f4)] mt-1 font-mono">
