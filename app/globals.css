@@ -16,6 +16,11 @@
   --color-red-dim:    rgba(248,113,113,0.08);
   --color-red-border: rgba(248,113,113,0.22);
 
+  /* CS-45: amber ausente no design system — usado em badges de aviso (Passivos, Alertas, Provisão, etc.) */
+  --color-amber:        #FBBF24;
+  --color-amber-dim:    rgba(251,191,36,0.10);
+  --color-amber-border: rgba(251,191,36,0.22);
+
   /* Fundos */
   --color-bg:  #0C0C0C;
   --color-bg2: #111111;
