@@ -200,7 +200,7 @@ function GoalCard({ goal, avgBalance }: { goal: Goal; avgBalance: number }) {
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--color-f4)", marginTop: 5 }}>
           <span>{paidCount} de {goal.payments.length} cobranças pagas</span>
-          <span>Prazo: {new Date(goal.deadline).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}</span>
+          <span>Prazo: {new Date(goal.deadline).toLocaleDateString("pt-BR", { month: "short", year: "numeric", timeZone: "UTC" })}</span>
         </div>
       </div>
 
