@@ -406,15 +406,15 @@
     },
     {
       "id": "cs-37a",
-      "columnId": "in-progress",
+      "columnId": "done",
       "csNumber": "CS-37a",
       "title": "2FA TOTP (Autenticador)",
-      "description": "Autenticação de dois fatores via TOTP (Google Authenticator, Authy). QR Code de setup, validação de 6 dígitos no login, códigos de recuperação de emergência.",
+      "description": "Autenticação de dois fatores via TOTP (Google Authenticator, Authy). QR Code de setup, validação de 6 dígitos no login, códigos de recuperação de emergência (8 × XXXX-XXXX-XXXX, bcrypt). Cookie HMAC-assinado lyfx_2fa (5 min) entre os passos de login. Tela de erro e 404 com logo e referências matemáticas corretas.",
       "labels": ["segurança", "feature"],
-      "version": "",
-      "commitHash": "",
-      "completedAt": null,
-      "order": 0
+      "version": "1.14.0",
+      "commitHash": "f7ec4a6",
+      "completedAt": "2026-06-08T00:00:00.000Z",
+      "order": 33
     },
     {
       "id": "cs-21",
