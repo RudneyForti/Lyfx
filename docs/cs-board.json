@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-06-08T16:00:00.000Z",
+  "lastUpdated": "2026-06-08T18:30:00.000Z",
   "columns": [
     {
       "id": "backlog",
@@ -724,6 +724,26 @@
       "labels": ["bug", "ux", "feature-missing", "qa"],
       "version": "1.15.0",
       "completedAt": "2026-06-08T15:00:00.000Z"
+    },
+    {
+      "id": "cs-47",
+      "columnId": "done",
+      "csNumber": "CS-47",
+      "title": "Alertas — taxa anual composta exibida 100× menor no alerta de passivo crítico",
+      "description": "BUG encontrado no QA v1.14.0 (AL-04 test): o alerta 'Passivo crítico' exibia '~4% a.a.' para um passivo de 15% a.m. em vez de '~435% a.a.'. A fórmula (Math.pow(1 + rate/100, 12) - 1).toFixed(0) retorna o valor decimal (4.35) diretamente como porcentagem, sem multiplicar por 100. Fix em app/actions/alerts.ts: ((Math.pow(1 + rate/100, 12) - 1) * 100).toFixed(0).",
+      "labels": ["bug", "cálculo", "qa"],
+      "version": "1.15.0",
+      "completedAt": "2026-06-08T18:00:00.000Z"
+    },
+    {
+      "id": "cs-48",
+      "columnId": "done",
+      "csNumber": "CS-48",
+      "title": "Alertas — alerta sazonal não dispara quando vencimento é exatamente 2 meses à frente",
+      "description": "BUG encontrado no QA v1.14.0 (AL-07 test): alerta sazonal com IPTU vencendo em agosto de 2026 não aparecia em /alerts, apesar do threshold ser <= 2 meses. Causa raiz: diffMonths = diffDays/30 retornava 2.01 (60.4 dias / 30 = 2.013) para uma data exatamente 2 meses calendário à frente, causando falso negativo. Fix em app/actions/alerts.ts: substituir comparação de diffMonths por calMonthDiff = (next.getFullYear() - now.getFullYear()) * 12 + (next.getMonth() - now.getMonth()), que retorna 2 (inteiro) para datas com exatamente 2 meses de diferença calendário.",
+      "labels": ["bug", "cálculo", "qa"],
+      "version": "1.15.0",
+      "completedAt": "2026-06-08T18:30:00.000Z"
     }
   ]
 }
