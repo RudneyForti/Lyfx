@@ -1,6 +1,6 @@
 # Lyfx — Guia Completo de Funcionalidades
 > Documento de referência para analistas financeiros, gestores de produto e material de capacitação
-> Versão 1.12.0 · Junho 2026
+> Versão 1.13.0 · Junho 2026
 
 ---
 
@@ -196,7 +196,7 @@ O sistema de autenticação funciona em dois modos distintos:
 Exibe um formulário de criação de conta com campos: nome, e-mail, senha e confirmação de senha. Este modo é exibido automaticamente quando o sistema detecta que ainda não existe nenhum usuário cadastrado.
 
 **Modo Login** (usuário existente):  
-Exibe campos de e-mail e senha, com opção "Lembrar de mim" e link "Esqueci minha senha".
+Exibe campos de e-mail e senha, com opção "Lembrar de mim" e link "Esqueci minha senha". Também oferece botões de login social (Google e Microsoft) quando as integrações estão ativas.
 
 **Alternância entre modos**: o usuário pode alternar entre os modos de login e setup manualmente, independentemente do estado do banco.
 
@@ -211,6 +211,13 @@ Exibe campos de e-mail e senha, com opção "Lembrar de mim" e link "Esqueci min
 - Após 15 falhas: IP bloqueado temporariamente com mensagem "Acesso temporariamente bloqueado" e contagem regressiva em minutos
 - Desbloqueio automático via janela deslizante — sem necessidade de intervenção manual
 - Todos os thresholds e a janela de tempo são configuráveis pelo administrador no Studio
+
+**Login social com Google e Microsoft (CS-36)**:
+- Botões "Entrar com Google" e "Entrar com Microsoft" na tela de login
+- Ao clicar, o usuário é redirecionado para a tela de autorização do provedor escolhido
+- Após autorização, o sistema vincula a conta social ao usuário existente (mesmo e-mail) ou cria um novo usuário automaticamente
+- Se as credenciais de um provedor não estiverem configuradas, o botão correspondente aparece desabilitado visualmente
+- Erros de autenticação são exibidos na tela de login com mensagem em português (sem poluir a URL)
 
 **Modal "Esqueci minha senha"**: ao clicar no link, abre um modal explicando que o Lyfx não envia e-mails de recuperação. A orientação é acessar o perfil para redefinir a senha, ou contatar o administrador que pode redefinir via Studio.
 
@@ -997,10 +1004,28 @@ Cinco campos separados: CEP, Logradouro, Número/Complemento, Cidade, Estado e P
 
 #### Troca de Senha
 
-Formulário separado na parte inferior da página:
+Formulário separado:
 - **Senha atual**: verificada contra o hash armazenado antes de qualquer alteração
-- **Nova senha**: mínimo 6 caracteres
+- **Nova senha**: deve atender à política de senha forte (8+ caracteres, maiúscula, minúscula, número, especial) com barra visual de força em tempo real
 - Proteção contra alteração sem conhecer a senha atual
+- Após troca bem-sucedida, todas as outras sessões ativas são encerradas automaticamente — somente a sessão atual permanece
+
+#### Sessões Ativas (CS-34)
+
+Seção dedicada ao gerenciamento de todos os dispositivos onde o usuário está logado:
+
+- Cada sessão exibe: IP de origem, informação do navegador/dispositivo e tempo da última atividade (relativo: "há 2 horas")
+- A sessão atual é destacada com badge "Esta sessão"
+- **Revogar sessão individual**: encerra o acesso de um dispositivo específico sem afetar os demais
+- **Sair de todos os outros dispositivos**: revoga todas as sessões exceto a atual em uma única operação — útil ao detectar acesso não autorizado ou ao deixar um computador público
+
+#### Histórico de Segurança (CS-35)
+
+Registro dos últimos 50 eventos de segurança da conta:
+
+- Cada evento exibe: ícone colorido por tipo, descrição legível, IP de origem e tempo relativo
+- Tipos de eventos registrados: login realizado, tentativa de login falhou, logout, senha alterada, sessão revogada, todas as sessões revogadas
+- Botão "Atualizar" para recarregar o histórico sem recarregar a página inteira
 
 ---
 
@@ -1009,7 +1034,7 @@ Formulário separado na parte inferior da página:
 **Rota**: `/studio`  
 **Acesso**: senha separada (`ADMIN_SECRET`) — independente da sessão do usuário
 
-Painel de administração da plataforma. Acessível via link discreto na tela de login. Organizado em 8 abas: **Painel · Usuários · Planos · Módulos · Notas · Dados · Schema · Documentação**.
+Painel de administração da plataforma. Acessível via link discreto na tela de login. Organizado em 9 abas: **Painel · Usuários · Planos · Módulos · Segurança · Notas · Dados · Schema · Documentação**.
 
 #### Autenticação do Studio
 
@@ -1063,6 +1088,15 @@ Lista todos os módulos do sistema com controle de visibilidade.
 **Toggle Beta por módulo**: o administrador pode marcar qualquer módulo como "em beta" a qualquer momento, sem precisar reiniciar o servidor. Módulos marcados como beta exibem um chip amarelo "Beta" na barra lateral para todos os usuários — comunicando que a funcionalidade está disponível mas ainda em desenvolvimento.
 
 Isso permite o lançamento gradual de novos módulos: libera-se para usuários Insider primeiro (plan Insider inclui betas), coleta feedback, depois remove o badge beta quando o módulo estiver maduro.
+
+#### Aba Segurança (CS-35)
+
+Histórico consolidado de eventos de segurança de **todos os usuários** da plataforma.
+
+- Lista todos os eventos de login, logout, trocas de senha, revogações de sessão e tentativas falhas de acesso
+- **Filtro por usuário**: permite visualizar o histórico de um usuário específico, facilitando a investigação de incidentes
+- **Filtro por tipo de evento**: permite filtrar apenas eventos de uma categoria (ex: somente falhas de login)
+- Cada evento exibe: tipo com ícone colorido, descrição, nome do usuário, e-mail, IP de origem e momento do evento
 
 #### Aba Notas
 

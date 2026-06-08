@@ -364,6 +364,48 @@ model KmPlace {
   updatedAt          DateTime @updatedAt
 }
 
+// CS-36: Contas OAuth vinculadas ao usuário (Google, Microsoft)
+model OAuthAccount {
+  id             String   @id @default(cuid())
+  userId         String
+  provider       String   // "google" | "microsoft"
+  providerUserId String   // sub (Google) ou oid (Microsoft)
+  createdAt      DateTime @default(now())
+
+  @@unique([provider, providerUserId]) // um provedor+id só pode estar em uma conta
+  @@index([userId])
+}
+
+// CS-34: Sessões com estado — permite invalidação server-side e view de sessões ativas
+model Session {
+  id          String   @id @default(cuid()) // sessionId armazenado no cookie
+  userId      String
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([userId])
+  @@index([expiresAt]) // limpeza lazy de sessões expiradas
+}
+
+// CS-35: Audit log — registro de eventos de segurança
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  // null para eventos anônimos (login falho com email inexistente)
+  sessionId String?  // null quando não há sessão ativa
+  action    String   // ver lib/audit.ts para lista de ações
+  ip        String?
+  userAgent String?
+  metadata  Json?    // contexto adicional (ex: email tentado, sessionId revogado)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt]) // consulta principal: histórico do usuário
+  @@index([createdAt])         // limpeza de registros antigos
+  @@index([action, createdAt]) // filtragem por tipo de evento
+}
+
 // CS-32: Rate limiting — registro de tentativas de login por IP
 model LoginAttempt {
   id        String   @id @default(cuid())

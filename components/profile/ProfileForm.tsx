@@ -7,6 +7,8 @@ import { CountrySelect } from "@/components/ui/CountrySelect";
 import { cn } from "@/lib/utils";
 import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar"; // CS-33
 import { validatePasswordStrict } from "@/lib/password-strength";             // CS-33
+import { SessionsSection } from "@/components/profile/SessionsSection";       // CS-34
+import { AuditSection }    from "@/components/profile/AuditSection";          // CS-35
 
 // ── Field component defined OUTSIDE ProfileForm to prevent unmount on re-render ──
 function Field({
@@ -471,6 +473,18 @@ export function ProfileForm({ user }: Props) {
           )}
         </div>
       </form>
+
+      {/* Divider */}
+      <div className="h-px bg-[var(--color-border)]" />
+
+      {/* CS-34: Sessões ativas */}
+      <SessionsSection />
+
+      {/* Divider */}
+      <div className="h-px bg-[var(--color-border)]" />
+
+      {/* CS-35: Histórico de segurança */}
+      <AuditSection />
 
     </div>
   );

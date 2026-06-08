@@ -1,8 +1,8 @@
-# Lyfx — Plano de Testes v1.12.0
+# Lyfx — Plano de Testes v1.13.0
 
-> Casos de teste executáveis · Atualizado em 07/06/2026
+> Casos de teste executáveis · Atualizado em 08/06/2026
 > Baseado em análise do Agent Smith (QA Specialist) · Myers · WAHH · Hendrickson · Kaner
-> Cobertura completa: v1.5.0 → v1.12.0 · Inclui CS-17 (Reembolso Especial), CS-18/CS-19 (Notificações), Studio G2, CS-25 (Feriados), CS-31 (Segurança), CS-32 (Rate Limiting), CS-33 (Política de Senha)
+> Cobertura completa: v1.5.0 → v1.13.0 · Inclui CS-17 (Reembolso Especial), CS-18/CS-19 (Notificações), Studio G2, CS-25 (Feriados), CS-31 (Segurança), CS-32 (Rate Limiting), CS-33 (Política de Senha), CS-34 (Sessões com estado), CS-35 (Audit Log), CS-36 (OAuth Google + Microsoft)
 
 **Como usar este arquivo:**
 - Cada caso é autossuficiente: pré-condições + passos + resultado esperado preciso
@@ -11,7 +11,7 @@
 - Marcar cada caso: ✅ PASSOU · ❌ FALHOU · ⏭ PULADO
 
 **Ambiente:** `http://localhost:3000` · PostgreSQL `lyfx_dev` · Next.js App Router
-**Total de casos:** 378+
+**Total de casos:** 400+
 
 ---
 
@@ -2202,6 +2202,98 @@
 **Prioridade:** ALTO
 **Passos:** Navegar para `/profile` → seção "Alterar senha"; preencher senha atual correta; digitar `novasenha` em "Nova senha" (sem maiúscula/número/especial); clicar "Alterar senha"
 **Resultado esperado:** Erro descrevendo o requisito faltante. Senha não é alterada. Barra de força exibe nível "Razoável" ou inferior.
+
+---
+
+### SEC-34 — Sessões: lista de sessões ativas exibida no perfil [CS-34]
+**Prioridade:** ALTO
+**Pré-condições:** Usuário logado; pelo menos 1 sessão ativa
+**Passos:** Navegar para `/profile` → seção "Sessões Ativas"
+**Resultado esperado:** Ao menos uma sessão listada com IP, informação de dispositivo e tempo relativo. Sessão atual marcada com badge "Esta sessão".
+
+---
+
+### SEC-35 — Sessões: revogar sessão individual [CS-34]
+**Prioridade:** CRÍTICO
+**Pré-condições:** Duas sessões ativas (abrir em dois navegadores diferentes)
+**Passos:** No perfil do navegador A, clicar "Revogar" na sessão do navegador B
+**Resultado esperado:** Sessão do navegador B é invalidada. Ao recarregar a página no navegador B, ocorre redirecionamento para `/login`. Sessão do navegador A permanece ativa.
+
+---
+
+### SEC-36 — Sessões: revogar todas as outras sessões [CS-34]
+**Prioridade:** CRÍTICO
+**Pré-condições:** Três ou mais sessões ativas (abrir em múltiplos navegadores)
+**Passos:** No perfil do navegador A, clicar "Sair de todos os outros dispositivos"
+**Resultado esperado:** Apenas a sessão do navegador A permanece ativa. Os demais navegadores redirecionam para `/login` ao recarregar. Sessão do navegador A não é afetada.
+
+---
+
+### SEC-37 — Sessões: troca de senha revoga outras sessões [CS-34]
+**Prioridade:** CRÍTICO
+**Pré-condições:** Usuário logado em dois navegadores (A e B)
+**Passos:** No navegador A, trocar a senha com sucesso
+**Resultado esperado:** Navegador A permanece logado (sessão atual preservada). Navegador B é redirecionado para `/login` ao recarregar.
+
+---
+
+### SEC-38 — Audit Log: evento de login registrado [CS-35]
+**Prioridade:** ALTO
+**Passos:** Fazer logout e login novamente; navegar para `/profile` → seção "Histórico de Segurança"
+**Resultado esperado:** Evento "Login realizado" com variante success (ícone verde) aparece no topo da lista, com IP e tempo relativo.
+
+---
+
+### SEC-39 — Audit Log: evento de troca de senha registrado [CS-35]
+**Prioridade:** ALTO
+**Passos:** Trocar senha com sucesso; navegar para `/profile` → "Histórico de Segurança"
+**Resultado esperado:** Evento "Senha alterada" com variante warning (ícone âmbar) aparece no histórico com timestamp recente.
+
+---
+
+### SEC-40 — Audit Log: histórico no Studio mostra eventos de todos os usuários [CS-35]
+**Prioridade:** ALTO
+**Pré-condições:** Dois usuários cadastrados, ambos com atividade recente
+**Passos:** Acessar Studio → aba "Segurança"
+**Resultado esperado:** Lista exibe eventos de múltiplos usuários. Coluna exibe nome e e-mail do usuário de cada evento.
+
+---
+
+### SEC-41 — Audit Log: filtros no Studio funcionam corretamente [CS-35]
+**Prioridade:** MÉDIO
+**Passos:** Studio → aba "Segurança"; selecionar um usuário específico no filtro; verificar lista
+**Resultado esperado:** Lista exibe apenas eventos do usuário selecionado. Ao selecionar "Todos", todos os eventos voltam a aparecer. Filtro por tipo de evento reduz a lista ao tipo escolhido.
+
+---
+
+### SEC-42 — OAuth: botões desabilitados sem credenciais no ambiente [CS-36]
+**Prioridade:** MÉDIO
+**Pré-condições:** Remover GOOGLE_CLIENT_ID do `.env` (ou testar com credenciais ausentes)
+**Passos:** Acessar `/login`
+**Resultado esperado:** Botão "Entrar com Google" exibido com opacidade reduzida, sem link e não clicável. Botão "Entrar com Microsoft" segue comportamento conforme suas credenciais.
+
+---
+
+### SEC-43 — OAuth Google: fluxo completo de login [CS-36]
+**Prioridade:** CRÍTICO
+**Pré-condições:** `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` configurados no `.env`; `APP_URL=http://localhost:3000`
+**Passos:** Clicar "Entrar com Google" → autorizar no Google → aguardar callback
+**Resultado esperado:** Redirecionamento para `/dashboard` após autorização. Nenhum parâmetro de erro na URL. Sessão ativa no perfil mostra nova entrada.
+
+---
+
+### SEC-44 — OAuth: erro de autenticação exibido via flash cookie (URL limpa) [CS-36]
+**Prioridade:** ALTO
+**Passos:** Simular erro de OAuth (ex: manipular o `state` cookie manualmente); aguardar callback
+**Resultado esperado:** Redirecionamento para `/login` com mensagem de erro em português (ex: "Link expirado ou inválido. Tente novamente."). URL é `/login` — sem parâmetros `?error=...`. Após reload, mensagem desaparece.
+
+---
+
+### SEC-45 — OAuth: conta social vinculada a usuário existente por e-mail [CS-36]
+**Prioridade:** CRÍTICO
+**Pré-condições:** Usuário cadastrado com e-mail `teste@gmail.com` via formulário normal
+**Passos:** Fazer logout; clicar "Entrar com Google"; autenticar com a conta `teste@gmail.com` no Google
+**Resultado esperado:** Usuário é logado na conta existente (sem criar duplicata). Conta Google fica vinculada ao usuário. Sessão ativa é criada normalmente.
 
 ---
 

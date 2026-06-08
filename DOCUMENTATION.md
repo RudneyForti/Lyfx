@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.12.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.13.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -1300,12 +1300,175 @@ Usuário define nome + valor + prazo
    │     └── Route Handler deleta cookie + redirect /login (evita loop)
    └── Usuário encontrado → renderiza Sidebar + UserMenu (flutuante) + children
 
-4. Login bem-sucedido:
-   └── setSession(user.id) → cookie httpOnly, 30 dias
+4. Login bem-sucedido (email/senha):
+   └── createSession(userId, ip, userAgent) → Session no banco + cookie HMAC 3-part
+       formato: base64(sessionId).base64(userId).HMAC-SHA256(sessionId|userId|SECRET)
 
-5. Logout:
-   └── clearSession() → deleta cookie → redirect /
+4b. Login via OAuth (Google / Microsoft):
+    └── findOrCreateOAuthUser() → find by providerUserId → link by email → create new
+        → createSession() → mesmo cookie HMAC 3-part
+
+5. Cada requisição autenticada:
+   └── touchSession() — atualiza lastSeenAt (Node.js runtime, não Edge)
+
+6. Logout:
+   └── invalidateSession(sessionId) → marca Session.isValid=false no banco → deleta cookie → redirect /
 ```
+
+### Sessões com estado no banco (CS-34)
+
+O modelo `Session` persiste todas as sessões ativas no banco:
+
+```prisma
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  isValid     Boolean  @default(true)
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  @@index([userId])
+}
+```
+
+**Cookie HMAC 3-part** (`lyfx_session`):
+- Formato: `base64(sessionId).base64(userId).HMAC-SHA256(sessionId|userId|SESSION_SECRET)`
+- Validação no proxy (Edge Runtime) sem banco — rejeita cookie forjado imediatamente
+- `getSession()` em Server Components: decodifica cookie + busca Session no banco (isValid=true)
+
+**Funções centrais** (`lib/session.ts`):
+- `createSession(userId, ip?, userAgent?)` — cria Session no banco + seta cookie
+- `getSession(cookieStore)` — valida HMAC + busca banco, retorna `{ userId, sessionId }` ou null
+- `invalidateSession(sessionId)` — `isValid=false` no banco + deleta cookie
+- `invalidateOtherSessions(userId, sessionId)` — `deleteMany` de todas as outras sessões do usuário
+- `touchSession(sessionId)` — atualiza `lastSeenAt` (sem await no layout, fire-and-forget)
+
+**View de sessões no perfil** (`components/profile/SessionsSection.tsx`):
+- Lista todas as sessões ativas do usuário (IP, user-agent, lastSeenAt relativo)
+- Sessão atual destacada com badge "Esta sessão"
+- Botão "Revogar" por sessão individual → `revokeSession(targetSessionId)`
+- Botão "Sair de todos os outros dispositivos" → `revokeAllOtherSessions()`
+
+### OAuth — Google e Microsoft (CS-36)
+
+Implementado via biblioteca **Arctic** (`arctic`) com fluxo PKCE completo.
+
+**Modelos de dados:**
+```prisma
+model OAuthAccount {
+  id             String   @id @default(cuid())
+  userId         String
+  provider       String                        // "google" | "microsoft"
+  providerUserId String
+  createdAt      DateTime @default(now())
+  @@unique([provider, providerUserId])
+  @@index([userId])
+}
+```
+
+**Providers** (`lib/oauth.ts`):
+- `getGoogleProvider()` → `new Google(CLIENT_ID, CLIENT_SECRET, redirectUri)`
+- `getMicrosoftProvider()` → `new MicrosoftEntraId("common", CLIENT_ID, CLIENT_SECRET, redirectUri)`
+- `isOAuthEnabled(provider)` → boolean — verifica se ambos CLIENT_ID e CLIENT_SECRET estão no ambiente
+- Todos os redirect URIs derivados de `APP_URL` — mudar de domínio = alterar 1 variável
+
+**Fluxo de autorização (iniciação):**
+```
+GET /api/auth/google
+  → generateState() + generateCodeVerifier()
+  → cookies: oauth_state (httpOnly, maxAge:600) + oauth_code_verifier (httpOnly, maxAge:600)
+  → redirect para URL de autorização Google (PKCE: code_challenge_method=S256)
+```
+
+**Fluxo de callback:**
+```
+GET /api/auth/google/callback?code=...&state=...
+  1. Valida state contra cookie oauth_state
+  2. Troca code + verifier por tokens via Arctic
+  3. Busca UserInfo API (Google) / decodifica id_token JWT (Microsoft)
+  4. findOrCreateOAuthUser():
+     ├── OAuthAccount com providerUserId existe → login (isso: mesmo account)
+     ├── User com mesmo email existe → vincula OAuthAccount + login
+     └── Nenhum → cria User + OAuthAccount + login
+  5. createSession() → cookie HMAC → redirect /dashboard
+  6. Em caso de erro → redirectWithOAuthError() (flash cookie, não URL param)
+```
+
+**Microsoft especificidade**: usa `claims.oid` (Object ID) como `providerUserId` — mais estável que `sub` (que muda entre tenants). Requer permissão `User.Read` delegada no Azure.
+
+**Flash cookie de erro** (`lib/oauth-flash.ts`):
+- Cookie `oauth_error`: `httpOnly: false` (JS precisa ler), `maxAge: 30s`, `sameSite: lax`
+- `LoginForm` lê e deleta o cookie no `useEffect` — URL permanece limpa (`/login` sem params)
+- Mensagens localizadas em português para `missing_params`, `state_mismatch`, `failed`
+
+**Variáveis de ambiente necessárias:**
+```
+APP_URL="https://seu-dominio.com"     # base para todos os redirect URIs
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET="..."
+MICROSOFT_CLIENT_ID="..."
+MICROSOFT_CLIENT_SECRET="..."
+```
+
+**Botões adaptativos**: se as credenciais de um provider não estão no `.env`, o botão correspondente é renderizado desabilitado (opacity-50, cursor-not-allowed, sem `href`).
+
+**Rotas OAuth** adicionadas ao `publicPaths` do proxy — sem isso, o proxy interceptava `/api/auth/google` e redirecionava para `/login?redirect=/api/auth/google` (loop).
+
+### Audit Log de segurança (CS-35)
+
+Modelo `AuditLog` registra todos os eventos de segurança:
+
+```prisma
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String                            // chave do catálogo AUDIT_META
+  ip        String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  @@index([userId])
+  @@index([createdAt])
+}
+```
+
+**Catálogo de eventos** (`lib/audit.ts` — `AUDIT_META`):
+
+| action | label | variant |
+|---|---|---|
+| `auth.login.success` | Login realizado | success |
+| `auth.login.failed` | Tentativa de login falhou | danger |
+| `auth.logout` | Logout realizado | info |
+| `auth.password.changed` | Senha alterada | warning |
+| `session.revoked` | Sessão revogada | warning |
+| `session.revoked_all` | Todas as outras sessões revogadas | warning |
+
+**Funções de registro:**
+- `logEvent(opts)` — async/await, para use em Server Actions onde se quer tratar erros
+- `logEventBg(opts)` — fire-and-forget (`void promise`), para fluxos críticos onde falha no log não deve bloquear
+
+**Integração nos fluxos:**
+- `login()` → `logEventBg({ action: "auth.login.success" })` / `auth.login.failed`
+- `logout()` → `logEventBg({ action: "auth.logout" })`
+- `changePassword()` → `logEventBg({ action: "auth.password.changed" })` após `invalidateOtherSessions()`
+- `revokeSession()` → `logEventBg({ action: "session.revoked", metadata: { targetSessionId } })`
+- `revokeAllOtherSessions()` → `logEventBg({ action: "session.revoked_all", metadata: { count } })`
+- OAuth callbacks → `logEventBg({ action: "auth.login.success" })`
+
+**Cast do campo Json** (Prisma v7 — sem namespace `Prisma`):
+```ts
+metadata: opts.metadata ? JSON.parse(JSON.stringify(opts.metadata)) : undefined
+```
+
+**Histórico no perfil** (`components/profile/AuditSection.tsx`):
+- Últimos 50 eventos do usuário atual via `getAuditLogs()` (Server Action)
+- Ícone por variant: `IconShieldCheck` (success), `IconShieldX` (danger), `IconShieldExclamation` (warning), `IconShieldLock` (info)
+- Tempo relativo + IP + botão "Atualizar"
+
+**Vista admin no Studio** (`SecurityTab` em `StudioClient.tsx`):
+- Exibe eventos de TODOS os usuários (multi-user)
+- Filtros: por usuário (select) e por tipo de evento (select)
+- Fonte de dados: `getAdminSecurityLog(filters?)` em `app/studio/actions.ts` — query com join manual (busca AuditLog + Users em paralelo, mapeia em memória)
 
 ### Segurança
 

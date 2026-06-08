@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { IconLogin, IconX, IconEye, IconEyeOff, IconBrain, IconSend, IconLoader2 } from "@tabler/icons-react";
 import { setup, login } from "./actions";
+import { getOAuthErrorMessage } from "@/lib/oauth-flash"; // CS-36
 import { TurnstileWidget } from "@/components/login/TurnstileWidget";
 import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
 import { validatePasswordStrict } from "@/lib/password-strength";
@@ -205,9 +206,10 @@ const TRANSLATIONS: Record<Lang, {
 };
 
 interface Props {
-  hasUser: boolean;
-  monthIndex: number;
-  year: number;
+  hasUser:      boolean;
+  monthIndex:   number;
+  year:         number;
+  oauthEnabled: { google: boolean; microsoft: boolean }; // CS-36
 }
 
 /* ── helpers ── */
@@ -257,7 +259,7 @@ function Field({
   );
 }
 
-export function LoginForm({ hasUser, monthIndex, year }: Props) {
+export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
   const [isPending, startTransition] = useTransition();
   const [mode, setMode] = useState<"login" | "setup">(hasUser ? "login" : "setup");
   const [showPw, setShowPw] = useState(false);
@@ -265,6 +267,16 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
   // CS-13: ler rota original para redirecionar após login
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? undefined;
+  // CS-36: ler erro OAuth do cookie flash (URL permanece limpa)
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  useEffect(() => {
+    const match = document.cookie.match(/(?:^|;\s*)oauth_error=([^;]+)/);
+    if (match) {
+      setOauthError(decodeURIComponent(match[1]));
+      // apaga o cookie imediatamente
+      document.cookie = "oauth_error=; max-age=0; path=/";
+    }
+  }, []);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -699,41 +711,86 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
                 <span className="flex-1 h-px bg-[rgba(255,255,255,0.13)]" />
               </FadeUp>
 
+              {/* CS-36: erro de OAuth lido do cookie flash — URL permanece limpa */}
+              {oauthError && (
+                <FadeUp delay={0.28}>
+                  <div className="flex items-center gap-2 text-[11px] text-[var(--color-red)] bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.25)] rounded-[10px] px-3 py-2 mb-1">
+                    <IconX size={11} className="flex-shrink-0" />
+                    {getOAuthErrorMessage(oauthError)}
+                  </div>
+                </FadeUp>
+              )}
+
               <FadeUp delay={0.35} className="flex flex-col gap-2 mb-3">
-                {[
-                  {
-                    label: t.continueGoogle,
-                    icon: (
+                {/* Google */}
+                {oauthEnabled.google ? (
+                  <a
+                    href="/api/auth/google"
+                    className="w-full h-[44px] rounded-[12px] text-[13px] text-[var(--color-f2)] flex items-center gap-2.5 px-4 border border-[rgba(255,255,255,0.13)] bg-[var(--color-bg3)] hover:bg-[var(--color-bg4)] hover:border-[rgba(255,255,255,0.22)] hover:text-[var(--color-f1)] transition-all cursor-pointer no-underline"
+                  >
+                    <span className="flex-shrink-0">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                         <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                       </svg>
-                    ),
-                  },
-                  {
-                    label: t.continueMicrosoft,
-                    icon: (
+                    </span>
+                    {t.continueGoogle}
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => showToast(t.toastSocial)}
+                    className="w-full h-[44px] rounded-[12px] text-[13px] text-[var(--color-f4)] flex items-center gap-2.5 px-4 border border-[rgba(255,255,255,0.07)] bg-[var(--color-bg3)] opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <span className="flex-shrink-0">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" opacity="0.5"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" opacity="0.5"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" opacity="0.5"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" opacity="0.5"/>
+                      </svg>
+                    </span>
+                    {t.continueGoogle}
+                  </button>
+                )}
+
+                {/* Microsoft */}
+                {oauthEnabled.microsoft ? (
+                  <a
+                    href="/api/auth/microsoft"
+                    className="w-full h-[44px] rounded-[12px] text-[13px] text-[var(--color-f2)] flex items-center gap-2.5 px-4 border border-[rgba(255,255,255,0.13)] bg-[var(--color-bg3)] hover:bg-[var(--color-bg4)] hover:border-[rgba(255,255,255,0.22)] hover:text-[var(--color-f1)] transition-all cursor-pointer no-underline"
+                  >
+                    <span className="flex-shrink-0">
                       <svg width="16" height="16" viewBox="0 0 21 21">
                         <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
                         <rect x="11" y="1" width="9" height="9" fill="#00a4ef"/>
                         <rect x="1" y="11" width="9" height="9" fill="#7fba00"/>
                         <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
                       </svg>
-                    ),
-                  },
-                ].map(({ label, icon }) => (
+                    </span>
+                    {t.continueMicrosoft}
+                  </a>
+                ) : (
                   <button
-                    key={label}
                     type="button"
                     onClick={() => showToast(t.toastSocial)}
-                    className="w-full h-[44px] rounded-[12px] text-[13px] text-[var(--color-f2)] flex items-center gap-2.5 px-4 border border-[rgba(255,255,255,0.13)] bg-[var(--color-bg3)] hover:bg-[var(--color-bg4)] hover:border-[rgba(255,255,255,0.22)] hover:text-[var(--color-f1)] transition-all cursor-pointer"
+                    className="w-full h-[44px] rounded-[12px] text-[13px] text-[var(--color-f4)] flex items-center gap-2.5 px-4 border border-[rgba(255,255,255,0.07)] bg-[var(--color-bg3)] opacity-50 cursor-not-allowed"
+                    disabled
                   >
-                    <span className="flex-shrink-0">{icon}</span>
-                    {label}
+                    <span className="flex-shrink-0">
+                      <svg width="16" height="16" viewBox="0 0 21 21">
+                        <rect x="1" y="1" width="9" height="9" fill="#f25022" opacity="0.5"/>
+                        <rect x="11" y="1" width="9" height="9" fill="#00a4ef" opacity="0.5"/>
+                        <rect x="1" y="11" width="9" height="9" fill="#7fba00" opacity="0.5"/>
+                        <rect x="11" y="11" width="9" height="9" fill="#ffb900" opacity="0.5"/>
+                      </svg>
+                    </span>
+                    {t.continueMicrosoft}
                   </button>
-                ))}
+                )}
               </FadeUp>
               <FadeUp delay={0.4} className="flex justify-center mb-1">
                 <Link
