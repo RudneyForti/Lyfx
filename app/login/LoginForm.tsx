@@ -6,6 +6,8 @@ import Link from "next/link";
 import { IconLogin, IconX, IconEye, IconEyeOff, IconBrain, IconSend, IconLoader2 } from "@tabler/icons-react";
 import { setup, login } from "./actions";
 import { TurnstileWidget } from "@/components/login/TurnstileWidget";
+import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
+import { validatePasswordStrict } from "@/lib/password-strength";
 
 /* ── i18n ── */
 type Lang = "pt" | "en" | "es";
@@ -64,7 +66,7 @@ const TRANSLATIONS: Record<Lang, {
     labelEmail: "E-mail",
     labelPassword: "Senha",
     phPasswordLogin: "••••••••",
-    phPasswordSetup: "Mínimo 6 caracteres",
+    phPasswordSetup: "Mín. 8 chars, maiúscula, número e especial",
     labelConfirm: "Confirmar senha",
     phConfirm: "Repita a senha",
     remember: "Lembrar de mim",
@@ -72,7 +74,7 @@ const TRANSLATIONS: Record<Lang, {
     errName: "Nome obrigatório.",
     errEmail: "E-mail obrigatório.",
     errPassword: "Senha obrigatória.",
-    errPasswordMin: "Senha deve ter ao menos 6 caracteres.",
+    errPasswordMin: "Senha não atende aos requisitos de segurança.",
     errPasswordMatch: "As senhas não coincidem.",
     submitting: "Entrando…",
     successMsg: "Bem-vindo de volta!",
@@ -117,7 +119,7 @@ const TRANSLATIONS: Record<Lang, {
     labelEmail: "E-mail",
     labelPassword: "Password",
     phPasswordLogin: "••••••••",
-    phPasswordSetup: "Minimum 6 characters",
+    phPasswordSetup: "Min. 8 chars, uppercase, number & special",
     labelConfirm: "Confirm password",
     phConfirm: "Repeat password",
     remember: "Remember me",
@@ -125,7 +127,7 @@ const TRANSLATIONS: Record<Lang, {
     errName: "Name is required.",
     errEmail: "Email is required.",
     errPassword: "Password is required.",
-    errPasswordMin: "Password must be at least 6 characters.",
+    errPasswordMin: "Password does not meet security requirements.",
     errPasswordMatch: "Passwords don't match.",
     submitting: "Signing in…",
     successMsg: "Welcome back!",
@@ -170,7 +172,7 @@ const TRANSLATIONS: Record<Lang, {
     labelEmail: "Correo",
     labelPassword: "Contraseña",
     phPasswordLogin: "••••••••",
-    phPasswordSetup: "Mínimo 6 caracteres",
+    phPasswordSetup: "Mín. 8 chars, mayúscula, número y especial",
     labelConfirm: "Confirmar contraseña",
     phConfirm: "Repite la contraseña",
     remember: "Recuérdame",
@@ -178,7 +180,7 @@ const TRANSLATIONS: Record<Lang, {
     errName: "El nombre es obligatorio.",
     errEmail: "El correo es obligatorio.",
     errPassword: "La contraseña es obligatoria.",
-    errPasswordMin: "La contraseña debe tener al menos 6 caracteres.",
+    errPasswordMin: "La contraseña no cumple los requisitos de seguridad.",
     errPasswordMatch: "Las contraseñas no coinciden.",
     submitting: "Entrando…",
     successMsg: "¡Bienvenido de vuelta!",
@@ -314,7 +316,9 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
     if (mode === "setup") {
       if (!name.trim()) { setError(t.errName); shake(); return; }
       if (!email.trim()) { setError(t.errEmail); shake(); return; }
-      if (password.length < 6) { setError(t.errPasswordMin); shake(); return; }
+      // CS-33: validação de política de senha forte
+      const pwError = validatePasswordStrict(password);
+      if (pwError) { setError(pwError); shake(); return; }
       if (password !== confirm) { setError(t.errPasswordMatch); shake(); return; }
       startTransition(async () => {
         const result = await setup({ name, email, password });
@@ -555,6 +559,11 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
                 </button>
               }
             />
+
+            {/* CS-33: Barra de força — setup only, aparece quando há conteúdo */}
+            {mode === "setup" && (
+              <PasswordStrengthBar password={password} />
+            )}
 
             {/* Confirm — setup only */}
             {mode === "setup" && (

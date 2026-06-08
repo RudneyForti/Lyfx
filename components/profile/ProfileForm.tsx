@@ -5,6 +5,8 @@ import { IconCamera, IconCheck, IconX, IconLock, IconEye, IconEyeOff, IconLoader
 import { updateProfile, changePassword } from "@/app/actions/user";
 import { CountrySelect } from "@/components/ui/CountrySelect";
 import { cn } from "@/lib/utils";
+import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar"; // CS-33
+import { validatePasswordStrict } from "@/lib/password-strength";             // CS-33
 
 // ── Field component defined OUTSIDE ProfileForm to prevent unmount on re-render ──
 function Field({
@@ -176,6 +178,9 @@ export function ProfileForm({ user }: Props) {
   function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
     setPwMsg(null);
+    // CS-33: validação de política de senha forte
+    const pwError = validatePasswordStrict(pw.next);
+    if (pwError) return setPwMsg({ text: pwError });
     if (pw.next !== pw.confirm) return setPwMsg({ text: "As senhas não coincidem." });
     startPwTransition(async () => {
       const result = await changePassword({ current: pw.current, next: pw.next });
@@ -381,34 +386,59 @@ export function ProfileForm({ user }: Props) {
           Alterar senha
         </div>
 
-        {[
-          { label: "Senha atual", key: "current" as const, ph: "••••••••" },
-          { label: "Nova senha", key: "next" as const, ph: "Mínimo 6 caracteres" },
-          { label: "Confirmar nova senha", key: "confirm" as const, ph: "Repita a nova senha" },
-        ].map(({ label, key, ph }) => (
-          <div key={key} className="flex flex-col gap-1">
-            <label className="text-[11px] font-medium text-[var(--color-f2)]">{label}</label>
-            <div className="relative">
-              <IconLock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)] pointer-events-none" />
-              <input
-                type={showPw ? "text" : "password"}
-                value={pw[key]}
-                onChange={(e) => setPw((p) => ({ ...p, [key]: e.target.value }))}
-                placeholder={ph}
-                className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] pl-9 pr-10 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
-              />
-              {key === "current" && (
-                <button
-                  type="button"
-                  onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)] hover:text-[var(--color-f2)] cursor-pointer"
-                >
-                  {showPw ? <IconEyeOff size={14} /> : <IconEye size={14} />}
-                </button>
-              )}
-            </div>
+        {/* Senha atual */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-medium text-[var(--color-f2)]">Senha atual</label>
+          <div className="relative">
+            <IconLock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)] pointer-events-none" />
+            <input
+              type={showPw ? "text" : "password"}
+              value={pw.current}
+              onChange={(e) => setPw((p) => ({ ...p, current: e.target.value }))}
+              placeholder="••••••••"
+              className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] pl-9 pr-10 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw(!showPw)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)] hover:text-[var(--color-f2)] cursor-pointer"
+            >
+              {showPw ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+            </button>
           </div>
-        ))}
+        </div>
+
+        {/* Nova senha + barra de força CS-33 */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-medium text-[var(--color-f2)]">Nova senha</label>
+          <div className="relative">
+            <IconLock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)] pointer-events-none" />
+            <input
+              type={showPw ? "text" : "password"}
+              value={pw.next}
+              onChange={(e) => setPw((p) => ({ ...p, next: e.target.value }))}
+              placeholder="Mín. 8 chars, maiúscula, número e especial"
+              className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] pl-9 pr-10 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
+            />
+          </div>
+          {/* CS-33: barra visual de força */}
+          <PasswordStrengthBar password={pw.next} />
+        </div>
+
+        {/* Confirmar nova senha */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-medium text-[var(--color-f2)]">Confirmar nova senha</label>
+          <div className="relative">
+            <IconLock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-f4)] pointer-events-none" />
+            <input
+              type={showPw ? "text" : "password"}
+              value={pw.confirm}
+              onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))}
+              placeholder="Repita a nova senha"
+              className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] pl-9 pr-10 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
+            />
+          </div>
+        </div>
 
         <div className="flex items-center gap-3">
           <button
