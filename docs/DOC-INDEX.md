@@ -1,5 +1,5 @@
 # Lyfx — Índice de Documentação
-> Registro central de todos os documentos do projeto · v1.11.2 · Junho 2026
+> Registro central de todos os documentos do projeto · v1.11.3 · Junho 2026
 > **Regra:** atualizar este arquivo em todo merge para `master` (E7 — passo obrigatório).
 
 ---
@@ -27,6 +27,17 @@
 | `QA-TEST-PLAN.md` | `/docs/QA-TEST-PLAN.md` | v1.11.0 | Agent Smith / QA | Plano de testes executável com 321 casos. Cobre autenticação, todos os módulos, Studio G2, Reembolso Especial (CS-17/CS-25), Central de Notificações (CS-18/CS-19), segurança, isolamento multi-usuário e fluxos E2E. Atualizado em v1.11.0 com casos de feriados nacionais (KM-11b/c/d). |
 | `PEDAGOGY_V2.md` | `/docs/PEDAGOGY_V2.md` | v2.0 | Conteudistas / Desenvolvedores | Metodologia pedagógica do módulo `/education`. Define estrutura das pílulas (concept/why/how/quiz), taxonomia de tópicos, critérios editoriais e modelo de progressão por trilhas. |
 | **`DOC-INDEX.md`** | `/docs/DOC-INDEX.md` | v1.10.0 | Todos | **Este arquivo.** Índice central de toda a documentação do projeto. |
+
+---
+
+### Páginas de sistema — adicionadas em v1.11.3
+
+> Criadas no CS-31 (Fundação de Segurança).
+
+| Arquivo | Caminho | Versão | Descrição |
+|---|---|---|---|
+| `not-found.tsx` | `/app/not-found.tsx` | v1.11.3 | Página 404 customizada com identidade Lyfx. Exibe `f(404) = ∄` em Playfair Display com cyan, subtítulo `dom(f) ∩ {/rota} = ∅`. Botões para Dashboard e Início. |
+| `error.tsx` | `/app/error.tsx` | v1.11.3 | Error boundary global (`"use client"`). Exibe ícone de alerta vermelho + `error.digest` como referência sem vazar stack trace. Botões "Tentar novamente" (chama `reset()`) e Dashboard. |
 
 ---
 
@@ -93,4 +104,4 @@ Este índice é **obrigatório** no checklist E7 de release. Atualizar quando:
 
 ---
 
-*Índice gerado em 07/06/2026 · Versão da plataforma: v1.11.2*
+*Índice gerado em 07/06/2026 · Versão da plataforma: v1.11.3*
