@@ -406,7 +406,7 @@
     },
     {
       "id": "cs-37a",
-      "columnId": "backlog",
+      "columnId": "in-progress",
       "csNumber": "CS-37a",
       "title": "2FA TOTP (Autenticador)",
       "description": "Autenticação de dois fatores via TOTP (Google Authenticator, Authy). QR Code de setup, validação de 6 dígitos no login, códigos de recuperação de emergência.",

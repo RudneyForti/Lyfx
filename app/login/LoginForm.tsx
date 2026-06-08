@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { IconLogin, IconX, IconEye, IconEyeOff, IconBrain, IconSend, IconLoader2 } from "@tabler/icons-react";
-import { setup, login } from "./actions";
+import { setup, login, verifyTwoFactor } from "./actions";
 import { getOAuthErrorMessage } from "@/lib/oauth-flash"; // CS-36
 import { TurnstileWidget } from "@/components/login/TurnstileWidget";
 import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
@@ -286,6 +286,10 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
   const [toast, setToast] = useState<{ show: boolean; msg: string }>({ show: false, msg: "" });
   const [forgotOpen, setForgotOpen] = useState(false);
   const [success, setSuccess] = useState(false);
+  // CS-37a: 2FA
+  const [step, setStep] = useState<"password" | "2fa">("password");
+  const [totpCode, setTotpCode] = useState("");
+  const [useBackup, setUseBackup] = useState(false);
   // CS-32: estados de rate limiting
   const [captchaRequired, setCaptchaRequired] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -370,10 +374,34 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
           }
           return;
         }
+        // CS-37a: 2FA obrigatório
+        if ("requires2FA" in result && result.requires2FA) {
+          setStep("2fa");
+          setError("");
+          return;
+        }
         if (result?.error) { setError(result.error); shake(); }
         else setSuccess(true);
       });
     }
+  }
+
+  // CS-37a: submit do código TOTP/backup
+  function handleTotpSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const code = totpCode.trim();
+    if (!code) { setError("Digite o código."); shake(); return; }
+    setError("");
+    startTransition(async () => {
+      const result = await verifyTwoFactor({
+        code,
+        isBackupCode: useBackup,
+        remember,
+        redirectTo,
+      });
+      if (!result) return; // redirect
+      if (result?.error) { setError(result.error); shake(); }
+    });
   }
 
   /* ── Left panel content ── */
@@ -517,21 +545,91 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
         {/* Title */}
         <FadeUp delay={0.05}>
           <h2 className="text-[20px] font-semibold text-[var(--color-f1)] mb-1" style={{ letterSpacing: "-0.4px" }}>
-            {mode === "login" ? t.titleLogin : t.titleSetup}
+            {step === "2fa"
+              ? "Verificação em dois fatores"
+              : mode === "login" ? t.titleLogin : t.titleSetup}
           </h2>
         </FadeUp>
 
         <FadeUp delay={0.1} className="mb-4">
           <p className="text-[13px] text-[var(--color-f3)]">
-            {mode === "login"
-              ? <span>{t.subLinkLogin}{" "}<button type="button" onClick={() => switchMode("setup")} className="text-[var(--color-cyan)] cursor-pointer hover:opacity-80 transition-opacity bg-none border-none p-0">{t.subLinkLoginCta}</button></span>
-              : <span>{t.subLinkSetup}{" "}<button type="button" onClick={() => switchMode("login")} className="text-[var(--color-cyan)] cursor-pointer hover:opacity-80 transition-opacity bg-none border-none p-0">{t.subLinkSetupCta}</button></span>
+            {step === "2fa"
+              ? <span>Digite o código do seu aplicativo autenticador.</span>
+              : mode === "login"
+                ? <span>{t.subLinkLogin}{" "}<button type="button" onClick={() => switchMode("setup")} className="text-[var(--color-cyan)] cursor-pointer hover:opacity-80 transition-opacity bg-none border-none p-0">{t.subLinkLoginCta}</button></span>
+                : <span>{t.subLinkSetup}{" "}<button type="button" onClick={() => switchMode("login")} className="text-[var(--color-cyan)] cursor-pointer hover:opacity-80 transition-opacity bg-none border-none p-0">{t.subLinkSetupCta}</button></span>
             }
           </p>
         </FadeUp>
 
+        {/* CS-37a: TOTP step */}
+        {step === "2fa" && (
+          <form onSubmit={handleTotpSubmit}>
+            <div className="flex flex-col gap-3 mb-3">
+              <div>
+                <label className="block text-[12px] font-medium text-[var(--color-f3)] mb-1.5">
+                  {useBackup ? "Código de backup" : "Código do autenticador"}
+                </label>
+                <input
+                  type="text"
+                  inputMode={useBackup ? "text" : "numeric"}
+                  maxLength={useBackup ? 14 : 6}
+                  value={totpCode}
+                  onChange={e => setTotpCode(e.target.value)}
+                  placeholder={useBackup ? "XXXX-XXXX-XXXX" : "000 000"}
+                  autoFocus
+                  autoComplete="one-time-code"
+                  style={{
+                    width: "100%", background: "var(--color-bg2)", border: "1px solid var(--color-border2)",
+                    borderRadius: 10, color: "var(--color-f1)", fontSize: useBackup ? 14 : 28,
+                    padding: "10px 14px", outline: "none", textAlign: "center",
+                    letterSpacing: useBackup ? "0.1em" : "0.3em", fontFamily: "monospace",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "var(--color-cyan)")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "var(--color-border2)")}
+                />
+              </div>
+
+              {error && (
+                <p className="text-[12px] text-red-400 text-center">{error}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={isPending}
+                style={{
+                  width: "100%", padding: "11px 0", borderRadius: 10,
+                  background: "var(--color-cyan)", color: "#0f172a",
+                  border: "none", fontWeight: 700, fontSize: 14, cursor: isPending ? "not-allowed" : "pointer",
+                  opacity: isPending ? 0.7 : 1,
+                }}
+              >
+                {isPending ? "Verificando…" : "Verificar"}
+              </button>
+
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => { setStep("password"); setError(""); setTotpCode(""); setUseBackup(false); }}
+                  className="text-[12px] text-[var(--color-f4)] hover:text-[var(--color-f2)] transition-colors"
+                >
+                  ← Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setUseBackup(v => !v); setTotpCode(""); setError(""); }}
+                  className="text-[12px] text-[var(--color-cyan)] hover:opacity-80 transition-opacity"
+                >
+                  {useBackup ? "Usar autenticador" : "Usar código de backup"}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
         {/* Form */}
-        <form onSubmit={handleSubmit}>
+        {step === "password" && <form onSubmit={handleSubmit}>
           <FadeUp delay={0.15} className="flex flex-col gap-3 mb-3">
 
             {/* Name — setup only */}
@@ -802,7 +900,7 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
               </FadeUp>
             </>
           )}
-        </form>
+        </form>}
 
         {/* Footer */}
         <FadeUp delay={0.4}>
