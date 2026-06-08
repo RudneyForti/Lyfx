@@ -25,7 +25,7 @@ export async function initTwoFactorSetup(): Promise<{
   secret:    string;
   error?:    never;
 } | { error: string }> {
-  const { userId } = await requireAuth();
+  const userId = await requireAuth();
 
   const user = await db.user.findUnique({ where: { id: userId }, select: { email: true, twoFactorEnabled: true } });
   if (!user) return { error: "Usuário não encontrado." };
@@ -45,7 +45,7 @@ export async function confirmTwoFactorSetup(code: string): Promise<{
   backupCodes: string[];
   error?:      never;
 } | { error: string }> {
-  const { userId } = await requireAuth();
+  const userId = await requireAuth();
   const ip = await getIp();
 
   const user = await db.user.findUnique({
@@ -76,7 +76,7 @@ export async function confirmTwoFactorSetup(code: string): Promise<{
 
 /* ── Desativar 2FA (exige código TOTP atual) ── */
 export async function disableTwoFactor(code: string): Promise<{ error?: string }> {
-  const { userId } = await requireAuth();
+  const userId = await requireAuth();
   const ip = await getIp();
 
   const user = await db.user.findUnique({
@@ -102,7 +102,7 @@ export async function regenerateBackupCodes(code: string): Promise<{
   backupCodes: string[];
   error?:      never;
 } | { error: string }> {
-  const { userId } = await requireAuth();
+  const userId = await requireAuth();
 
   const user = await db.user.findUnique({
     where:  { id: userId },
@@ -129,7 +129,7 @@ export async function getTwoFactorStatus(): Promise<{
   enabled:      boolean;
   backupCount:  number;
 }> {
-  const { userId } = await requireAuth();
+  const userId = await requireAuth();
   const user = await db.user.findUnique({
     where:  { id: userId },
     select: { twoFactorEnabled: true, twoFactorBackupCodes: true },

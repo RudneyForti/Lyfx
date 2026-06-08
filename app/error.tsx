@@ -27,8 +27,8 @@ export default function GlobalError({
 
       <div className="relative z-10 text-center max-w-md flex flex-col items-center gap-6">
         {/* Logotipo */}
-        <div className="text-[13px] tracking-[3px] uppercase text-[var(--color-f4)] mb-2">
-          Ly<em className="not-italic text-[var(--color-cyan)]">fx</em>
+        <div className="font-[family-name:var(--font-display)] italic text-[22px] font-bold text-[var(--color-f1)] leading-none mb-2">
+          Ly<span className="text-[var(--color-cyan)]">fx</span>
         </div>
 
         {/* Ícone de erro */}
@@ -52,13 +52,21 @@ export default function GlobalError({
         </div>
 
         {/* Mensagem */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 items-center">
           <h1
             className="text-[22px] font-semibold text-[var(--color-f1)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Algo deu errado
           </h1>
+
+          {/* Referência matemática — série divergente */}
+          <p className="text-[13px] text-[var(--color-f4)] font-mono tracking-tight">
+            <span title="limite da função de estado tendendo a zero é conjunto vazio">
+              lim<sub>t→0</sub> f(t) = ∅
+            </span>
+          </p>
+
           <p className="text-[14px] text-[var(--color-f3)] leading-relaxed">
             Um erro inesperado ocorreu. Tente novamente ou volte para o início.
           </p>
