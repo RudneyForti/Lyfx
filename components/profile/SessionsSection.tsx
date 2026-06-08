@@ -11,9 +11,11 @@ import { getSessions, revokeSession, revokeAllOtherSessions } from "@/app/action
 import type { SessionInfo } from "@/app/actions/sessions";
 
 function formatDate(date: Date): string {
+  // CS-41: timeZone:"UTC" garante consistência server/client
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
+    timeZone: "UTC",
   }).format(new Date(date));
 }
 

@@ -24,7 +24,8 @@ function fmt(v: number) {
 }
 function fmtDate(d: Date | null) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("pt-BR");
+  // CS-41: timeZone:"UTC" garante consistência entre server e client
+  return new Date(d).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
 const TYPE_ICON: Record<string, React.ReactNode> = {

@@ -23,7 +23,8 @@ function formatCurrency(value: number) {
 }
 
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(new Date(date));
+  // CS-41: timeZone:"UTC" garante consistência entre server (Docker UTC+0) e client (browser local)
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" }).format(new Date(date));
 }
 
 function ActionBar({

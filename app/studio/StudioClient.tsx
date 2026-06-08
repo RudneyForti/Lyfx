@@ -788,7 +788,7 @@ function UsersTab({ users, plans }: { users: UserRow[]; plans: PlanItem[] }) {
             }
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{u.name}</div>
-              <div style={{ fontSize: 11, color: "var(--color-f4)" }}>{u.email ?? "sem e-mail"} · desde {new Date(u.createdAt).toLocaleDateString("pt-BR")}</div>
+              <div style={{ fontSize: 11, color: "var(--color-f4)" }}>{u.email ?? "sem e-mail"} · desde {new Date(u.createdAt).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</div>
             </div>
 
             {/* Plan badge / selector */}
@@ -2819,7 +2819,7 @@ function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItem
                       <div style={{ width: `${readPct}%`, height: "100%", background: b.readCount === b.totalCount ? "#A3E635" : cfg.color, borderRadius: 999, transition: "width 300ms" }} />
                     </div>
                     <span>·</span>
-                    <span>{new Date(b.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                    <span>{new Date(b.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })}</span>
                     {b.link && <span>· <span style={{ color: "var(--color-cyan)" }}>{b.link}</span></span>}
                   </div>
                 </div>
@@ -2914,9 +2914,11 @@ function SecurityEventIcon({ variant }: { variant: AdminSecurityEvent["variant"]
 }
 
 function formatSecDate(date: Date): string {
+  // CS-41: timeZone:"UTC" garante consistência server/client
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit", second: "2-digit",
+    timeZone: "UTC",
   }).format(new Date(date));
 }
 
