@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.13.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.14.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -1469,6 +1469,73 @@ metadata: opts.metadata ? JSON.parse(JSON.stringify(opts.metadata)) : undefined
 - Exibe eventos de TODOS os usuários (multi-user)
 - Filtros: por usuário (select) e por tipo de evento (select)
 - Fonte de dados: `getAdminSecurityLog(filters?)` em `app/studio/actions.ts` — query com join manual (busca AuditLog + Users em paralelo, mapeia em memória)
+
+### 2FA TOTP (CS-37a)
+
+Autenticação de dois fatores via TOTP (RFC 6238). Depende de `otplib` (v2 — API com funções diretas) e `qrcode`.
+
+**Campos adicionados ao modelo User:**
+```prisma
+twoFactorSecret      String?   // secret base32 gerado por generateSecret()
+twoFactorEnabled     Boolean   @default(false)
+twoFactorBackupCodes String?   // JSON: string[] de hashes bcrypt
+```
+
+**`lib/totp.ts`** — utilitários TOTP:
+```
+generateTotpSecret()                       → string (base32)
+verifyTotpCode(secret, code)               → boolean  (verifySync().valid)
+generateQrCodeUrl(email, secret)           → Promise<string>  (data URL PNG)
+generateBackupCodes()                      → string[]  (8 × XXXX-XXXX-XXXX)
+hashBackupCodes(codes)                     → Promise<string[]>  (bcrypt hash cada)
+verifyAndConsumeBackupCode(code, json)     → Promise<{ valid, remainingHashes }>
+setPendingTwoFactor(userId)                → void  (seta cookie HMAC lyfx_2fa)
+getPendingTwoFactor()                      → Promise<string | null>  (userId ou null)
+clearPendingTwoFactor()                    → void
+```
+
+**Cookie `lyfx_2fa`** (estado pendente entre passo 1 e passo 2 do login):
+```
+formato: base64url(userId).base64url(expiry).HMAC(userId|expiry, SESSION_SECRET)
+maxAge: 300s (5 min) · httpOnly · sameSite:lax · secure em produção
+```
+Validado com `crypto.timingSafeEqual` — protege contra timing attacks.
+
+**Fluxo de login com 2FA ativo:**
+```
+POST /login (email + senha)
+  → senha válida + twoFactorEnabled=true
+  → setPendingTwoFactor(userId)
+  → return { requires2FA: true }
+  → LoginForm muda para step "2fa"
+
+POST verifyTwoFactor({ code, isBackupCode })
+  → getPendingTwoFactor() → userId (valida HMAC + expiry)
+  → se backup: verifyAndConsumeBackupCode() → atualiza twoFactorBackupCodes
+  → se TOTP: verifySync({ token, secret }).valid
+  → clearPendingTwoFactor() + createSession() + redirect /dashboard
+```
+
+**Server Actions** (`app/actions/two-factor.ts`):
+- `initTwoFactorSetup()` — gera secret, persiste provisoriamente (enabled=false), retorna `{ qrCodeUrl, secret }`
+- `confirmTwoFactorSetup(code)` — verifica primeiro TOTP, ativa 2FA, gera e armazena hashes dos 8 backup codes, retorna `{ backupCodes }` em texto claro (única exibição)
+- `disableTwoFactor(code)` — verifica TOTP, limpa secret/enabled/backupCodes
+- `regenerateBackupCodes(code)` — verifica TOTP, gera novos 8 codes, retorna em texto claro
+- `getTwoFactorStatus()` — retorna `{ enabled, backupCount }`
+
+**Eventos de Audit Log adicionados:**
+| Evento | Quando |
+|---|---|
+| `auth.2fa.enabled` | Setup confirmado com sucesso |
+| `auth.2fa.disabled` | Desativação confirmada |
+| `auth.2fa.failed` | Código TOTP inválido no login |
+| `auth.2fa.backup_used` | Código de backup utilizado (registra `remaining`) |
+
+**UI de setup** (`components/profile/TwoFactorSection.tsx`):
+- Modal 3 passos: QR Code → verificar código → exibir backup codes
+- Opção de ver o secret em texto para inserção manual
+- Modal de desativação e modal de regeneração de backups (ambos exigem código TOTP atual)
+- Status badge no perfil: verde com contagem de backups restantes / cinza desativado
 
 ### Segurança
 
