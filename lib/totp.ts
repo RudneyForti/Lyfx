@@ -1,4 +1,4 @@
-import { authenticator } from "otplib";
+import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
@@ -8,19 +8,20 @@ import { cookies } from "next/headers";
 /* ── TOTP core ── */
 
 export function generateTotpSecret(): string {
-  return authenticator.generateSecret(20); // 160-bit secret, base32
+  return generateSecret(); // base32, ~160-bit
 }
 
 export function verifyTotpCode(secret: string, code: string): boolean {
   try {
-    return authenticator.verify({ token: code.replace(/\s/g, ""), secret });
+    const result = verifySync({ token: code.replace(/\s/g, ""), secret });
+    return result.valid;
   } catch {
     return false;
   }
 }
 
 export async function generateQrCodeUrl(email: string, secret: string): Promise<string> {
-  const uri = authenticator.keyuri(email, "Lyfx", secret);
+  const uri = generateURI({ label: email, issuer: "Lyfx", secret });
   return QRCode.toDataURL(uri, {
     width:  200,
     margin: 2,
