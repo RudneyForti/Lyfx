@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { IconLogin, IconX, IconEye, IconEyeOff, IconBrain, IconSend, IconLoader2 } from "@tabler/icons-react";
 import { setup, login } from "./actions";
+import { TurnstileWidget } from "@/components/login/TurnstileWidget";
 
 /* ── i18n ── */
 type Lang = "pt" | "en" | "es";
@@ -271,6 +272,10 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
   const [toast, setToast] = useState<{ show: boolean; msg: string }>({ show: false, msg: "" });
   const [forgotOpen, setForgotOpen] = useState(false);
   const [success, setSuccess] = useState(false);
+  // CS-32: estados de rate limiting
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [blockedMinutes, setBlockedMinutes] = useState<number | null>(null);
 
   // CS-16: detectar idioma do localStorage (set pela LandingPage)
   const [lang, setLang] = useState<Lang>("pt");
@@ -318,9 +323,37 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
     } else {
       if (!email.trim()) { setError(t.errEmail); shake(); return; }
       if (!password) { setError(t.errPassword); shake(); return; }
+      // CS-32: se CAPTCHA obrigatório mas token ainda não obtido, aguardar
+      if (captchaRequired && !captchaToken) {
+        setError("Complete o desafio de segurança para continuar.");
+        shake();
+        return;
+      }
       startTransition(async () => {
         // CS-13: passa remember e redirectTo para a action
-        const result = await login({ email, password, remember, redirectTo });
+        // CS-32: passa captchaToken quando disponível
+        const result = await login({
+          email,
+          password,
+          remember,
+          redirectTo,
+          captchaToken: captchaToken ?? undefined,
+        });
+        if (!result) return; // redirect aconteceu
+        if ("blocked" in result && result.blocked) {
+          setBlockedMinutes(result.retryAfterMinutes);
+          setError("");
+          return;
+        }
+        if ("captchaRequired" in result && result.captchaRequired) {
+          setCaptchaRequired(true);
+          setCaptchaToken(null);
+          if ("captchaError" in result && result.captchaError) {
+            setError("Desafio de segurança inválido ou expirado. Tente novamente.");
+            shake();
+          }
+          return;
+        }
         if (result?.error) { setError(result.error); shake(); }
         else setSuccess(true);
       });
@@ -576,6 +609,32 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
             </FadeUp>
           )}
 
+          {/* CS-32: Banner de IP bloqueado */}
+          {blockedMinutes !== null && (
+            <div className="rounded-[10px] bg-[var(--color-red-dim)] border border-[var(--color-red-border)] px-4 py-3 mb-3 text-center">
+              <p className="text-[12px] text-[var(--color-red)] font-medium mb-0.5">
+                Acesso temporariamente bloqueado
+              </p>
+              <p className="text-[11px] text-[var(--color-f3)]">
+                Muitas tentativas incorretas. Tente novamente em{" "}
+                <span className="text-[var(--color-f1)] font-semibold">{blockedMinutes} min</span>.
+              </p>
+            </div>
+          )}
+
+          {/* CS-32: Desafio CAPTCHA Turnstile */}
+          {captchaRequired && !blockedMinutes && (
+            <div className="rounded-[10px] bg-[var(--color-bg3)] border border-[var(--color-border2)] px-4 py-4 mb-3">
+              <TurnstileWidget
+                onToken={(token) => {
+                  setCaptchaToken(token);
+                  setError("");
+                }}
+                onExpire={() => setCaptchaToken(null)}
+              />
+            </div>
+          )}
+
           {/* Error */}
           {error && (
             <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-red)] mb-3">
@@ -587,7 +646,7 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
           <FadeUp delay={0.25}>
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || blockedMinutes !== null}
               className="w-full h-[44px] rounded-full text-[14px] font-semibold flex items-center justify-center gap-2 transition-all duration-150 mb-3 cursor-pointer border-none disabled:opacity-70"
               onAnimationEnd={() => setShaking(false)}
               style={{

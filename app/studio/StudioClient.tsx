@@ -1550,6 +1550,10 @@ function ControlPanelTab({ appConfig, data }: { appConfig: AppConfigEntry[]; dat
   const [savingKey, setSavingKey]   = useState<string | null>(null);
   const [msgs, setMsgs]             = useState<Record<string, { ok: boolean; text: string }>>({});
   const [banner, setBanner]         = useState(appConfig.find(c => c.key === "maintenanceBanner")?.value ?? "");
+  // CS-32: rate limiting
+  const [captchaThreshold, setCaptchaThreshold] = useState(appConfig.find(c => c.key === "login_captcha_threshold")?.value ?? "10");
+  const [blockThreshold,   setBlockThreshold]   = useState(appConfig.find(c => c.key === "login_block_threshold")?.value   ?? "15");
+  const [windowMinutes,    setWindowMinutes]     = useState(appConfig.find(c => c.key === "login_window_minutes")?.value    ?? "30");
   const [metrics, setMetrics]       = useState<ServerMetrics | null>(null);
   const [, startMetrics]            = useTransition();
 
@@ -1747,6 +1751,61 @@ function ControlPanelTab({ appConfig, data }: { appConfig: AppConfigEntry[]; dat
         </div>
         {msgs["maintenanceBanner"] && <div style={{ marginTop: 8, fontSize: 11, color: msgs["maintenanceBanner"].ok ? "var(--color-green)" : "var(--color-red)" }}>{msgs["maintenanceBanner"].text}</div>}
       </div>
+
+      {/* ── CS-32: Rate Limiting ── */}
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "1.8px", textTransform: "uppercase", color: "var(--color-f4)", margin: "28px 0 12px" }}>Segurança — Rate Limiting</div>
+
+      {[
+        {
+          key: "login_captcha_threshold",
+          label: "Tentativas antes do CAPTCHA",
+          description: "Número de falhas de login por IP antes de exigir o desafio Cloudflare Turnstile.",
+          value: captchaThreshold,
+          setValue: setCaptchaThreshold,
+          min: 1, max: 50, placeholder: "10",
+        },
+        {
+          key: "login_block_threshold",
+          label: "Tentativas antes do bloqueio",
+          description: "Número de falhas para bloquear temporariamente o IP. Deve ser maior que o threshold do CAPTCHA.",
+          value: blockThreshold,
+          setValue: setBlockThreshold,
+          min: 1, max: 100, placeholder: "15",
+        },
+        {
+          key: "login_window_minutes",
+          label: "Janela de tempo (minutos)",
+          description: "Período de contagem das tentativas. Após este tempo, as tentativas antigas saem da janela e o IP é desbloqueado automaticamente.",
+          value: windowMinutes,
+          setValue: setWindowMinutes,
+          min: 1, max: 1440, placeholder: "30",
+        },
+      ].map(row => (
+        <div key={row.key} style={{ background: "var(--color-bg2)", border: "1px solid var(--color-border)", borderRadius: 10, padding: "14px 16px", marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{row.label}</div>
+          <div style={{ fontSize: 11, color: "var(--color-f4)", marginBottom: 10 }}>{row.description}</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="number"
+              min={row.min}
+              max={row.max}
+              value={row.value}
+              onChange={e => row.setValue(e.target.value)}
+              placeholder={row.placeholder}
+              style={{ width: 80, height: 36, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 12px", fontSize: 13, fontWeight: 600, color: "var(--color-cyan)", outline: "none", textAlign: "center" }}
+            />
+            <button
+              onClick={() => save(row.key, row.value)}
+              disabled={savingKey === row.key}
+              style={{ height: 36, padding: "0 16px", background: "var(--color-cyan)", color: "#083344", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}
+            >
+              {savingKey === row.key ? <IconLoader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <IconCheck size={13} />}
+              Salvar
+            </button>
+          </div>
+          {msgs[row.key] && <div style={{ marginTop: 8, fontSize: 11, color: msgs[row.key].ok ? "var(--color-green)" : "var(--color-red)" }}>{msgs[row.key].text}</div>}
+        </div>
+      ))}
     </div>
   );
 }
