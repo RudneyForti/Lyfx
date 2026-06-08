@@ -197,6 +197,11 @@ model User {
   lastSeenAt  DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // CS-37a: 2FA TOTP
+  twoFactorSecret      String?
+  twoFactorEnabled     Boolean  @default(false)
+  twoFactorBackupCodes String?  // JSON: string[] de hashes bcrypt
 }
 
 model Liability {

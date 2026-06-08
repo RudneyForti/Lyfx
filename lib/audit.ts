@@ -13,6 +13,10 @@
  *   auth.password.changed   — troca de senha bem-sucedida
  *   session.revoked         — sessão específica encerrada pelo usuário
  *   session.revoked_all     — todas as outras sessões encerradas
+ *   auth.2fa.enabled        — 2FA ativado pelo usuário (CS-37a)
+ *   auth.2fa.disabled       — 2FA desativado pelo usuário (CS-37a)
+ *   auth.2fa.failed         — código TOTP inválido no login (CS-37a)
+ *   auth.2fa.backup_used    — código de backup utilizado no login (CS-37a)
  */
 
 import { db } from "@/lib/db";
@@ -25,7 +29,11 @@ export type AuditAction =
   | "auth.logout"
   | "auth.password.changed"
   | "session.revoked"
-  | "session.revoked_all";
+  | "session.revoked_all"
+  | "auth.2fa.enabled"
+  | "auth.2fa.disabled"
+  | "auth.2fa.failed"
+  | "auth.2fa.backup_used";
 
 export interface AuditEventOptions {
   action:     AuditAction;
@@ -106,6 +114,26 @@ export const AUDIT_META: Record<AuditAction, AuditMeta> = {
   "session.revoked_all": {
     label:       "Todas as sessões encerradas",
     description: (m) => `${m?.count ?? "Outras"} sessão(ões) encerrada(s) em outros dispositivos.`,
+    variant:     "warning",
+  },
+  "auth.2fa.enabled": {
+    label:       "2FA ativado",
+    description: () => "Autenticação em dois fatores ativada com sucesso.",
+    variant:     "success",
+  },
+  "auth.2fa.disabled": {
+    label:       "2FA desativado",
+    description: () => "Autenticação em dois fatores foi desativada.",
+    variant:     "warning",
+  },
+  "auth.2fa.failed": {
+    label:       "Código 2FA inválido",
+    description: () => "Tentativa de login com código TOTP inválido.",
+    variant:     "danger",
+  },
+  "auth.2fa.backup_used": {
+    label:       "Código de backup usado",
+    description: (m) => `Código de backup utilizado no login. Restam ${m?.remaining ?? "?"} códigos.`,
     variant:     "warning",
   },
 };

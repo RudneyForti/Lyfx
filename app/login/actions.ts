@@ -12,6 +12,13 @@ import {
 } from "@/lib/login-attempts";
 import { validatePasswordStrict } from "@/lib/password-strength";
 import { logEvent, logEventBg } from "@/lib/audit";
+import {
+  setPendingTwoFactor,
+  getPendingTwoFactor,
+  clearPendingTwoFactor,
+  verifyTotpCode,
+  verifyAndConsumeBackupCode,
+} from "@/lib/totp";
 import { headers } from "next/headers";
 
 async function getUserAgent(): Promise<string | null> {
@@ -103,15 +110,92 @@ export async function login(data: {
     return { error: "E-mail ou senha inválidos." };
   }
 
-  // Login bem-sucedido
+  // Login bem-sucedido — verificar se 2FA está ativo
   await recordAttempt(ip, data.email || undefined, true);
+
+  // CS-37a: checar 2FA
+  const has2FA = user.twoFactorEnabled;
+  if (has2FA) {
+    await setPendingTwoFactor(user.id);
+    return { requires2FA: true as const };
+  }
+
+  // Sem 2FA — criar sessão normalmente
   await setSession(user.id, { remember: data.remember ?? true });
 
-  // CS-35: log de sucesso — pega sessionId do cookie recém-criado
+  // CS-35: log de sucesso
   const session = await getSession();
   logEventBg({
     action:    "auth.login.success",
     userId:    user.id,
+    sessionId: session?.sessionId,
+    ip,
+    userAgent: userAgent ?? undefined,
+  });
+
+  const target = data.redirectTo && data.redirectTo.startsWith("/") ? data.redirectTo : "/dashboard";
+  redirect(target);
+}
+
+/* ── CS-37a: verificar código TOTP após password validada ── */
+export async function verifyTwoFactor(data: {
+  code:         string;
+  isBackupCode: boolean;
+  remember?:    boolean;
+  redirectTo?:  string;
+}) {
+  const ip        = await getClientIp();
+  const userAgent = await getUserAgent();
+
+  // Validar pending cookie
+  const userId = await getPendingTwoFactor();
+  if (!userId) return { error: "Sessão expirada. Faça login novamente." };
+
+  const user = await db.user.findUnique({
+    where:  { id: userId },
+    select: { twoFactorSecret: true, twoFactorEnabled: true, twoFactorBackupCodes: true },
+  });
+  if (!user?.twoFactorEnabled || !user.twoFactorSecret) {
+    return { error: "2FA não configurado." };
+  }
+
+  if (data.isBackupCode) {
+    // Verificar código de backup
+    if (!user.twoFactorBackupCodes) return { error: "Sem códigos de backup disponíveis." };
+    const { valid, remainingHashes } = await verifyAndConsumeBackupCode(data.code, user.twoFactorBackupCodes);
+    if (!valid) {
+      logEventBg({ action: "auth.2fa.failed", userId, ip, userAgent: userAgent ?? undefined });
+      return { error: "Código de backup inválido." };
+    }
+    // Consumir o código usado
+    await db.user.update({
+      where: { id: userId },
+      data:  { twoFactorBackupCodes: JSON.stringify(remainingHashes) },
+    });
+    logEventBg({
+      action:   "auth.2fa.backup_used",
+      userId,
+      ip,
+      userAgent: userAgent ?? undefined,
+      metadata: { remaining: remainingHashes.length },
+    });
+  } else {
+    // Verificar código TOTP
+    const valid = verifyTotpCode(user.twoFactorSecret, data.code);
+    if (!valid) {
+      logEventBg({ action: "auth.2fa.failed", userId, ip, userAgent: userAgent ?? undefined });
+      return { error: "Código inválido. Verifique o horário do seu dispositivo." };
+    }
+  }
+
+  // Tudo ok — criar sessão
+  await clearPendingTwoFactor();
+  await setSession(userId, { remember: data.remember ?? true });
+
+  const session = await getSession();
+  logEventBg({
+    action:    "auth.login.success",
+    userId,
     sessionId: session?.sessionId,
     ip,
     userAgent: userAgent ?? undefined,
