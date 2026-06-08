@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { setSession } from "@/lib/session";
 import { logEventBg } from "@/lib/audit";
 import { decodeIdToken } from "arctic";
+import { redirectWithOAuthError } from "@/lib/oauth-flash";
 
 export async function GET(request: NextRequest) {
   const jar          = await cookies();
@@ -24,19 +25,18 @@ export async function GET(request: NextRequest) {
   jar.delete("oauth_ms_code_verifier");
 
   if (!code || !state || !storedState || !codeVerifier) {
-    return NextResponse.redirect(new URL("/login?error=oauth_missing_params", request.url));
+    return redirectWithOAuthError(request.url, "missing_params");
   }
   if (state !== storedState) {
-    return NextResponse.redirect(new URL("/login?error=oauth_state_mismatch", request.url));
+    return redirectWithOAuthError(request.url, "state_mismatch");
   }
 
   try {
     const microsoft = getMicrosoftProvider();
     const tokens    = await microsoft.validateAuthorizationCode(code, codeVerifier);
 
-    // Microsoft retorna dados no id_token (JWT)
     const claims = decodeIdToken(tokens.idToken()) as {
-      oid:               string;  // unique object ID — mais estável que sub
+      oid:               string;
       name?:             string;
       email?:            string;
       preferred_username?: string;
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   } catch (err) {
     console.error("[OAuth Microsoft callback]", err);
-    return NextResponse.redirect(new URL("/login?error=oauth_failed", request.url));
+    return redirectWithOAuthError(request.url, "failed");
   }
 }
 

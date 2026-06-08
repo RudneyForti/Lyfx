@@ -9,6 +9,7 @@ import { getGoogleProvider } from "@/lib/oauth";
 import { db } from "@/lib/db";
 import { setSession } from "@/lib/session";
 import { logEventBg } from "@/lib/audit";
+import { redirectWithOAuthError } from "@/lib/oauth-flash";
 
 export async function GET(request: NextRequest) {
   const jar          = await cookies();
@@ -25,10 +26,10 @@ export async function GET(request: NextRequest) {
 
   // Validações de segurança
   if (!code || !state || !storedState || !codeVerifier) {
-    return NextResponse.redirect(new URL("/login?error=oauth_missing_params", request.url));
+    return redirectWithOAuthError(request.url, "missing_params");
   }
   if (state !== storedState) {
-    return NextResponse.redirect(new URL("/login?error=oauth_state_mismatch", request.url));
+    return redirectWithOAuthError(request.url, "state_mismatch");
   }
 
   try {
@@ -49,10 +50,8 @@ export async function GET(request: NextRequest) {
 
     const { sub, name, email } = userInfo;
 
-    // Busca ou cria usuário
     const userId = await findOrCreateOAuthUser({ provider: "google", providerUserId: sub, name, email });
 
-    // Inicia sessão usando o sistema existente
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? null;
     await setSession(userId);
     logEventBg({ action: "auth.login.success", userId, ip: ip ?? undefined, metadata: { provider: "google" } });
@@ -60,7 +59,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   } catch (err) {
     console.error("[OAuth Google callback]", err);
-    return NextResponse.redirect(new URL("/login?error=oauth_failed", request.url));
+    return redirectWithOAuthError(request.url, "failed");
   }
 }
 
@@ -72,13 +71,11 @@ async function findOrCreateOAuthUser(opts: {
 }): Promise<string> {
   const { provider, providerUserId, name, email } = opts;
 
-  // 1. Já existe vínculo com este provider?
   const existing = await db.oAuthAccount.findUnique({
     where: { provider_providerUserId: { provider, providerUserId } },
   });
   if (existing) return existing.userId;
 
-  // 2. Existe usuário com este e-mail? Vincula automaticamente.
   const byEmail = await db.user.findFirst({ where: { email: email.toLowerCase() } });
   if (byEmail) {
     await db.oAuthAccount.create({
@@ -87,7 +84,6 @@ async function findOrCreateOAuthUser(opts: {
     return byEmail.id;
   }
 
-  // 3. Nenhum usuário encontrado — cria conta nova (sem senha)
   const newUser = await db.user.create({
     data: { name, email: email.toLowerCase(), password: "" },
   });

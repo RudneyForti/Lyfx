@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { IconLogin, IconX, IconEye, IconEyeOff, IconBrain, IconSend, IconLoader2 } from "@tabler/icons-react";
 import { setup, login } from "./actions";
+import { getOAuthErrorMessage } from "@/lib/oauth-flash"; // CS-36
 import { TurnstileWidget } from "@/components/login/TurnstileWidget";
 import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
 import { validatePasswordStrict } from "@/lib/password-strength";
@@ -266,8 +267,16 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
   // CS-13: ler rota original para redirecionar após login
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? undefined;
-  // CS-36: mostrar erro OAuth se callback retornou ?error=oauth_*
-  const oauthError = searchParams.get("error");
+  // CS-36: ler erro OAuth do cookie flash (URL permanece limpa)
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  useEffect(() => {
+    const match = document.cookie.match(/(?:^|;\s*)oauth_error=([^;]+)/);
+    if (match) {
+      setOauthError(decodeURIComponent(match[1]));
+      // apaga o cookie imediatamente
+      document.cookie = "oauth_error=; max-age=0; path=/";
+    }
+  }, []);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -702,14 +711,12 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
                 <span className="flex-1 h-px bg-[rgba(255,255,255,0.13)]" />
               </FadeUp>
 
-              {/* CS-36: erro de OAuth (callback retornou ?error=) */}
-              {oauthError?.startsWith("oauth_") && (
+              {/* CS-36: erro de OAuth lido do cookie flash — URL permanece limpa */}
+              {oauthError && (
                 <FadeUp delay={0.28}>
                   <div className="flex items-center gap-2 text-[11px] text-[var(--color-red)] bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.25)] rounded-[10px] px-3 py-2 mb-1">
                     <IconX size={11} className="flex-shrink-0" />
-                    {oauthError === "oauth_state_mismatch"
-                      ? "Link expirado ou inválido. Tente novamente."
-                      : "Não foi possível autenticar com o provedor. Tente novamente."}
+                    {getOAuthErrorMessage(oauthError)}
                   </div>
                 </FadeUp>
               )}
