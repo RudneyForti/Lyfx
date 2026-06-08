@@ -179,11 +179,13 @@ export async function getAlerts(): Promise<Alert[]> {
     let next = new Date(now.getFullYear(), tx.date.getMonth(), tx.date.getDate());
     if (next <= now) next = new Date(now.getFullYear() + 1, tx.date.getMonth(), tx.date.getDate());
 
+    // CS-48: usar diferença em meses calendário (inteiro) para evitar off-by-one
+    // causado por diffDays/30 com fração de horas (ex: 60.4/30 = 2.01 > 2 falso negativo)
+    const calMonthDiff = (next.getFullYear() - now.getFullYear()) * 12 + (next.getMonth() - now.getMonth());
     const diffDays = (next.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    const diffMonths = diffDays / 30;
+    const monthsLeft = Math.max(1, calMonthDiff);
 
-    if (diffMonths <= 2) {
-      const monthsLeft = Math.max(1, Math.ceil(diffMonths));
+    if (calMonthDiff <= 2) {
       const monthly = tx.amount / monthsLeft;
       const isDanger = dangerSeasonalIds.has(`seasonal-${tx.id}`);
       alerts.push({
@@ -223,7 +225,7 @@ export async function getAlerts(): Promise<Alert[]> {
       type: "liability",
       severity: "danger",
       title: `Passivo crítico — ${liability.name}`,
-      description: `${typeLabel} com saldo de ${fmt(balance)} a ${rate.toFixed(1)}% a.m. (~${(Math.pow(1 + rate / 100, 12) - 1).toFixed(0)}% a.a.). Quitar essa dívida é a maior rentabilidade possível.`,
+      description: `${typeLabel} com saldo de ${fmt(balance)} a ${rate.toFixed(1)}% a.m. (~${((Math.pow(1 + rate / 100, 12) - 1) * 100).toFixed(0)}% a.a.). Quitar essa dívida é a maior rentabilidade possível.`,
       link: "/liabilities",
     });
   }
