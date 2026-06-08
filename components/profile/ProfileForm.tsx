@@ -7,8 +7,9 @@ import { CountrySelect } from "@/components/ui/CountrySelect";
 import { cn } from "@/lib/utils";
 import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar"; // CS-33
 import { validatePasswordStrict } from "@/lib/password-strength";             // CS-33
-import { SessionsSection } from "@/components/profile/SessionsSection";       // CS-34
-import { AuditSection }    from "@/components/profile/AuditSection";          // CS-35
+import { SessionsSection }   from "@/components/profile/SessionsSection";      // CS-34
+import { AuditSection }     from "@/components/profile/AuditSection";         // CS-35
+import { TwoFactorSection } from "@/components/profile/TwoFactorSection";     // CS-37a
 
 // ── Field component defined OUTSIDE ProfileForm to prevent unmount on re-render ──
 function Field({
@@ -485,6 +486,17 @@ export function ProfileForm({ user }: Props) {
 
       {/* CS-35: Histórico de segurança */}
       <AuditSection />
+
+      {/* Divider */}
+      <div className="h-px bg-[var(--color-border)]" />
+
+      {/* CS-37a: Autenticação em dois fatores */}
+      <div className="flex flex-col gap-4">
+        <div className="text-[9px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)]">
+          Segurança
+        </div>
+        <TwoFactorSection />
+      </div>
 
     </div>
   );

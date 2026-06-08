@@ -1,6 +1,6 @@
 # Lyfx — Guia Completo de Funcionalidades
 > Documento de referência para analistas financeiros, gestores de produto e material de capacitação
-> Versão 1.13.0 · Junho 2026
+> Versão 1.14.0 · Junho 2026
 
 ---
 
@@ -1024,8 +1024,27 @@ Seção dedicada ao gerenciamento de todos os dispositivos onde o usuário está
 Registro dos últimos 50 eventos de segurança da conta:
 
 - Cada evento exibe: ícone colorido por tipo, descrição legível, IP de origem e tempo relativo
-- Tipos de eventos registrados: login realizado, tentativa de login falhou, logout, senha alterada, sessão revogada, todas as sessões revogadas
+- Tipos de eventos registrados: login realizado, tentativa de login falhou, logout, senha alterada, sessão revogada, todas as sessões revogadas, 2FA ativado/desativado, código de backup utilizado
 - Botão "Atualizar" para recarregar o histórico sem recarregar a página inteira
+
+#### Autenticação em Dois Fatores — 2FA (CS-37a)
+
+Proteção adicional contra acesso não autorizado mesmo que a senha seja comprometida. Usa o padrão TOTP (Time-based One-Time Password), compatível com Google Authenticator, Authy e qualquer aplicativo autenticador TOTP.
+
+**Ativar o 2FA:**
+1. Na seção Segurança do perfil, clique em "Ativar 2FA"
+2. Escaneie o QR Code com o aplicativo autenticador (ou insira o código manualmente)
+3. Digite o código de 6 dígitos exibido no app para confirmar a configuração
+4. **Guarde os 8 códigos de backup** em local seguro — cada um pode ser usado uma única vez para entrar caso você perca o acesso ao autenticador
+
+**Login com 2FA ativo:**
+- Após digitar e-mail e senha corretamente, o sistema solicita o código do autenticador
+- O código é válido por 30 segundos e se renova automaticamente no app
+- Se não tiver acesso ao autenticador, clique em "Usar código de backup" e insira um dos códigos salvos
+
+**Gerenciamento:**
+- **Regenerar códigos**: gera 8 novos códigos e invalida os anteriores (requer código TOTP)
+- **Desativar 2FA**: remove a proteção adicional (requer código TOTP para confirmar)
 
 ---
 
@@ -1034,7 +1053,7 @@ Registro dos últimos 50 eventos de segurança da conta:
 **Rota**: `/studio`  
 **Acesso**: senha separada (`ADMIN_SECRET`) — independente da sessão do usuário
 
-Painel de administração da plataforma. Acessível via link discreto na tela de login. Organizado em 9 abas: **Painel · Usuários · Planos · Módulos · Segurança · Notas · Dados · Schema · Documentação**.
+Painel de administração da plataforma. Acessível via link discreto na tela de login. Organizado em 10 abas: **Painel · Usuários · Planos · Módulos · Segurança · Roadmap · Notas · Dados · Schema · Documentação**.
 
 #### Autenticação do Studio
 
@@ -1097,6 +1116,24 @@ Histórico consolidado de eventos de segurança de **todos os usuários** da pla
 - **Filtro por usuário**: permite visualizar o histórico de um usuário específico, facilitando a investigação de incidentes
 - **Filtro por tipo de evento**: permite filtrar apenas eventos de uma categoria (ex: somente falhas de login)
 - Cada evento exibe: tipo com ícone colorido, descrição, nome do usuário, e-mail, IP de origem e momento do evento
+
+#### Aba Roadmap (CS-20)
+
+Quadro Kanban de gestão das Change Specs (CSs) do projeto. Funciona como um board estilo Trello dentro do próprio Studio, permitindo acompanhar o ciclo de vida de cada funcionalidade.
+
+**4 colunas fixas:**
+- **Backlog** — funcionalidades planejadas, ainda não iniciadas
+- **Em andamento** — trabalho em progresso na sessão atual
+- **Bloqueado** — aguardando dependência externa (domínio, chaves de API, documento, etc.)
+- **Concluídas** — histórico completo de tudo que foi entregue
+
+**Funcionalidades do board:**
+- **Drag-and-drop**: arraste um card entre colunas para atualizar o status
+- **Modal de detalhes**: clique em qualquer card para abrir o editor completo com título, descrição/visão da CS, labels, versão em que foi entregue, commit hash e data de conclusão
+- **Ordenação por coluna**: cada coluna tem um toggle para ordenar por mais nova ou mais antiga — a coluna Concluídas ordena por `completedAt`
+- **Adicionar card**: formulário inline no topo de cada coluna
+
+**Persistência**: os dados ficam em `docs/cs-board.json` dentro do repositório — sobrevive a resets do banco de dados e segue o versionamento Git naturalmente.
 
 #### Aba Notas
 

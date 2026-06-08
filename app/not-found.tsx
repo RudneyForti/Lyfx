@@ -23,8 +23,8 @@ export default function NotFound() {
 
       <div className="relative z-10 flex flex-col items-center gap-8 text-center max-w-lg">
         {/* Logotipo */}
-        <span className="text-[11px] tracking-[4px] uppercase text-[var(--color-f4)]">
-          Ly<em className="not-italic text-[var(--color-cyan)]">fx</em>
+        <span className="font-[family-name:var(--font-display)] italic text-[22px] font-bold text-[var(--color-f1)] leading-none">
+          Ly<span className="text-[var(--color-cyan)]">fx</span>
         </span>
 
         {/* Expressão matemática principal */}

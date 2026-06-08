@@ -1,8 +1,8 @@
-# Lyfx — Plano de Testes v1.13.0
+# Lyfx — Plano de Testes v1.14.0
 
 > Casos de teste executáveis · Atualizado em 08/06/2026
 > Baseado em análise do Agent Smith (QA Specialist) · Myers · WAHH · Hendrickson · Kaner
-> Cobertura completa: v1.5.0 → v1.13.0 · Inclui CS-17 (Reembolso Especial), CS-18/CS-19 (Notificações), Studio G2, CS-25 (Feriados), CS-31 (Segurança), CS-32 (Rate Limiting), CS-33 (Política de Senha), CS-34 (Sessões com estado), CS-35 (Audit Log), CS-36 (OAuth Google + Microsoft)
+> Cobertura completa: v1.5.0 → v1.14.0 · Inclui CS-17 (Reembolso Especial), CS-18/CS-19 (Notificações), Studio G2, CS-25 (Feriados), CS-31 (Segurança), CS-32 (Rate Limiting), CS-33 (Política de Senha), CS-34 (Sessões com estado), CS-35 (Audit Log), CS-36 (OAuth Google + Microsoft), CS-37a (2FA TOTP), CS-20 (Kanban Roadmap)
 
 **Como usar este arquivo:**
 - Cada caso é autossuficiente: pré-condições + passos + resultado esperado preciso
@@ -2294,6 +2294,69 @@
 **Pré-condições:** Usuário cadastrado com e-mail `teste@gmail.com` via formulário normal
 **Passos:** Fazer logout; clicar "Entrar com Google"; autenticar com a conta `teste@gmail.com` no Google
 **Resultado esperado:** Usuário é logado na conta existente (sem criar duplicata). Conta Google fica vinculada ao usuário. Sessão ativa é criada normalmente.
+
+### SEC-46 — 2FA: setup completo — QR Code → verificação → backup codes [CS-37a]
+**Prioridade:** CRÍTICO
+**Passos:** Perfil → Segurança → Ativar 2FA → escanear QR Code com Google Authenticator → digitar código de 6 dígitos → confirmar
+**Resultado esperado:** 2FA ativado. 8 backup codes exibidos uma única vez. Status badge muda para verde com "8 códigos de backup restantes". Evento `auth.2fa.enabled` no histórico de segurança.
+
+### SEC-47 — 2FA: login com código TOTP correto [CS-37a]
+**Prioridade:** CRÍTICO
+**Pré-condições:** 2FA ativado na conta
+**Passos:** Fazer logout → entrar com e-mail + senha → digitar código atual do autenticador
+**Resultado esperado:** Login concluído. Sessão criada. Redirect para /dashboard.
+
+### SEC-48 — 2FA: código TOTP inválido é rejeitado [CS-37a]
+**Prioridade:** CRÍTICO
+**Pré-condições:** 2FA ativado
+**Passos:** Na etapa 2FA do login, digitar código errado (ex: 000000)
+**Resultado esperado:** Mensagem "Código inválido. Verifique o horário do seu dispositivo." Sem sessão criada. Evento `auth.2fa.failed` no audit log.
+
+### SEC-49 — 2FA: cookie pendente expira após 5 minutos [CS-37a]
+**Prioridade:** ALTO
+**Passos:** Fazer login (senha ok) → aguardar 5+ minutos na tela de TOTP → submeter código válido
+**Resultado esperado:** Mensagem "Sessão expirada. Faça login novamente." Cookie `lyfx_2fa` inválido rejeitado.
+
+### SEC-50 — 2FA: login com código de backup [CS-37a]
+**Prioridade:** CRÍTICO
+**Pré-condições:** 2FA ativado; backup codes gerados
+**Passos:** Na etapa 2FA, clicar "Usar código de backup" → inserir um dos 8 códigos no formato XXXX-XXXX-XXXX
+**Resultado esperado:** Login concluído. Código consumido (não pode ser usado novamente). Contagem de backups reduz em 1. Evento `auth.2fa.backup_used` com `remaining` no audit log.
+
+### SEC-51 — 2FA: código de backup já usado é rejeitado [CS-37a]
+**Prioridade:** ALTO
+**Passos:** Usar o mesmo backup code duas vezes
+**Resultado esperado:** Segunda tentativa retorna erro "Código de backup inválido."
+
+### SEC-52 — 2FA: desativar 2FA exige código TOTP [CS-37a]
+**Prioridade:** CRÍTICO
+**Passos:** Perfil → Segurança → Desativar → digitar código atual do autenticador → confirmar
+**Resultado esperado:** 2FA desativado. Badge muda para cinza. Evento `auth.2fa.disabled` no audit log. Próximo login não exige TOTP.
+
+### SEC-53 — 2FA: desativação com código errado é bloqueada [CS-37a]
+**Prioridade:** ALTO
+**Passos:** No modal de desativação, digitar código errado
+**Resultado esperado:** Mensagem "Código inválido." 2FA permanece ativo.
+
+### SEC-54 — 2FA: regenerar códigos de backup [CS-37a]
+**Prioridade:** ALTO
+**Passos:** Perfil → Segurança → Regenerar códigos → confirmar com TOTP → novos 8 códigos exibidos
+**Resultado esperado:** 8 novos códigos gerados. Códigos anteriores invalidados. Contagem volta para 8.
+
+### SEC-55 — Kanban: drag-and-drop move card entre colunas [CS-20]
+**Prioridade:** MÉDIO
+**Passos:** Studio → Roadmap → arrastar card do Backlog para Em andamento
+**Resultado esperado:** Card aparece na nova coluna. Mudança persiste em `docs/cs-board.json` após 800ms (debounce).
+
+### SEC-56 — Kanban: modal de detalhes salva todas as informações [CS-20]
+**Prioridade:** MÉDIO
+**Passos:** Clicar em qualquer card → editar título, descrição, versão, commit hash → Ctrl+S ou fechar
+**Resultado esperado:** Dados salvos em `cs-board.json`. Ao reabrir o modal, campos mostram os valores atualizados.
+
+### SEC-57 — Kanban: ordenação por coluna funciona em Concluídas [CS-20]
+**Prioridade:** BAIXO
+**Passos:** Studio → Roadmap → coluna Concluídas → clicar ícone de ordenação (asc/desc)
+**Resultado esperado:** Cards ordenados por `completedAt`. Tiebreaker por `order` quando datas são iguais. CS mais recente aparece no topo no modo desc.
 
 ---
 
