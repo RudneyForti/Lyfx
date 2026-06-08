@@ -489,6 +489,18 @@
       "order": 4
     },
     {
+      "id": "cs-39",
+      "columnId": "backlog",
+      "csNumber": "CS-39",
+      "title": "2FA Push Notification (Passwordless)",
+      "description": "Em vez de digitar código TOTP, o login dispara uma notificação push no dispositivo confiável do usuário. Ele toca 'Aprovar' ou 'Recusar' e a sessão é liberada em tempo real via polling ou WebSocket. Sem digitar nada — fluxo tipo Duo Security / Microsoft Authenticator. Requer: app PWA com service worker + push API, ou integração com provedor (ex: Expo Push para mobile). Depende de CS-37a (TOTP como fallback obrigatório).",
+      "labels": ["segurança", "feature", "futuro"],
+      "version": "",
+      "commitHash": "",
+      "completedAt": null,
+      "order": 6
+    },
+    {
       "id": "cs-24",
       "columnId": "blocked",
       "csNumber": "CS-24",
