@@ -42,10 +42,24 @@ export default function GlobalError({
 
         {/* Expressão matemática principal */}
         <div className="flex flex-col items-center gap-1">
-          {/* lim f(t) com t→0 subscrito abaixo de lim */}
-          <div className="flex items-end gap-3">
-            {/* lim + t→0 empilhados */}
-            <div className="flex flex-col items-center leading-none">
+          {/* lim f(t) numa linha, t→0 subscrito após f(t) */}
+          <div className="flex items-baseline gap-4">
+            {/* lim */}
+            <span
+              className="text-[88px] font-bold tracking-tight leading-none"
+              style={{
+                fontFamily: "var(--font-display)",
+                background: "linear-gradient(135deg, #f87171 0%, rgba(248,113,113,0.45) 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              lim
+            </span>
+
+            {/* f(t) + t→0 subscrito */}
+            <div className="flex items-end leading-none">
               <span
                 className="text-[88px] font-bold tracking-tight leading-none"
                 style={{
@@ -56,29 +70,15 @@ export default function GlobalError({
                   backgroundClip: "text",
                 }}
               >
-                lim
+                f(t)
               </span>
               <span
-                className="text-[18px] font-medium -mt-2"
+                className="text-[20px] font-medium leading-none mb-2"
                 style={{ fontFamily: "var(--font-display)", color: "#f87171cc" }}
               >
-                t → 0
+                t→0
               </span>
             </div>
-
-            {/* f(t) alinhado pela base */}
-            <span
-              className="text-[88px] font-bold tracking-tight leading-none mb-[26px]"
-              style={{
-                fontFamily: "var(--font-display)",
-                background: "linear-gradient(135deg, #f87171 0%, rgba(248,113,113,0.45) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              f(t)
-            </span>
           </div>
 
           {/* separador = */}
