@@ -1313,8 +1313,15 @@ Usuário define nome + valor + prazo
 - Cookie `httpOnly: true` — inacessível via JavaScript no browser
 - Cookie `secure: true` em produção — apenas HTTPS
 - `sameSite: lax` — proteção contra CSRF
-- Proxy não acessa o banco (Edge Runtime) — verifica apenas a existência do cookie, não sua validade
-- Validação completa de existência do usuário no `AppLayout` (Node.js runtime, com acesso ao banco)
+- Proxy valida HMAC-SHA256 completo via Web Crypto API (Edge Runtime) — cookie forjado é rejeitado na borda antes de qualquer renderização
+- Validação completa de existência do usuário no `AppLayout` (Node.js runtime, com acesso ao banco) — segunda linha de defesa
+- **Headers HTTP de segurança** (CS-31, `next.config.ts`):
+  - `X-Frame-Options: DENY` — bloqueia clickjacking via iframe
+  - `X-Content-Type-Options: nosniff` — impede MIME sniffing
+  - `Referrer-Policy: strict-origin-when-cross-origin` — controla vazamento de URL
+  - `Permissions-Policy: camera=(), microphone=(), geolocation=(self)` — restringe APIs sensíveis do browser
+  - `Strict-Transport-Security: max-age=63072000` — força HTTPS por 2 anos em produção
+  - `X-XSS-Protection: 1; mode=block` — filtro XSS legado
 
 ### Studio
 
