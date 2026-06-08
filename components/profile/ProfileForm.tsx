@@ -438,6 +438,20 @@ export function ProfileForm({ user }: Props) {
               className="w-full bg-[var(--color-bg3)] border border-[var(--color-border2)] rounded-[12px] pl-9 pr-10 py-[11px] text-[13px] text-[var(--color-f1)] outline-none h-[42px] focus:border-[var(--color-cyan-border)] transition-all placeholder:text-[var(--color-f4)]"
             />
           </div>
+          {/* Indicador de match em tempo real */}
+          {pw.confirm.length > 0 && (
+            pw.confirm === pw.next ? (
+              <span className="flex items-center gap-1 text-[10px] text-[var(--color-green)]">
+                <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1,6 4.5,10 11,2"/></svg>
+                As senhas coincidem
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] text-[var(--color-red)]">
+                <svg width="7" height="7" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
+                As senhas não coincidem
+              </span>
+            )
+          )}
         </div>
 
         <div className="flex items-center gap-3">

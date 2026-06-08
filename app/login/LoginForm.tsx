@@ -467,7 +467,7 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
 
       {/* ── RIGHT PANEL ── */}
       <div
-        className="flex flex-col items-center justify-center relative overflow-hidden w-full md:w-[480px] md:min-w-[480px] px-6"
+        className="flex flex-col items-center justify-center relative overflow-y-auto w-full md:w-[480px] md:min-w-[480px] px-6 py-8"
         style={{ background: "transparent" }}
       >
         {/* Floating card */}
@@ -567,14 +567,30 @@ export function LoginForm({ hasUser, monthIndex, year }: Props) {
 
             {/* Confirm — setup only */}
             {mode === "setup" && (
-              <Field
-                id="confirm" label={t.labelConfirm}
-                type={showPw ? "text" : "password"}
-                placeholder={t.phConfirm}
-                value={confirm} onChange={setConfirm}
-                autoComplete="new-password"
-                icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
-              />
+              <div className="flex flex-col gap-1">
+                <Field
+                  id="confirm" label={t.labelConfirm}
+                  type={showPw ? "text" : "password"}
+                  placeholder={t.phConfirm}
+                  value={confirm} onChange={setConfirm}
+                  autoComplete="new-password"
+                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+                />
+                {/* Indicador de match em tempo real */}
+                {confirm.length > 0 && (
+                  confirm === password ? (
+                    <span className="flex items-center gap-1 text-[10px] text-[var(--color-green)]">
+                      <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1,6 4.5,10 11,2"/></svg>
+                      As senhas coincidem
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[10px] text-[var(--color-red)]">
+                      <svg width="7" height="7" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
+                      As senhas não coincidem
+                    </span>
+                  )
+                )}
+              </div>
             )}
           </FadeUp>
 
