@@ -3,18 +3,26 @@ import type { NextRequest } from "next/server";
 
 /**
  * Valida o HMAC-SHA256 do cookie usando Web Crypto API (Edge Runtime).
- * Replica a lógica de decode() de lib/session.ts sem depender de Node.js crypto.
+ * CS-34: novo formato `{sessionId}.{userId}.{HMAC(sessionId.userId)}`
+ * CUIDs não contêm pontos — split por "." sempre produz exatamente 3 partes.
+ *
+ * Nota: o proxy valida apenas a assinatura criptográfica (sem acesso ao DB).
+ * A verificação de existência/validade da sessão no banco acontece no runtime
+ * Node.js em lib/session.ts#getSession(), chamado pelo AppLayout.
  */
 async function isValidSession(value: string): Promise<boolean> {
   const secret = process.env.SESSION_SECRET;
   if (!secret || !value) return false;
 
-  const lastDot = value.lastIndexOf(".");
-  if (lastDot === -1) return false;
+  // Formato esperado: sessionId.userId.HMAC (exatamente 3 partes)
+  const parts = value.split(".");
+  if (parts.length !== 3) return false;
 
-  const userId = value.slice(0, lastDot);
-  const receivedSig = value.slice(lastDot + 1);
-  if (!userId || !receivedSig) return false;
+  const [sessionId, userId, receivedSig] = parts;
+  if (!sessionId || !userId || !receivedSig) return false;
+
+  // Payload assinado = "sessionId.userId"
+  const payload = `${sessionId}.${userId}`;
 
   try {
     const enc = new TextEncoder();
@@ -23,7 +31,7 @@ async function isValidSession(value: string): Promise<boolean> {
       { name: "HMAC", hash: "SHA-256" },
       false, ["sign"]
     );
-    const sigBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(userId));
+    const sigBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(payload));
     const expectedSig = Array.from(new Uint8Array(sigBuffer))
       .map(b => b.toString(16).padStart(2, "0"))
       .join("");

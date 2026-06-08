@@ -3,11 +3,10 @@
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/session";
+import { requireAuth, requireSession, invalidateOtherSessions } from "@/lib/session";
 import { validatePasswordStrict } from "@/lib/password-strength"; // CS-33
 
 // [CS-29] requireUser local busca o objeto User completo (necessário para changePassword).
-// Usa requireAuth() internamente em vez de getSessionUserId diretamente.
 async function requireUser() {
   const userId = await requireAuth();
   const user = await db.user.findUnique({ where: { id: userId } });
@@ -42,7 +41,10 @@ export async function changePassword(data: {
   current: string;
   next: string;
 }) {
-  const user = await requireUser();
+  const { userId, sessionId } = await requireSession();
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("Usuário não encontrado.");
+
   const valid = await bcrypt.compare(data.current, user.password);
   if (!valid) return { error: "Senha atual incorreta." };
   // CS-33: política de senha forte
@@ -51,5 +53,9 @@ export async function changePassword(data: {
 
   const hashed = await bcrypt.hash(data.next, 10);
   await db.user.update({ where: { id: user.id }, data: { password: hashed } });
+
+  // CS-34: revogar todas as outras sessões após troca de senha (segurança)
+  await invalidateOtherSessions(userId, sessionId);
+
   return { ok: true };
 }

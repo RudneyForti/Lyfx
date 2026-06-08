@@ -364,6 +364,20 @@ model KmPlace {
   updatedAt          DateTime @updatedAt
 }
 
+// CS-34: Sessões com estado — permite invalidação server-side e view de sessões ativas
+model Session {
+  id          String   @id @default(cuid()) // sessionId armazenado no cookie
+  userId      String
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([userId])
+  @@index([expiresAt]) // limpeza lazy de sessões expiradas
+}
+
 // CS-32: Rate limiting — registro de tentativas de login por IP
 model LoginAttempt {
   id        String   @id @default(cuid())
