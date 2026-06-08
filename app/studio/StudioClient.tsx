@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, setAppConfig, saveAdminNotes, adminSendNotification, adminGetManualNotifications, adminDeleteNotification, adminUpdateNotification, adminGetEventLog, getServerMetrics } from "./actions";
-import type { LiveSchema, AppConfigEntry, NotifBroadcast, AuditEvent, ServerMetrics } from "./actions";
+import { adminLogin, adminLogout, adminResetPassword, adminDeleteUser, adminCreateUser, setAppConfig, saveAdminNotes, adminSendNotification, adminGetManualNotifications, adminDeleteNotification, adminUpdateNotification, adminGetEventLog, getServerMetrics, getAdminSecurityLog } from "./actions";
+import type { LiveSchema, AppConfigEntry, NotifBroadcast, AuditEvent, ServerMetrics, AdminSecurityEvent } from "./actions";
 import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan, ensureInsiderPlan, migrateAndDeletePlan } from "@/app/actions/plans";
 import { ALL_MODULES } from "@/lib/modules";
 import {
@@ -14,6 +14,7 @@ import {
   IconUsers, IconTable, IconKey, IconTrash, IconChevronDown, IconChevronRight,
   IconFileDescription, IconUserPlus, IconFilter, IconPackage, IconPlus, IconEdit,
   IconCheck, IconZoomIn, IconApps, IconAdjustments, IconPencil, IconStar, IconBell, IconSend,
+  IconShieldCheck, IconShieldX, IconShieldExclamation, IconShieldLock, IconRefresh,
 } from "@tabler/icons-react";
 
 /* ── Login gate ── */
@@ -121,7 +122,7 @@ type StudioData = Awaited<ReturnType<typeof import("./actions").getStudioData>>;
 type PlanItem = StudioData["plans"][number];
 
 export function StudioMain({ data, docs, liveSchema, appConfig }: { data: StudioData; docs: string; liveSchema: LiveSchema; appConfig: AppConfigEntry[] }) {
-  const [tab, setTab] = useState<"schema" | "users" | "plans" | "modules" | "panel" | "notes" | "data" | "docs" | "notifications">("panel");
+  const [tab, setTab] = useState<"schema" | "users" | "plans" | "modules" | "panel" | "notes" | "data" | "docs" | "notifications" | "security">("panel");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
 
@@ -131,6 +132,7 @@ export function StudioMain({ data, docs, liveSchema, appConfig }: { data: Studio
     { key: "plans",         label: "Planos",         icon: <IconPackage size={14} /> },
     { key: "modules",       label: "Módulos",        icon: <IconApps size={14} /> },
     { key: "notifications", label: "Notificações",   icon: <IconBell size={14} /> },
+    { key: "security",      label: "Segurança",      icon: <IconShieldCheck size={14} /> },
     { key: "notes",         label: "Notas",          icon: <IconPencil size={14} /> },
     { key: "data",          label: "Dados",          icon: <IconTable size={14} /> },
     { key: "schema",        label: "Schema",         icon: <IconDatabase size={14} /> },
@@ -187,6 +189,7 @@ export function StudioMain({ data, docs, liveSchema, appConfig }: { data: Studio
         {tab === "modules"       && <ModulesTab data={data} appConfig={appConfig} />}
         {tab === "panel"         && <ControlPanelTab appConfig={appConfig} data={data} />}
         {tab === "notifications" && <NotificationsTab users={data.users} plans={data.plans} />}
+        {tab === "security"      && <SecurityTab users={data.users} />}
         {tab === "notes"         && <NotesTab appConfig={appConfig} />}
         {tab === "data"          && <DataTab data={data} />}
         {tab === "docs"          && <DocsTab content={docs} />}
@@ -2885,5 +2888,182 @@ function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItem
         </div>
       )}
     </>
+  );
+}
+
+/* ── Security Tab (CS-35) ─────────────────────────────────────────────────── */
+
+const SECURITY_VARIANT_STYLES = {
+  success: { color: "#4ADE80", bg: "rgba(74,222,128,0.07)",   border: "rgba(74,222,128,0.2)" },
+  danger:  { color: "#F87171", bg: "rgba(248,113,113,0.07)",  border: "rgba(248,113,113,0.2)" },
+  warning: { color: "#FBBF24",  bg: "rgba(251,191,36,0.07)",  border: "rgba(251,191,36,0.2)" },
+  info:    { color: "#22D3EE", bg: "rgba(34,211,238,0.07)",   border: "rgba(34,211,238,0.2)" },
+} as const;
+
+function SecurityEventIcon({ variant }: { variant: AdminSecurityEvent["variant"] }) {
+  const color = SECURITY_VARIANT_STYLES[variant].color;
+  const props = { size: 13, color, style: { flexShrink: 0 as const } };
+  if (variant === "success") return <IconShieldCheck       {...props} />;
+  if (variant === "danger")  return <IconShieldX           {...props} />;
+  if (variant === "warning") return <IconShieldExclamation {...props} />;
+  return                            <IconShieldLock        {...props} />;
+}
+
+function formatSecDate(date: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).format(new Date(date));
+}
+
+type UserFilterOption = { id: string; name: string };
+
+function SecurityTab({ users }: { users: UserFilterOption[] }) {
+  const [logs,      setLogs]      = useState<AdminSecurityEvent[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [filterUser, setFilterUser] = useState("");
+  const [filterAction, setFilterAction] = useState("");
+
+  const SECURITY_ACTIONS = [
+    { key: "",                    label: "Todos os eventos" },
+    { key: "auth.login.success",  label: "Login bem-sucedido" },
+    { key: "auth.login.failed",   label: "Falha de login" },
+    { key: "auth.login.blocked",  label: "IP bloqueado" },
+    { key: "auth.login.captcha",  label: "CAPTCHA exigido" },
+    { key: "auth.logout",         label: "Logout" },
+    { key: "auth.password.changed", label: "Senha alterada" },
+    { key: "session.revoked",     label: "Sessão revogada" },
+    { key: "session.revoked_all", label: "Todas sessões revogadas" },
+  ];
+
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await getAdminSecurityLog({
+        userId: filterUser  || undefined,
+        action: filterAction || undefined,
+        limit:  200,
+      });
+      setLogs(data);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // load on mount + filter changes
+  useEffect(() => { load(); }, [filterUser, filterAction]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectStyle: React.CSSProperties = {
+    height: 34, padding: "0 10px", fontSize: 12,
+    background: "var(--color-bg3)", border: "1px solid var(--color-border2)",
+    borderRadius: 6, color: "var(--color-f2)", outline: "none", cursor: "pointer",
+  };
+
+  return (
+    <div style={{ maxWidth: 960 }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>Log de segurança</div>
+          <div style={{ fontSize: 12, color: "var(--color-f4)" }}>
+            Eventos de autenticação e sessões de todos os usuários
+          </div>
+        </div>
+        <button
+          onClick={load}
+          disabled={loading}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", fontSize: 11, borderRadius: 6, border: "1px solid var(--color-border2)", background: "var(--color-bg3)", color: "var(--color-f2)", cursor: "pointer" }}
+        >
+          {loading ? <IconLoader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <IconRefresh size={12} />}
+          Atualizar
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={selectStyle}>
+          <option value="">Todos os usuários</option>
+          {users.map(u => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
+        </select>
+        <select value={filterAction} onChange={e => setFilterAction(e.target.value)} style={selectStyle}>
+          {SECURITY_ACTIONS.map(a => (
+            <option key={a.key} value={a.key}>{a.label}</option>
+          ))}
+        </select>
+        {(filterUser || filterAction) && (
+          <button
+            onClick={() => { setFilterUser(""); setFilterAction(""); }}
+            style={{ ...selectStyle, color: "var(--color-cyan)", borderColor: "rgba(34,211,238,0.3)", paddingRight: 12 }}
+          >
+            <IconX size={10} style={{ marginRight: 4 }} />
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
+      {/* Counter */}
+      {!loading && (
+        <div style={{ fontSize: 11, color: "var(--color-f4)", marginBottom: 10 }}>
+          {logs.length} evento{logs.length !== 1 ? "s" : ""}
+          {logs.length === 200 ? " (mostrando os últimos 200)" : ""}
+        </div>
+      )}
+
+      {/* List */}
+      {loading ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--color-f4)" }}>
+          <IconLoader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+          Carregando eventos...
+        </div>
+      ) : logs.length === 0 ? (
+        <div style={{ fontSize: 13, color: "var(--color-f4)", padding: "32px 0", textAlign: "center" }}>
+          Nenhum evento de segurança registrado.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {logs.map(log => {
+            const style = SECURITY_VARIANT_STYLES[log.variant];
+            return (
+              <div
+                key={log.id}
+                style={{
+                  display: "flex", alignItems: "flex-start", gap: 12,
+                  padding: "10px 14px", borderRadius: 10,
+                  background: style.bg, border: `1px solid ${style.border}`,
+                }}
+              >
+                <div style={{ marginTop: 2 }}>
+                  <SecurityEventIcon variant={log.variant} />
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 2 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: style.color }}>{log.label}</span>
+                    {log.userName && (
+                      <span style={{ fontSize: 11, color: "var(--color-f2)", background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "1px 6px" }}>
+                        {log.userName}
+                        {log.userEmail && <span style={{ color: "var(--color-f4)", marginLeft: 4 }}>{log.userEmail}</span>}
+                      </span>
+                    )}
+                    {!log.userName && (
+                      <span style={{ fontSize: 10, color: "var(--color-f4)", fontStyle: "italic" }}>anônimo</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--color-f3)" }}>{log.description}</div>
+                  <div style={{ display: "flex", gap: 12, marginTop: 3, flexWrap: "wrap" }}>
+                    {log.ip && (
+                      <span style={{ fontSize: 10, color: "var(--color-f4)", fontFamily: "monospace" }}>IP: {log.ip}</span>
+                    )}
+                    <span style={{ fontSize: 10, color: "var(--color-f4)" }}>{formatSecDate(log.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

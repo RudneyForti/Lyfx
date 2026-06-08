@@ -45,7 +45,8 @@ export async function logEvent(opts: AuditEventOptions): Promise<void> {
       sessionId: opts.sessionId ?? null,
       ip:        opts.ip        ?? null,
       userAgent: opts.userAgent ?? null,
-      metadata:  opts.metadata  ?? undefined,
+      // JSON.parse/stringify converte para objeto JSON puro — compatível com o campo Json? do Prisma
+      metadata:  opts.metadata ? JSON.parse(JSON.stringify(opts.metadata)) : undefined,
     },
   });
 }

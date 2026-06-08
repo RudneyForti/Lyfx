@@ -797,3 +797,67 @@ export async function adminGetEventLog(filters?: {
   events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   return events.slice(0, limit);
 }
+
+// ── CS-35: Security Audit Log (admin view) ────────────────────────────────────
+
+export interface AdminSecurityEvent {
+  id:          string;
+  action:      string;
+  label:       string;
+  description: string;
+  variant:     "success" | "danger" | "warning" | "info";
+  userId:      string | null;
+  userName:    string | null;
+  userEmail:   string | null;
+  ip:          string | null;
+  createdAt:   Date;
+}
+
+export async function getAdminSecurityLog(filters?: {
+  userId?:  string;
+  action?:  string;
+  limit?:   number;
+}): Promise<AdminSecurityEvent[]> {
+  await requireAdmin();
+
+  const { AUDIT_META } = await import("@/lib/audit");
+  type AuditAction = keyof typeof AUDIT_META;
+
+  const limit = filters?.limit ?? 200;
+
+  const logs = await db.auditLog.findMany({
+    where: {
+      ...(filters?.userId ? { userId: filters.userId } : {}),
+      ...(filters?.action  ? { action: filters.action }  : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { id: true, action: true, userId: true, ip: true, metadata: true, createdAt: true },
+  });
+
+  // Build userId → user map for a single extra query
+  const userIds = [...new Set(logs.map(l => l.userId).filter(Boolean) as string[])];
+  const users   = userIds.length
+    ? await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, email: true } })
+    : [];
+  const userMap = new Map(users.map(u => [u.id, u]));
+
+  return logs.map(log => {
+    const action   = log.action as AuditAction;
+    const meta     = AUDIT_META[action] ?? { label: action, description: () => action, variant: "info" as const };
+    const metadata = (log.metadata ?? undefined) as Record<string, unknown> | undefined;
+    const user     = log.userId ? userMap.get(log.userId) : null;
+    return {
+      id:          log.id,
+      action:      log.action,
+      label:       meta.label,
+      description: meta.description(metadata),
+      variant:     meta.variant,
+      userId:      log.userId,
+      userName:    user?.name    ?? null,
+      userEmail:   user?.email   ?? null,
+      ip:          log.ip,
+      createdAt:   log.createdAt,
+    };
+  });
+}
