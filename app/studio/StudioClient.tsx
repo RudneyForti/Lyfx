@@ -10,6 +10,7 @@ import type { LiveSchema, AppConfigEntry, NotifBroadcast, AuditEvent, ServerMetr
 import { KanbanBoard as KanbanBoardComponent } from "@/components/studio/KanbanBoard";
 import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan, ensureInsiderPlan, migrateAndDeletePlan } from "@/app/actions/plans";
 import { ALL_MODULES } from "@/lib/modules";
+import { validatePasswordStrict } from "@/lib/password-strength";
 import {
   IconLock, IconLoader2, IconX, IconLogout, IconDatabase,
   IconUsers, IconTable, IconKey, IconTrash, IconChevronDown, IconChevronRight,
@@ -683,7 +684,8 @@ function UsersTab({ users, plans }: { users: UserRow[]; plans: PlanItem[] }) {
   }
 
   function handleReset(userId: string) {
-    if (newPw.length < 6) { setMsg({ id: userId, text: "Mínimo 6 caracteres.", ok: false }); return; }
+    const pwError = validatePasswordStrict(newPw);
+    if (pwError) { setMsg({ id: userId, text: pwError, ok: false }); return; }
     startTransition(async () => {
       const result = await adminResetPassword(userId, newPw);
       if (result?.error) setMsg({ id: userId, text: result.error, ok: false });
@@ -746,7 +748,7 @@ function UsersTab({ users, plans }: { users: UserRow[]; plans: PlanItem[] }) {
               style={{ height: 36, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 12px", fontSize: 12, color: "var(--color-f1)", outline: "none" }}
             />
             <input
-              placeholder="Senha (min 6)"
+              placeholder="Senha (min 8, maiúscula, número, especial)"
               type="password"
               value={createForm.password}
               onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
@@ -866,7 +868,7 @@ function UsersTab({ users, plans }: { users: UserRow[]; plans: PlanItem[] }) {
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 type="password"
-                placeholder="Nova senha (min 6)"
+                placeholder="Nova senha (min 8, maiúscula, número, especial)"
                 value={newPw}
                 onChange={e => setNewPw(e.target.value)}
                 style={{ flex: 1, height: 36, background: "var(--color-bg3)", border: "1px solid var(--color-border2)", borderRadius: 6, padding: "0 12px", fontSize: 12, color: "var(--color-f1)", outline: "none" }}
