@@ -11,6 +11,7 @@ import path from "path";
 import os from "os";
 import { db } from "@/lib/db";
 import { ALL_MODULES } from "@/lib/modules";
+import { validatePasswordStrict } from "@/lib/password-strength";
 
 const COOKIE = "lyfx_admin";
 
@@ -51,7 +52,8 @@ export async function requireAdmin() {
 
 export async function adminResetPassword(userId: string, newPassword: string) {
   await requireAdmin();
-  if (newPassword.length < 6) return { error: "Mínimo 6 caracteres." };
+  const pwError = validatePasswordStrict(newPassword);
+  if (pwError) return { error: pwError };
   const hashed = await bcrypt.hash(newPassword, 10);
   await db.user.update({ where: { id: userId }, data: { password: hashed } });
   return { ok: true };
@@ -95,7 +97,8 @@ export async function adminCreateUser(data: { name: string; email: string; passw
   await requireAdmin();
   if (!data.name.trim()) return { error: "Nome obrigatório." };
   if (!data.email.trim()) return { error: "E-mail obrigatório." };
-  if (data.password.length < 6) return { error: "Senha deve ter ao menos 6 caracteres." };
+  const pwError = validatePasswordStrict(data.password);
+  if (pwError) return { error: pwError };
 
   const existing = await db.user.findUnique({ where: { email: data.email.trim().toLowerCase() } });
   if (existing) return { error: "E-mail já cadastrado." };
