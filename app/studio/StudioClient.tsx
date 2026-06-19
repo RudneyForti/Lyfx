@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -273,39 +273,170 @@ function computeErdLayout(tables: LiveSchema["tables"], effectiveHeights?: Map<s
   return { positions, CANVAS_W, CANVAS_H };
 }
 
+function resolveCollisions(
+  pos: Map<string, { x: number; y: number }>,
+  heights: Map<string, number>,
+  pinnedName?: string
+): Map<string, { x: number; y: number }> {
+  const GAP = 10;
+  const entries = [...pos.entries()].map(([name, p]) => ({ name, x: p.x, y: p.y }));
+  for (let iter = 0; iter < 60; iter++) {
+    let moved = false;
+    for (let i = 0; i < entries.length; i++) {
+      for (let j = i + 1; j < entries.length; j++) {
+        const a = entries[i], b = entries[j];
+        const aH = heights.get(a.name) ?? ERD_HEADER_H;
+        const bH = heights.get(b.name) ?? ERD_HEADER_H;
+        const overlapX = a.x < b.x + ERD_BOX_W + GAP && b.x < a.x + ERD_BOX_W + GAP;
+        const overlapY = a.y < b.y + bH + GAP && b.y < a.y + aH + GAP;
+        if (!overlapX || !overlapY) continue;
+        const aPinned = a.name === pinnedName;
+        const bPinned = b.name === pinnedName;
+        if (!bPinned) { b.y = a.y + aH + GAP; moved = true; }
+        else if (!aPinned) { a.y = Math.max(ERD_PAD, b.y - aH - GAP); moved = true; }
+      }
+    }
+    if (!moved) break;
+  }
+  const result = new Map<string, { x: number; y: number }>();
+  for (const e of entries) result.set(e.name, { x: e.x, y: Math.max(ERD_PAD, e.y) });
+  return result;
+}
+
 function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
+  const svgRef = useRef<SVGSVGElement>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(
     () => new Set(liveSchema.tables.map(t => t.name))
   );
 
-  // Collapsed tables render header-only — recompute layout on every toggle
-  const effectiveHeights = new Map<string, number>();
-  for (const t of liveSchema.tables) {
-    effectiveHeights.set(t.name, collapsed.has(t.name) ? ERD_HEADER_H : ERD_HEADER_H + t.columns.length * ERD_ROW_H);
+  const effectiveHeights = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of liveSchema.tables)
+      m.set(t.name, collapsed.has(t.name) ? ERD_HEADER_H : ERD_HEADER_H + t.columns.length * ERD_ROW_H);
+    return m;
+  }, [collapsed, liveSchema.tables]);
+
+  // Manual positions — start from auto-layout, user can drag freely
+  const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(() => {
+    const { positions: auto } = computeErdLayout(liveSchema.tables);
+    const m = new Map<string, { x: number; y: number }>();
+    for (const [name, p] of auto) m.set(name, { x: p.x, y: p.y });
+    return m;
+  });
+
+  // Add positions for tables that appear after init (schema migration, etc.)
+  useEffect(() => {
+    const { positions: auto } = computeErdLayout(liveSchema.tables, effectiveHeights);
+    setPositions(prev => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const [name, p] of auto) {
+        if (!next.has(name)) { next.set(name, { x: p.x, y: p.y }); changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  }, [liveSchema.tables]);
+
+  // Drag state
+  const dragRef = useRef<{ name: string; offsetX: number; offsetY: number; hasMoved: boolean } | null>(null);
+  const [liveXY, setLiveXY] = useState<{ x: number; y: number } | null>(null);
+
+  function toSvgCoords(e: MouseEvent | React.MouseEvent) {
+    const svg = svgRef.current!;
+    const rect = svg.getBoundingClientRect();
+    const scaleX = CANVAS_W / rect.width;
+    const scaleY = CANVAS_H / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
   }
 
-  const { positions, CANVAS_W, CANVAS_H } = computeErdLayout(liveSchema.tables, effectiveHeights);
+  // Compute canvas size from current positions
+  let maxX = ERD_PAD * 2 + ERD_N_COLS * ERD_BOX_W + (ERD_N_COLS - 1) * ERD_COL_GAP;
+  let maxY = 400;
+  for (const [name, p] of positions) {
+    const h = effectiveHeights.get(name) ?? ERD_HEADER_H;
+    if (p.x + ERD_BOX_W + ERD_PAD > maxX) maxX = p.x + ERD_BOX_W + ERD_PAD;
+    if (p.y + h + ERD_PAD > maxY) maxY = p.y + h + ERD_PAD;
+  }
+  const CANVAS_W = maxX;
+  const CANVAS_H = maxY;
 
-  // Build column-level FK arrows
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      const d = dragRef.current;
+      if (!d || !svgRef.current) return;
+      const { x, y } = toSvgCoords(e);
+      const nx = Math.max(ERD_PAD / 2, x - d.offsetX);
+      const ny = Math.max(ERD_PAD / 2, y - d.offsetY);
+      if (!d.hasMoved) d.hasMoved = true;
+      setLiveXY({ x: nx, y: ny });
+    }
+    function onMouseUp(e: MouseEvent) {
+      const d = dragRef.current;
+      if (!d) return;
+      if (!d.hasMoved) {
+        // click → toggle collapse
+        setCollapsed(prev => {
+          const next = new Set(prev);
+          if (next.has(d.name)) next.delete(d.name); else next.add(d.name);
+          return next;
+        });
+      } else {
+        const { x, y } = toSvgCoords(e);
+        const finalX = Math.max(ERD_PAD / 2, x - d.offsetX);
+        const finalY = Math.max(ERD_PAD / 2, y - d.offsetY);
+        const name = d.name;
+        setPositions(prev => {
+          const next = new Map(prev);
+          next.set(name, { x: finalX, y: finalY });
+          return resolveCollisions(next, effectiveHeights, name);
+        });
+      }
+      dragRef.current = null;
+      setLiveXY(null);
+    }
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [effectiveHeights]);
+
+  // Re-resolve collisions when collapse state changes (table height changes)
+  useEffect(() => {
+    setPositions(prev => resolveCollisions(new Map(prev), effectiveHeights));
+  }, [effectiveHeights]);
+
+  function handleHeaderMouseDown(e: React.MouseEvent, name: string) {
+    e.stopPropagation();
+    const pos = positions.get(name);
+    if (!pos || !svgRef.current) return;
+    const { x: svgX, y: svgY } = toSvgCoords(e);
+    dragRef.current = { name, offsetX: svgX - pos.x, offsetY: svgY - pos.y, hasMoved: false };
+  }
+
+  function restoreLayout() {
+    const { positions: auto } = computeErdLayout(liveSchema.tables, effectiveHeights);
+    const m = new Map<string, { x: number; y: number }>();
+    for (const [name, p] of auto) m.set(name, { x: p.x, y: p.y });
+    setPositions(m);
+  }
+
+  // Build FK arrows
   const drawnKeys = new Set<string>();
   const arrows: React.ReactElement[] = [];
-
   for (const fk of liveSchema.foreignKeys) {
     const key = `${fk.table_name}.${fk.column_name}→${fk.foreign_table_name}.${fk.foreign_column_name}`;
     if (drawnKeys.has(key) || fk.table_name === fk.foreign_table_name) continue;
     drawnKeys.add(key);
-
     const src = positions.get(fk.table_name);
     const dst = positions.get(fk.foreign_table_name);
     if (!src || !dst) continue;
-
     const srcTable = liveSchema.tables.find(t => t.name === fk.table_name);
     const dstTable = liveSchema.tables.find(t => t.name === fk.foreign_table_name);
     const srcColIdx = srcTable?.columns.findIndex(c => c.column_name === fk.column_name) ?? 0;
     const dstColIdx = dstTable?.columns.findIndex(c => c.column_name === fk.foreign_column_name) ?? 0;
-
-    // When collapsed, point to header centre instead of the now-hidden row
     const srcRowY = collapsed.has(fk.table_name)
       ? src.y + ERD_HEADER_H / 2
       : src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
@@ -313,32 +444,13 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
       ? dst.y + ERD_HEADER_H / 2
       : dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
     const color = tableColor(fk.table_name);
-
-    let x1: number, x2: number;
-    let cp1x: number, cp2x: number;
-
-    if (src.col === dst.col) {
-      // Same column — arc to the right.
-      // ERD_COL_GAP=50 ensures the 44px arc never enters the next column's area.
-      x1 = src.x + ERD_BOX_W; x2 = dst.x + ERD_BOX_W;
-      const cx = src.x + ERD_BOX_W + 44;
-      arrows.push(
-        <g key={key}>
-          <path d={`M ${x1} ${srcRowY} C ${cx} ${srcRowY} ${cx} ${dstRowY} ${x2} ${dstRowY}`}
-            stroke={color} strokeOpacity={0.5} strokeWidth={1.5} fill="none" strokeDasharray="4 3" />
-          <circle cx={x2} cy={dstRowY} r={3} fill={color} fillOpacity={0.8} />
-        </g>
-      );
-      continue;
-    }
-
-    const goRight = src.col < dst.col;
-    x1 = goRight ? src.x + ERD_BOX_W : src.x;
-    x2 = goRight ? dst.x             : dst.x + ERD_BOX_W;
+    // Decide entry/exit sides based on relative X position
+    const goRight = src.x + ERD_BOX_W / 2 < dst.x + ERD_BOX_W / 2;
+    const x1 = goRight ? src.x + ERD_BOX_W : src.x;
+    const x2 = goRight ? dst.x : dst.x + ERD_BOX_W;
     const dist = Math.abs(x2 - x1);
-    cp1x = goRight ? x1 + dist * 0.45 : x1 - dist * 0.45;
-    cp2x = goRight ? x2 - dist * 0.45 : x2 + dist * 0.45;
-
+    const cp1x = goRight ? x1 + dist * 0.45 : x1 - dist * 0.45;
+    const cp2x = goRight ? x2 - dist * 0.45 : x2 + dist * 0.45;
     arrows.push(
       <g key={key}>
         <path d={`M ${x1} ${srcRowY} C ${cp1x} ${srcRowY} ${cp2x} ${dstRowY} ${x2} ${dstRowY}`}
@@ -348,13 +460,7 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
     );
   }
 
-  function toggleCollapse(name: string) {
-    setCollapsed(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
-      return next;
-    });
-  }
+  const isDragging = liveXY !== null;
 
   return (
     <div style={{ background: "var(--color-bg3)", border: "1px solid var(--color-border)", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
@@ -362,25 +468,32 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
         <span style={{ fontSize: 10, color: "var(--color-f4)", letterSpacing: 1, textTransform: "uppercase" }}>
           Diagrama ER · {liveSchema.tables.length} tabelas · {liveSchema.foreignKeys.length} foreign keys · gerado em tempo real
         </span>
-        <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 4 }}>
-          <IconZoomIn size={10} /> clique para colapsar · expandir
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 4 }}>
+            <IconZoomIn size={10} /> arraste o header · clique para colapsar
+          </span>
+          <button
+            onClick={restoreLayout}
+            style={{ fontSize: 10, color: "var(--color-f4)", background: "none", border: "1px solid var(--color-border2)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", letterSpacing: 0.5 }}
+          >
+            ↺ Restaurar layout
+          </button>
+        </div>
       </div>
 
-      {/* Horizontal scroll on narrow screens; natural fixed size on wide screens */}
       <div style={{ overflowX: "auto" }}>
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
           width={CANVAS_W}
           height={CANVAS_H}
-          style={{ display: "block" }}
+          style={{ display: "block", userSelect: "none", cursor: isDragging ? "grabbing" : "default" }}
         >
-          {/* Arrows drawn first — behind table boxes */}
           {arrows}
 
-          {/* Table boxes */}
           {liveSchema.tables.map(t => {
-            const pos = positions.get(t.name);
+            const isDragged = isDragging && dragRef.current?.name === t.name;
+            const pos = isDragged ? liveXY! : positions.get(t.name);
             if (!pos) return null;
             const color = tableColor(t.name);
             const isHov = hovered === t.name;
@@ -389,31 +502,36 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
 
             return (
               <g key={t.name} transform={`translate(${pos.x},${pos.y})`}
-                style={{ cursor: "pointer" }}
+                style={{ cursor: isDragged ? "grabbing" : "grab" }}
                 onMouseEnter={() => setHovered(t.name)}
                 onMouseLeave={() => setHovered(null)}
-                onClick={() => toggleCollapse(t.name)}
               >
-                {isHov && <rect x={-2} y={-2} width={ERD_BOX_W + 4} height={boxH + 4} rx={5} fill={color} fillOpacity={0.1} />}
+                {/* Shadow when dragging */}
+                {isDragged && <rect x={3} y={3} width={ERD_BOX_W} height={boxH} rx={4} fill="rgba(0,0,0,0.5)" />}
+                {isHov && !isDragged && <rect x={-2} y={-2} width={ERD_BOX_W + 4} height={boxH + 4} rx={5} fill={color} fillOpacity={0.1} />}
 
                 <rect width={ERD_BOX_W} height={boxH} rx={4}
                   fill="#0d1117"
-                  stroke={isHov ? color : color + "55"}
-                  strokeWidth={isHov ? 1.5 : 1}
+                  stroke={isDragged ? color : isHov ? color : color + "55"}
+                  strokeWidth={isDragged ? 2 : isHov ? 1.5 : 1}
                 />
 
-                {/* Header bar */}
-                <rect width={ERD_BOX_W} height={ERD_HEADER_H} rx={4} fill={color + "28"} />
+                {/* Header — drag handle */}
+                <rect width={ERD_BOX_W} height={ERD_HEADER_H} rx={4} fill={color + "28"}
+                  onMouseDown={e => handleHeaderMouseDown(e, t.name)}
+                  style={{ cursor: isDragged ? "grabbing" : "grab" }}
+                />
                 {!isCollapsed && <rect y={ERD_HEADER_H - 1} width={ERD_BOX_W} height={1} fill={color + "66"} />}
-                {/* Top colour stripe */}
                 <rect width={ERD_BOX_W} height={3} rx={4} fill={color} />
 
-                <text x={8} y={18} fontSize={11} fontWeight={700} fill={color} fontFamily="monospace">{trunc(t.name, 19)}</text>
+                <text x={8} y={18} fontSize={11} fontWeight={700} fill={color} fontFamily="monospace"
+                  onMouseDown={e => handleHeaderMouseDown(e, t.name)}
+                  style={{ cursor: isDragged ? "grabbing" : "grab" }}
+                >{trunc(t.name, 19)}</text>
                 <text x={ERD_BOX_W - 5} y={18} fontSize={8.5} fill={color} fillOpacity={0.65} textAnchor="end" fontFamily="monospace">
                   {isCollapsed ? "▶ " : "▼ "}{t.columns.length}f
                 </text>
 
-                {/* Field rows — hidden when collapsed */}
                 {!isCollapsed && t.columns.map((c, i) => {
                   const ry = ERD_HEADER_H + i * ERD_ROW_H;
                   const isPk = c.is_pk, isFk = c.is_fk;
