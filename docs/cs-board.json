@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-06-08T18:30:00.000Z",
+  "lastUpdated": "2026-06-09T01:24:05.724Z",
   "columns": [
     {
       "id": "backlog",
@@ -548,8 +548,8 @@
         "feature",
         "produto"
       ],
-      "version": "",
-      "commitHash": "",
+      "version": null,
+      "commitHash": null,
       "completedAt": null,
       "order": 1
     },
@@ -681,7 +681,11 @@
       "csNumber": "CS-41",
       "title": "Hydration mismatch — data timezone UTC vs local em componentes cliente",
       "description": "BUG encontrado no QA v1.14.0: componentes \"use client\" formatavam datas sem timeZone especificado, causando hydration mismatch entre server Docker (UTC+0) e browser cliente (UTC-3 Brasil). Datas armazenadas como UTC midnight eram renderizadas diferentemente: server='08 de jun.' / client='07 de jun.'. Fix: adicionado timeZone:'UTC' em 11 arquivos (TransactionList, AssetsView, GoalsView, ReimbursementsView, PeriodList, PeriodDetail, EducationHub, SessionsSection, AuditSection, StudioClient, lib/pills.ts). MonthlyCalendar excluído pois usa construtor local Date(year,month,day).",
-      "labels": ["bug", "hydration", "qa"],
+      "labels": [
+        "bug",
+        "hydration",
+        "qa"
+      ],
       "version": "1.15.0",
       "completedAt": "2026-06-08T11:00:00.000Z"
     },
@@ -691,7 +695,12 @@
       "csNumber": "CS-42",
       "title": "GoalsView — hydration mismatch no display de meses das parcelas + pluralização e preview incorretos",
       "description": "BUG encontrado no QA v1.14.0 (M-03 test): GoalsView.tsx usava getMonth()/getFullYear() (timezone local) para exibir o mês das parcelas de metas, causando hydration mismatch (server='Ago' vs client='Jul'). Raiz: datas de pagamento armazenadas como UTC midnight (e.g. 2026-08-01T00:00:00Z) → UTC-3 client deslocava 1 mês atrás. Correções: (1) linha 240: getUTCMonth()/getUTCFullYear(); (2) linha 50: getUTCMonth()/getUTCFullYear() no cálculo de meses do preview — alinhando com o cálculo do server action; (3) linha 124: pluralização corrigida '{months} meses' → '{months} {months===1?\"mês\":\"meses\"}'; (4) targetAmount inicializa com '10000' ao invés de '' para evitar falso 'Valor inválido' ao deixar campo sem tocar.",
-      "labels": ["bug", "hydration", "ux", "qa"],
+      "labels": [
+        "bug",
+        "hydration",
+        "ux",
+        "qa"
+      ],
       "version": "1.15.0",
       "completedAt": "2026-06-08T14:00:00.000Z"
     },
@@ -701,7 +710,12 @@
       "csNumber": "CS-45",
       "title": "globals.css — --color-amber ausente no design system causava badges brancas em 9+ componentes",
       "description": "BUG encontrado no QA v1.14.0 (L-03 test): variável CSS --color-amber nunca foi adicionada ao @theme inline de app/globals.css apesar de ser usada em 9+ componentes (LiabilitiesView, AlertsView, FixedExpensesView, NotificationPanel, InstitutionsView, ReimbursementsView, PeriodDetail, PeriodList, StudioClient). Resultado: badges de aviso exibiam cor branca (rgb(238,238,238)) em vez de âmbar (#FBBF24). Fix: adicionadas --color-amber: #FBBF24, --color-amber-dim: rgba(251,191,36,0.10), --color-amber-border: rgba(251,191,36,0.22) no bloco de cores após --color-red.",
-      "labels": ["bug", "css", "design-system", "qa"],
+      "labels": [
+        "bug",
+        "css",
+        "design-system",
+        "qa"
+      ],
       "version": "1.15.0",
       "completedAt": "2026-06-08T15:00:00.000Z"
     },
@@ -711,7 +725,12 @@
       "csNumber": "CS-45b",
       "title": "LiabilitiesView — window.confirm() substituído por inline ActionBar em quitação e exclusão",
       "description": "BUG encontrado no QA v1.14.0 (L-04 test): LiabilitiesView.tsx usava window.confirm() nativo em handleMarkPaid() e handleDelete(), bloqueando automação CDP/browser e rompendo o padrão de UX do sistema. handleMarkPaid() já tinha inline ActionBar (setMarkingPaid) mas chamava window.confirm() internamente como redundância — removido. handleDelete() não tinha inline ActionBar — adicionado estado confirmingDelete + ActionBar vermelho com padrão idêntico ao de quitação.",
-      "labels": ["bug", "ux", "window.confirm", "qa"],
+      "labels": [
+        "bug",
+        "ux",
+        "window.confirm",
+        "qa"
+      ],
       "version": "1.15.0",
       "completedAt": "2026-06-08T15:00:00.000Z"
     },
@@ -721,7 +740,12 @@
       "csNumber": "CS-46",
       "title": "LiabilitiesView — botão Reativar ausente em passivos quitados",
       "description": "BUG encontrado no QA v1.14.0 (L-05 test): cards com status paid_off não tinham botão para reativar o passivo — apenas o botão excluir estava visível. O plano de testes L-05 exige que um passivo quitado possa retornar à lista de ativos. Fix: adicionado estado reactivating + botão Reativar (IconArrowBack, hover âmbar) visível somente em cards !isActive + inline ActionBar âmbar com handler handleReactivate() que chama updateLiability(id, { status: 'active' }).",
-      "labels": ["bug", "ux", "feature-missing", "qa"],
+      "labels": [
+        "bug",
+        "ux",
+        "feature-missing",
+        "qa"
+      ],
       "version": "1.15.0",
       "completedAt": "2026-06-08T15:00:00.000Z"
     },
@@ -731,7 +755,11 @@
       "csNumber": "CS-47",
       "title": "Alertas — taxa anual composta exibida 100× menor no alerta de passivo crítico",
       "description": "BUG encontrado no QA v1.14.0 (AL-04 test): o alerta 'Passivo crítico' exibia '~4% a.a.' para um passivo de 15% a.m. em vez de '~435% a.a.'. A fórmula (Math.pow(1 + rate/100, 12) - 1).toFixed(0) retorna o valor decimal (4.35) diretamente como porcentagem, sem multiplicar por 100. Fix em app/actions/alerts.ts: ((Math.pow(1 + rate/100, 12) - 1) * 100).toFixed(0).",
-      "labels": ["bug", "cálculo", "qa"],
+      "labels": [
+        "bug",
+        "cálculo",
+        "qa"
+      ],
       "version": "1.15.0",
       "completedAt": "2026-06-08T18:00:00.000Z"
     },
@@ -741,7 +769,11 @@
       "csNumber": "CS-48",
       "title": "Alertas — alerta sazonal não dispara quando vencimento é exatamente 2 meses à frente",
       "description": "BUG encontrado no QA v1.14.0 (AL-07 test): alerta sazonal com IPTU vencendo em agosto de 2026 não aparecia em /alerts, apesar do threshold ser <= 2 meses. Causa raiz: diffMonths = diffDays/30 retornava 2.01 (60.4 dias / 30 = 2.013) para uma data exatamente 2 meses calendário à frente, causando falso negativo. Fix em app/actions/alerts.ts: substituir comparação de diffMonths por calMonthDiff = (next.getFullYear() - now.getFullYear()) * 12 + (next.getMonth() - now.getMonth()), que retorna 2 (inteiro) para datas com exatamente 2 meses de diferença calendário.",
-      "labels": ["bug", "cálculo", "qa"],
+      "labels": [
+        "bug",
+        "cálculo",
+        "qa"
+      ],
       "version": "1.15.0",
       "completedAt": "2026-06-08T18:30:00.000Z"
     }

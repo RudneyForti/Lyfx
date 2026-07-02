@@ -317,9 +317,10 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
     return m;
   }, [collapsed, liveSchema.tables]);
 
-  // Manual positions — start from auto-layout, user can drag freely
+  // Manual positions — start from auto-layout with all-collapsed heights (compact)
   const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(() => {
-    const { positions: auto } = computeErdLayout(liveSchema.tables);
+    const collapsedH = new Map(liveSchema.tables.map(t => [t.name, ERD_HEADER_H]));
+    const { positions: auto } = computeErdLayout(liveSchema.tables, collapsedH);
     const m = new Map<string, { x: number; y: number }>();
     for (const [name, p] of auto) m.set(name, { x: p.x, y: p.y });
     return m;
@@ -342,31 +343,58 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
   const dragRef = useRef<{ name: string; offsetX: number; offsetY: number; hasMoved: boolean } | null>(null);
   const [liveXY, setLiveXY] = useState<{ x: number; y: number } | null>(null);
 
+  // Track container width — canvas fills full vw and tables never go beyond the right edge
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(1400);
+  const containerWidthRef = useRef(1400);
+  useEffect(() => {
+    const div = containerRef.current;
+    if (!div) return;
+    const obs = new ResizeObserver(entries => {
+      const w = entries[0].contentRect.width;
+      setContainerWidth(w);
+      containerWidthRef.current = w;
+    });
+    obs.observe(div);
+    return () => obs.disconnect();
+  }, []);
+
+  // Reads SVG coords from mouse event — uses actual SVG viewBox so it's always correct
+  // even if the SVG has been scaled by CSS (e.g. min-width: 100%)
   function toSvgCoords(e: MouseEvent | React.MouseEvent) {
     const svg = svgRef.current!;
     const rect = svg.getBoundingClientRect();
-    const scaleX = CANVAS_W / rect.width;
-    const scaleY = CANVAS_H / rect.height;
+    const vb = svg.viewBox.baseVal;
+    const scaleX = vb.width > 0 ? vb.width / rect.width : 1;
+    const scaleY = vb.height > 0 ? vb.height / rect.height : 1;
     return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
   }
 
-  // Compute canvas size from current positions
+  // Canvas size: fits all resting positions + live drag position (so canvas expands during drag)
   let maxX = ERD_PAD * 2 + ERD_N_COLS * ERD_BOX_W + (ERD_N_COLS - 1) * ERD_COL_GAP;
-  let maxY = 400;
+  let maxY = 300;
   for (const [name, p] of positions) {
     const h = effectiveHeights.get(name) ?? ERD_HEADER_H;
     if (p.x + ERD_BOX_W + ERD_PAD > maxX) maxX = p.x + ERD_BOX_W + ERD_PAD;
     if (p.y + h + ERD_PAD > maxY) maxY = p.y + h + ERD_PAD;
   }
-  const CANVAS_W = maxX;
+  if (liveXY) {
+    // X is clamped to container — only expand Y during drag
+    const dragH = effectiveHeights.get(dragRef.current?.name ?? "") ?? ERD_HEADER_H;
+    if (liveXY.y + dragH + ERD_PAD > maxY) maxY = liveXY.y + dragH + ERD_PAD;
+  }
+  const CANVAS_W = Math.max(maxX, containerWidth);
   const CANVAS_H = maxY;
 
   useEffect(() => {
+    function clampX(x: number) {
+      return Math.min(Math.max(ERD_PAD / 2, x), containerWidthRef.current - ERD_BOX_W - ERD_PAD);
+    }
     function onMouseMove(e: MouseEvent) {
       const d = dragRef.current;
       if (!d || !svgRef.current) return;
       const { x, y } = toSvgCoords(e);
-      const nx = Math.max(ERD_PAD / 2, x - d.offsetX);
+      const nx = clampX(x - d.offsetX);
       const ny = Math.max(ERD_PAD / 2, y - d.offsetY);
       if (!d.hasMoved) d.hasMoved = true;
       setLiveXY({ x: nx, y: ny });
@@ -383,7 +411,7 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
         });
       } else {
         const { x, y } = toSvgCoords(e);
-        const finalX = Math.max(ERD_PAD / 2, x - d.offsetX);
+        const finalX = clampX(x - d.offsetX);
         const finalY = Math.max(ERD_PAD / 2, y - d.offsetY);
         const name = d.name;
         setPositions(prev => {
@@ -425,7 +453,8 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
 
   // Build FK arrows
   const drawnKeys = new Set<string>();
-  const arrows: React.ReactElement[] = [];
+  const arrowsBg: React.ReactElement[] = [];   // dimmed — render first (behind)
+  const arrowsFg: React.ReactElement[] = [];   // highlighted — render last (on top)
   for (const fk of liveSchema.foreignKeys) {
     const key = `${fk.table_name}.${fk.column_name}→${fk.foreign_table_name}.${fk.foreign_column_name}`;
     if (drawnKeys.has(key) || fk.table_name === fk.foreign_table_name) continue;
@@ -437,6 +466,9 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
     const dstTable = liveSchema.tables.find(t => t.name === fk.foreign_table_name);
     const srcColIdx = srcTable?.columns.findIndex(c => c.column_name === fk.column_name) ?? 0;
     const dstColIdx = dstTable?.columns.findIndex(c => c.column_name === fk.foreign_column_name) ?? 0;
+    // is_nullable === "YES" → optional FK → dashed line
+    const srcCol = srcTable?.columns.find(c => c.column_name === fk.column_name);
+    const isOptional = srcCol?.is_nullable === "YES";
     const srcRowY = collapsed.has(fk.table_name)
       ? src.y + ERD_HEADER_H / 2
       : src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
@@ -444,21 +476,88 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
       ? dst.y + ERD_HEADER_H / 2
       : dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
     const color = tableColor(fk.table_name);
-    // Decide entry/exit sides based on relative X position
+    // Hover-based opacity: highlight connected lines, dim the rest
+    const isRelated = hovered === fk.table_name || hovered === fk.foreign_table_name;
+    const opacity = hovered ? (isRelated ? 0.9 : 0.06) : 0.4;
+    const strokeW = hovered && isRelated ? 2 : 1.5;
+    // Orthogonal routing — lines travel in axis-aligned segments through column gaps
     const goRight = src.x + ERD_BOX_W / 2 < dst.x + ERD_BOX_W / 2;
-    const x1 = goRight ? src.x + ERD_BOX_W : src.x;
-    const x2 = goRight ? dst.x : dst.x + ERD_BOX_W;
-    const dist = Math.abs(x2 - x1);
-    const cp1x = goRight ? x1 + dist * 0.45 : x1 - dist * 0.45;
-    const cp2x = goRight ? x2 - dist * 0.45 : x2 + dist * 0.45;
-    arrows.push(
-      <g key={key}>
-        <path d={`M ${x1} ${srcRowY} C ${cp1x} ${srcRowY} ${cp2x} ${dstRowY} ${x2} ${dstRowY}`}
-          stroke={color} strokeOpacity={0.45} strokeWidth={1.5} fill="none" />
-        <circle cx={x2} cy={dstRowY} r={3} fill={color} fillOpacity={0.8} />
+    // sameColumn only when tables truly overlap horizontally (same X within ~4px)
+    const sameColumn = Math.abs(src.x - dst.x) < 4;
+    const CR = 6; // corner radius
+    let x1 = 0, x2 = 0, d = "";
+    const signY = dstRowY > srcRowY ? 1 : -1;
+    if (sameColumn) {
+      // U-turn via right margin — both anchors exit from right border
+      const rightEdge = Math.max(src.x, dst.x) + ERD_BOX_W;
+      const viaX = rightEdge + 24;
+      x1 = rightEdge; x2 = rightEdge;
+      const sr = Math.min(CR, Math.abs(dstRowY - srcRowY) / 2);
+      d = sr < 1
+        ? `M ${x1} ${srcRowY} L ${viaX} ${srcRowY} L ${viaX} ${dstRowY} L ${x2} ${dstRowY}`
+        : [
+            `M ${x1} ${srcRowY}`,
+            `L ${viaX - CR} ${srcRowY}`,
+            `Q ${viaX} ${srcRowY} ${viaX} ${srcRowY + sr * signY}`,
+            `L ${viaX} ${dstRowY - sr * signY}`,
+            `Q ${viaX} ${dstRowY} ${viaX - CR} ${dstRowY}`,
+            `L ${x2} ${dstRowY}`,
+          ].join(' ');
+    } else {
+      x1 = goRight ? src.x + ERD_BOX_W : src.x;
+      x2 = goRight ? dst.x : dst.x + ERD_BOX_W;
+      // signX based on actual x1→x2 direction, not goRight (they differ when tables overlap)
+      const signX = x2 >= x1 ? 1 : -1;
+      // Find best vertical channel: widest gap between x1 and x2
+      const lo = Math.min(x1, x2), hi = Math.max(x1, x2);
+      const xObs: [number, number][] = [];
+      for (const pos of positions.values()) {
+        const l = pos.x, r = pos.x + ERD_BOX_W;
+        if (l < hi && r > lo) xObs.push([Math.max(l, lo), Math.min(r, hi)]);
+      }
+      xObs.sort((a, b) => a[0] - b[0]);
+      const xGaps: [number, number][] = [];
+      let xcur = lo;
+      for (const [ol, or_] of xObs) {
+        if (ol > xcur + 4) xGaps.push([xcur, ol]);
+        xcur = Math.max(xcur, or_);
+      }
+      if (xcur < hi - 4) xGaps.push([xcur, hi]);
+      // Use widest gap so the vertical segment sits in open space, not hugging a table border
+      const midX = xGaps.length
+        ? (g => (g[0] + g[1]) / 2)(xGaps.reduce((b, g) => (g[1] - g[0]) > (b[1] - b[0]) ? g : b, xGaps[0]))
+        : (lo + hi) / 2;
+      if (Math.abs(dstRowY - srcRowY) < 2) {
+        // Same Y — straight horizontal
+        d = `M ${x1} ${srcRowY} L ${x2} ${dstRowY}`;
+      } else {
+        const sr = Math.min(CR, Math.abs(midX - x1) / 2, Math.abs(dstRowY - srcRowY) / 2);
+        d = sr < 1
+          ? `M ${x1} ${srcRowY} L ${midX} ${srcRowY} L ${midX} ${dstRowY} L ${x2} ${dstRowY}`
+          : [
+              `M ${x1} ${srcRowY}`,
+              `L ${midX - sr * signX} ${srcRowY}`,
+              `Q ${midX} ${srcRowY} ${midX} ${srcRowY + sr * signY}`,
+              `L ${midX} ${dstRowY - sr * signY}`,
+              `Q ${midX} ${dstRowY} ${midX + sr * signX} ${dstRowY}`,
+              `L ${x2} ${dstRowY}`,
+            ].join(' ');
+      }
+    }
+    const el = (
+      <g key={key} style={{ transition: "opacity 120ms" }}>
+        <path d={d}
+          stroke={color} strokeOpacity={opacity} strokeWidth={strokeW} fill="none"
+          strokeDasharray={isOptional ? "5,3" : undefined} />
+        {/* source anchor */}
+        <circle cx={x1} cy={srcRowY} r={2.5} fill={color} fillOpacity={opacity * 0.7} />
+        {/* destination anchor */}
+        <circle cx={x2} cy={dstRowY} r={3} fill={color} fillOpacity={opacity} />
       </g>
     );
+    if (isRelated) arrowsFg.push(el); else arrowsBg.push(el);
   }
+  const arrows = [...arrowsBg, ...arrowsFg];
 
   const isDragging = liveXY !== null;
 
@@ -468,10 +567,28 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
         <span style={{ fontSize: 10, color: "var(--color-f4)", letterSpacing: 1, textTransform: "uppercase" }}>
           Diagrama ER · {liveSchema.tables.length} tabelas · {liveSchema.foreignKeys.length} foreign keys · gerado em tempo real
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 4 }}>
             <IconZoomIn size={10} /> arraste o header · clique para colapsar
           </span>
+          <button
+            onClick={() => {
+              const allCollapsed = liveSchema.tables.every(t => collapsed.has(t.name));
+              if (allCollapsed) {
+                setCollapsed(new Set());
+              } else {
+                const collapsedH = new Map(liveSchema.tables.map(t => [t.name, ERD_HEADER_H]));
+                const { positions: auto } = computeErdLayout(liveSchema.tables, collapsedH);
+                const m = new Map<string, { x: number; y: number }>();
+                for (const [name, p] of auto) m.set(name, { x: p.x, y: p.y });
+                setPositions(m);
+                setCollapsed(new Set(liveSchema.tables.map(t => t.name)));
+              }
+            }}
+            style={{ fontSize: 10, color: "var(--color-f4)", background: "none", border: "1px solid var(--color-border2)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", letterSpacing: 0.5 }}
+          >
+            {liveSchema.tables.every(t => collapsed.has(t.name)) ? "⊞ Expandir tudo" : "⊟ Colapsar tudo"}
+          </button>
           <button
             onClick={restoreLayout}
             style={{ fontSize: 10, color: "var(--color-f4)", background: "none", border: "1px solid var(--color-border2)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", letterSpacing: 0.5 }}
@@ -481,13 +598,13 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
         </div>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
+      <div ref={containerRef} style={{ overflowX: "auto", minWidth: 0 }}>
         <svg
           ref={svgRef}
           viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
           width={CANVAS_W}
           height={CANVAS_H}
-          style={{ display: "block", userSelect: "none", cursor: isDragging ? "grabbing" : "default" }}
+          style={{ display: "block", userSelect: "none", cursor: isDragging ? "grabbing" : "default", overflow: "visible", minWidth: "100%" }}
         >
           {arrows}
 
@@ -550,6 +667,7 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
               </g>
             );
           })}
+
         </svg>
       </div>
     </div>
@@ -575,6 +693,373 @@ const TABLE_DESCRIPTIONS: Record<string, string> = {
   PillProgress:   "Progresso do usuário em pílulas de educação financeira gamificadas.",
   Settings:       "Preferências financeiras do usuário (renda esperada, reserva de emergência).",
   AppConfig:      "Configurações globais do aplicativo armazenadas como pares chave-valor.",
+  KmPeriod:       "Solicitação de reembolso de quilometragem com totais calculados automaticamente.",
+  KmRoute:        "Trajeto individual de uma solicitação KM (origem, destino, km).",
+  KmReceipt:      "Nota fiscal de combustível vinculada a uma solicitação KM.",
+  KmExpense:      "Despesa extra de uma solicitação KM (pedágio, estacionamento, etc.).",
+  KmConfig:       "Parâmetros de cálculo do módulo de reembolso KM por usuário.",
+  KmPlace:        "Local salvo para reutilização rápida em trajetos KM.",
+  Notification:   "Alertas e avisos enviados ao usuário pelo sistema.",
+  AuditLog:       "Registro de eventos de segurança e ações administrativas.",
+  Session:        "Sessões autenticadas ativas no sistema.",
+  OAuthAccount:   "Credenciais de provedores OAuth vinculadas a uma conta de usuário.",
+  LoginAttempt:   "Histórico de tentativas de login para detecção de ataques.",
+};
+
+const TABLE_MODULES: Record<string, { label: string; color: string }[]> = {
+  User:           [{ label: "Auth", color: "#22D3EE" }, { label: "Studio", color: "#A78BFA" }, { label: "Todos", color: "#64748B" }],
+  Plan:           [{ label: "Studio", color: "#A78BFA" }, { label: "Auth", color: "#22D3EE" }],
+  PlanModule:     [{ label: "Studio", color: "#A78BFA" }],
+  Transaction:    [{ label: "Transações", color: "#4ADE80" }, { label: "Dashboard", color: "#22D3EE" }, { label: "Orçamento", color: "#FB923C" }],
+  TransactionTag: [{ label: "Transações", color: "#4ADE80" }, { label: "Tags", color: "#FDE68A" }],
+  Tag:            [{ label: "Transações", color: "#4ADE80" }, { label: "Dashboard", color: "#22D3EE" }],
+  Budget:         [{ label: "Orçamento", color: "#FB923C" }, { label: "Dashboard", color: "#22D3EE" }],
+  Goal:           [{ label: "Metas", color: "#34D399" }],
+  GoalPayment:    [{ label: "Metas", color: "#34D399" }],
+  Institution:    [{ label: "Contas", color: "#60A5FA" }, { label: "Transações", color: "#4ADE80" }],
+  Account:        [{ label: "Contas", color: "#60A5FA" }, { label: "Transações", color: "#4ADE80" }],
+  Liability:      [{ label: "Passivos", color: "#E879F9" }],
+  Asset:          [{ label: "Bens", color: "#F87171" }],
+  AssetExpense:   [{ label: "Bens", color: "#F87171" }],
+  PillProgress:   [{ label: "Educação", color: "#FDE68A" }],
+  Settings:       [{ label: "Configurações", color: "#94A3B8" }, { label: "Dashboard", color: "#22D3EE" }],
+  AppConfig:      [{ label: "Studio", color: "#A78BFA" }, { label: "Sistema", color: "#64748B" }],
+  KmPeriod:       [{ label: "Reimb. KM", color: "#FB923C" }],
+  KmRoute:        [{ label: "Reimb. KM", color: "#FB923C" }],
+  KmReceipt:      [{ label: "Reimb. KM", color: "#FB923C" }],
+  KmExpense:      [{ label: "Reimb. KM", color: "#FB923C" }],
+  KmConfig:       [{ label: "Reimb. KM", color: "#FB923C" }],
+  KmPlace:        [{ label: "Reimb. KM", color: "#FB923C" }],
+  Notification:   [{ label: "Notificações", color: "#F472B6" }, { label: "Sistema", color: "#64748B" }],
+  AuditLog:       [{ label: "Studio", color: "#A78BFA" }, { label: "Segurança", color: "#F87171" }],
+  Session:        [{ label: "Auth", color: "#22D3EE" }, { label: "Segurança", color: "#F87171" }],
+  OAuthAccount:   [{ label: "Auth", color: "#22D3EE" }],
+  LoginAttempt:   [{ label: "Segurança", color: "#F87171" }, { label: "Studio", color: "#A78BFA" }],
+};
+
+const FIELD_DESCRIPTIONS: Record<string, Record<string, string>> = {
+  User: {
+    id: "Identificador único do usuário (CUID gerado automaticamente).",
+    name: "Nome completo exibido no perfil e nos relatórios.",
+    email: "Endereço de e-mail — usado como credencial de login e para notificações.",
+    password: "Hash da senha (bcrypt). Nulo quando o acesso é exclusivamente via OAuth.",
+    avatar: "URL da foto de perfil. Pode vir do provedor OAuth ou ser definida manualmente.",
+    age: "Idade do usuário, usada para personalização de conteúdo financeiro.",
+    gender: "Gênero informado — influencia sugestões e relatórios personalizados.",
+    city: "Cidade de residência para contexto geográfico.",
+    state: "Estado de residência.",
+    zipCode: "CEP — reservado para integrações futuras de dados regionais.",
+    street: "Logradouro do endereço.",
+    streetNumber: "Número do imóvel no logradouro.",
+    country: "País de residência (padrão: Brasil).",
+    planId: "FK para Plan — determina quais módulos estão disponíveis para este usuário.",
+    lastSeenAt: "Timestamp do último acesso ativo — usado pelo Studio para análise de engajamento.",
+    createdAt: "Data de criação da conta.",
+    updatedAt: "Data da última atualização de qualquer campo do perfil.",
+    twoFactorBackupCodes: "Códigos de recuperação TOTP criptografados. Usados quando o app autenticador não está disponível.",
+    twoFactorEnabled: "Flag que indica se 2FA via TOTP está ativo para este usuário.",
+    twoFactorSecret: "Segredo TOTP (base32) para geração de códigos temporários.",
+  },
+  Account: {
+    id: "Identificador único da conta (CUID).",
+    userId: "FK para User — isola as contas de cada usuário.",
+    institutionId: "FK para Institution — vincula a conta ao banco ou corretora.",
+    name: "Nome descritivo da conta (ex: \"Conta corrente Itaú\", \"Cartão Nubank\").",
+    type: "Tipo da conta: checking (corrente), savings (poupança), credit (cartão), investment (investimento).",
+    balance: "Saldo atual calculado a partir das transações. Atualizado em tempo real.",
+    limit: "Limite de crédito disponível — relevante apenas para contas do tipo credit.",
+    notes: "Observações livres sobre a conta.",
+    createdAt: "Data de criação do registro.",
+    updatedAt: "Data da última modificação.",
+  },
+  Transaction: {
+    id: "Identificador único da transação (CUID).",
+    userId: "FK para User — garante isolamento total entre usuários.",
+    accountId: "FK para Account — conta debitada ou creditada nesta transação.",
+    date: "Data efetiva da transação (pode diferir da data de registro).",
+    description: "Descrição livre da transação — aparece nos extratos e relatórios.",
+    amount: "Valor absoluto em reais. O sinal é determinado pelo campo type.",
+    type: "Direção do fluxo: debit (saída) ou credit (entrada).",
+    category: "Categoria principal (ex: alimentação, transporte, salário).",
+    subcategory: "Subcategoria opcional para granularidade nos relatórios.",
+    notes: "Notas internas não exibidas nos relatórios públicos.",
+    recurrence: "Tipo de recorrência: none, monthly, weekly, yearly.",
+    recurrenceEndsAt: "Data de encerramento das recorrências — nulo para recorrência indefinida.",
+    installmentGroupId: "UUID que agrupa todas as parcelas de uma compra parcelada.",
+    installmentNumber: "Número da parcela atual dentro do grupo (ex: 3).",
+    installmentTotal: "Total de parcelas do grupo (ex: 12).",
+    context: "Módulo que originou a transação (ex: km_reimbursement, goal).",
+    reimbursable: "Flag que marca a transação como reembolsável pela empresa.",
+    reimbursedAt: "Data em que o reembolso foi recebido — nulo se ainda pendente.",
+    createdAt: "Data de criação do registro.",
+    updatedAt: "Data da última modificação.",
+  },
+  Institution: {
+    id: "Identificador único da instituição (CUID).",
+    userId: "FK para User — cada usuário mantém sua própria lista de instituições.",
+    name: "Nome da instituição (ex: \"Itaú\", \"XP Investimentos\").",
+    type: "Categoria: bank (banco), broker (corretora), fintech, crypto.",
+    color: "Cor hexadecimal usada para identificação visual nos gráficos.",
+    icon: "Identificador do ícone representativo da instituição.",
+    notes: "Observações adicionais sobre a instituição.",
+    createdAt: "Data de criação.",
+    updatedAt: "Data da última modificação.",
+  },
+  Plan: {
+    id: "Identificador único do plano (CUID).",
+    name: "Nome do plano exibido no Studio (ex: \"Full\", \"Insider\", \"Free\").",
+    description: "Descrição do plano para exibição ao usuário.",
+    color: "Cor hexadecimal do plano — usada como acento visual no Studio.",
+    isDefault: "Flag que marca o plano padrão atribuído a novos usuários.",
+    createdAt: "Data de criação do plano.",
+    updatedAt: "Data da última modificação.",
+  },
+  Goal: {
+    id: "Identificador único da meta (CUID).",
+    userId: "FK para User — isolamento por usuário.",
+    name: "Nome da meta (ex: \"Fundo de emergência\", \"Viagem Europa\").",
+    description: "Descrição detalhada do objetivo da meta.",
+    targetAmount: "Valor total a ser atingido.",
+    currentAmount: "Valor acumulado até o momento — calculado a partir dos GoalPayments.",
+    deadline: "Data-alvo para atingir o valor da meta.",
+    color: "Cor de destaque usada nos cards e gráficos da meta.",
+    icon: "Ícone representativo da meta.",
+    status: "Estado atual: active, completed, cancelled.",
+    monthlyAmount: "Aporte mensal sugerido para atingir a meta no prazo.",
+    createdAt: "Data de criação.",
+    updatedAt: "Data da última modificação.",
+  },
+  Budget: {
+    id: "Identificador único do orçamento (CUID).",
+    userId: "FK para User.",
+    category: "Categoria de transação à qual este limite se aplica.",
+    amount: "Valor limite mensal para a categoria.",
+    createdAt: "Data de criação.",
+    updatedAt: "Data da última modificação.",
+  },
+  KmPeriod: {
+    id: "Identificador único da solicitação (CUID).",
+    userId: "FK para User.",
+    name: "Nome descritivo do período (ex: \"Junho 2026\").",
+    startDate: "Data de início do período de apuração.",
+    endDate: "Data de encerramento do período.",
+    fuelType: "Tipo de combustível predominante: gasoline ou ethanol.",
+    status: "Estado da solicitação: open (em edição) ou submitted (enviado ao RH).",
+    submittedAt: "Data e hora do envio para o RH.",
+    expectedPayAt: "Data prevista de pagamento (submittedAt + paymentDays dias úteis).",
+    totalKm: "Total de quilômetros percorridos no período — soma dos trajetos.",
+    fuelPriceAvg: "Preço médio por litro calculado como média ponderada das notas.",
+    ratePerKm: "Taxa de reembolso por km = fuelPriceAvg × taxa do combustível.",
+    kmAmount: "Valor de reembolso dos quilômetros = totalKm × ratePerKm.",
+    extraAmount: "Soma das despesas extras (pedágios, estacionamentos, etc.).",
+    grandTotal: "Total geral = kmAmount + extraAmount.",
+    notes: "Observações adicionais para o RH.",
+    transactionId: "FK para Transaction — criada automaticamente ao marcar como enviado.",
+    createdAt: "Data de criação.",
+    updatedAt: "Data da última modificação.",
+  },
+  PlanModule: {
+    planId: "FK para Plan — plano ao qual este módulo pertence.",
+    module: "Chave do módulo habilitado (ex: transactions, dashboard, km_reimbursement).",
+  },
+  TransactionTag: {
+    transactionId: "FK para Transaction — transação que recebe a etiqueta.",
+    tagId: "FK para Tag — etiqueta aplicada à transação.",
+  },
+  Tag: {
+    id: "Identificador único da tag (CUID).",
+    userId: "FK para User — tags são isoladas por usuário.",
+    name: "Nome exibido da etiqueta (único por usuário).",
+    color: "Cor hexadecimal usada para identificação visual da tag.",
+    icon: "Identificador do ícone associado à tag.",
+    createdAt: "Data de criação da tag.",
+  },
+  GoalPayment: {
+    id: "Identificador único do aporte (CUID).",
+    goalId: "FK para Goal — meta à qual este aporte pertence.",
+    dueDate: "Data de vencimento do aporte.",
+    amount: "Valor do aporte em reais.",
+    paid: "Flag que indica se este aporte foi realizado.",
+    paidAt: "Data em que o aporte foi efetivado — nulo se ainda pendente.",
+    createdAt: "Data de criação do registro.",
+  },
+  Liability: {
+    id: "Identificador único do passivo (CUID).",
+    userId: "FK para User — isolamento por usuário.",
+    name: "Nome descritivo da dívida ou financiamento.",
+    type: "Categoria: cheque_especial, rotativo, emprestimo, financiamento, outro.",
+    currentBalance: "Saldo devedor atual (valor que ainda é devido).",
+    interestRate: "Taxa de juros mensal em percentual.",
+    minimumPayment: "Valor da parcela mínima mensal exigida.",
+    institutionId: "FK para Institution — credor quando é uma instituição cadastrada.",
+    creditor: "Nome do credor quando não é uma instituição cadastrada no sistema.",
+    notes: "Observações adicionais sobre o passivo.",
+    status: "Estado atual: active (em aberto) ou paid_off (quitado).",
+    createdAt: "Data de cadastro do passivo.",
+    updatedAt: "Data da última atualização.",
+  },
+  Asset: {
+    id: "Identificador único do bem (CUID).",
+    userId: "FK para User — isolamento por usuário.",
+    name: "Nome descritivo do bem (ex: \"Apartamento Pinheiros\", \"Honda Civic\").",
+    type: "Categoria do bem: real_estate (imóvel), vehicle (veículo), other.",
+    propertyAddress: "Endereço do imóvel — preenchido apenas para tipo real_estate.",
+    make: "Marca do veículo (ex: Toyota) — preenchido apenas para tipo vehicle.",
+    model: "Modelo do veículo (ex: Corolla) — preenchido apenas para tipo vehicle.",
+    year: "Ano de fabricação do veículo.",
+    plate: "Placa do veículo.",
+    purchaseValue: "Valor de aquisição do bem.",
+    currentValue: "Valor de mercado atual estimado.",
+    purchaseDate: "Data de compra ou aquisição.",
+    notes: "Observações adicionais.",
+    createdAt: "Data de cadastro.",
+    updatedAt: "Data da última modificação.",
+  },
+  AssetExpense: {
+    id: "Identificador único da despesa (CUID).",
+    userId: "FK para User.",
+    assetId: "FK para Asset — bem ao qual esta despesa está vinculada.",
+    name: "Descrição da despesa (ex: \"IPTU 2026\").",
+    type: "Categoria: iptu, ipva, itr, dpvat, seguro, licenciamento, manutencao, other.",
+    amount: "Valor da despesa em reais.",
+    dueDate: "Data de vencimento da despesa.",
+    paid: "Flag que indica se a despesa foi paga.",
+    paidAt: "Data em que a despesa foi quitada — nulo se ainda pendente.",
+    notes: "Observações adicionais.",
+    createdAt: "Data de criação.",
+    updatedAt: "Data da última modificação.",
+  },
+  PillProgress: {
+    id: "Identificador único do registro de progresso (CUID).",
+    userId: "FK para User — progresso isolado por usuário.",
+    pillId: "Identificador da pílula de conteúdo educativo concluída.",
+    profile: "Perfil do usuário no momento da conclusão (ex: iniciante, intermediário).",
+    completedAt: "Data e hora da conclusão da pílula.",
+    timeSpentSeconds: "Tempo gasto na pílula em segundos.",
+    quizCorrect: "Flag que indica se o quiz da pílula foi respondido corretamente.",
+    createdAt: "Data de criação do registro.",
+  },
+  Settings: {
+    id: "Identificador único das configurações (CUID).",
+    userId: "FK para User — cada usuário tem exatamente um registro de Settings.",
+    expectedMonthlyIncome: "Renda mensal esperada informada pelo usuário — base para cálculos de meta de economia.",
+    reserveBalance: "Saldo atual declarado do fundo de reserva de emergência.",
+    createdAt: "Data de criação do registro.",
+    updatedAt: "Data da última modificação.",
+  },
+  AppConfig: {
+    key: "Chave única de identificação da configuração (ex: login_block_threshold).",
+    value: "Valor da configuração em texto — interpretado conforme o tipo da chave.",
+    updatedAt: "Data da última atualização do valor.",
+  },
+  KmRoute: {
+    id: "Identificador único do trajeto (CUID).",
+    userId: "FK para User.",
+    periodId: "FK para KmPeriod — solicitação à qual este trajeto pertence.",
+    date: "Data em que o trajeto foi realizado.",
+    origin: "Endereço ou descrição do ponto de partida.",
+    destination: "Endereço ou descrição do destino.",
+    km: "Distância percorrida em quilômetros.",
+    routePolyline: "Polyline codificada do Google Maps para exibição da rota no mapa.",
+    notes: "Observações adicionais sobre o trajeto.",
+    placeId: "FK para KmPlace — local salvo utilizado (nulo para trajeto avulso).",
+    direction: "Sentido quando vinculado a um KmPlace: going (ida) ou return (volta).",
+    createdAt: "Data de criação do registro.",
+  },
+  KmReceipt: {
+    id: "Identificador único da nota de combustível (CUID).",
+    userId: "FK para User.",
+    periodId: "FK para KmPeriod — solicitação à qual esta nota pertence.",
+    date: "Data da nota fiscal.",
+    fuelType: "Tipo de combustível: gasoline (gasolina) ou ethanol (etanol).",
+    liters: "Quantidade de litros abastecidos.",
+    totalAmount: "Valor total pago na nota.",
+    notes: "Observações adicionais.",
+    createdAt: "Data de registro da nota.",
+  },
+  KmExpense: {
+    id: "Identificador único da despesa extra (CUID).",
+    userId: "FK para User.",
+    periodId: "FK para KmPeriod — solicitação à qual esta despesa pertence.",
+    type: "Categoria: toll (pedágio), parking (estacionamento), accommodation (hospedagem), food (alimentação), taxi, other.",
+    date: "Data em que a despesa ocorreu.",
+    amount: "Valor da despesa em reais.",
+    notes: "Observações adicionais.",
+    createdAt: "Data de registro.",
+  },
+  KmConfig: {
+    id: "Identificador único da configuração (CUID).",
+    userId: "FK para User — cada usuário tem exatamente um KmConfig.",
+    gasolineRate: "Percentual de reembolso por km usando gasolina (padrão: 25% do preço/litro).",
+    ethanolRate: "Percentual de reembolso por km usando etanol (padrão: 36% do preço/litro).",
+    minFuelPct: "Percentual mínimo do valor KM que deve ser coberto por notas de combustível (padrão: 15%).",
+    paymentDays: "Prazo de pagamento em dias úteis após o envio (padrão: D+5).",
+    vehiclePlate: "Placa do veículo utilizado para reembolso.",
+    vehicleType: "Tipo do veículo (ex: Carro, Moto).",
+    vehicleBrand: "Marca do veículo (ex: Toyota, Honda).",
+    createdAt: "Data de criação.",
+    updatedAt: "Data da última modificação.",
+  },
+  KmPlace: {
+    id: "Identificador único do local salvo (CUID).",
+    userId: "FK para User — locais são isolados por usuário.",
+    name: "Nome identificador do local (ex: \"Empresa XYZ\", \"Cliente ABC\").",
+    originAddress: "Endereço de partida padrão associado a este local.",
+    destinationAddress: "Endereço de destino associado a este local.",
+    kmGoing: "Distância em km para o trajeto de ida.",
+    kmReturn: "Distância em km para o trajeto de volta.",
+    routeGoing: "DirectionsResult serializado do Google Maps para a rota de ida.",
+    routeReturn: "DirectionsResult serializado do Google Maps para a rota de volta.",
+    notes: "Observações adicionais sobre o local.",
+    createdAt: "Data de criação.",
+    updatedAt: "Data da última modificação.",
+  },
+  Notification: {
+    id: "Identificador único da notificação (CUID).",
+    userId: "FK para User — destinatário da notificação.",
+    title: "Título exibido no sino de notificações.",
+    body: "Corpo da mensagem em texto simples.",
+    type: "Severidade visual: info, warning, danger, success.",
+    link: "URL de destino ao clicar na notificação — nulo para notificações sem ação.",
+    readAt: "Data de leitura pelo usuário — nulo se ainda não lida.",
+    fingerprint: "Hash de deduplicação para alertas automáticos — evita múltiplas notificações do mesmo evento.",
+    broadcastId: "Agrupa notificações enviadas pelo Studio no mesmo lote para rastreamento.",
+    expiresAt: "Data de expiração — alertas danger expiram em 7 dias após a criação.",
+    createdAt: "Data de criação da notificação.",
+  },
+  AuditLog: {
+    id: "Identificador único do evento (CUID).",
+    userId: "FK para User — nulo para eventos anônimos (ex: tentativa com e-mail inexistente).",
+    sessionId: "Identificador da sessão ativa no momento do evento — nulo quando não há sessão.",
+    action: "Código do evento (ex: login_success, password_changed). Ver lib/audit.ts para lista completa.",
+    ip: "Endereço IP de origem da requisição.",
+    userAgent: "User-Agent do navegador ou cliente que originou o evento.",
+    metadata: "Contexto adicional em JSON (ex: e-mail tentado, sessionId revogado, módulo acessado).",
+    createdAt: "Data e hora exata do evento.",
+  },
+  Session: {
+    id: "Identificador único da sessão (CUID) — armazenado no cookie httpOnly.",
+    userId: "FK para User — proprietário desta sessão.",
+    ip: "Endereço IP de onde a sessão foi criada.",
+    userAgent: "User-Agent do navegador que criou a sessão.",
+    createdAt: "Data de criação da sessão (momento do login).",
+    lastSeenAt: "Última vez que a sessão foi usada em uma requisição autenticada.",
+    expiresAt: "Data de expiração — após esta data a sessão é considerada inválida.",
+  },
+  OAuthAccount: {
+    id: "Identificador único do vínculo OAuth (CUID).",
+    userId: "FK para User — conta Lyfx vinculada a este provedor.",
+    provider: "Nome do provedor de autenticação: google ou microsoft.",
+    providerUserId: "Identificador do usuário no provedor (sub do Google, oid do Microsoft).",
+    createdAt: "Data em que o vínculo OAuth foi criado.",
+  },
+  LoginAttempt: {
+    id: "Identificador único do registro (CUID).",
+    ip: "Endereço IP que originou a tentativa de login.",
+    email: "E-mail informado na tentativa — armazenado apenas para auditoria, nunca para lookup.",
+    success: "Flag que indica se a tentativa resultou em login bem-sucedido.",
+    createdAt: "Data e hora da tentativa.",
+  },
 };
 
 function SchemaTab({ expanded, setExpanded, liveSchema }: {
@@ -612,50 +1097,80 @@ function SchemaTab({ expanded, setExpanded, liveSchema }: {
       {/* ERD Diagram */}
       <ErdDiagram liveSchema={liveSchema} />
 
-      {/* Table cards — constrained for readability, with consistent spacing */}
-      <div style={{ maxWidth: 900, display: "flex", flexDirection: "column", gap: 10 }}>
+      {/* Table cards — fluid width matching ERD canvas */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {liveSchema.tables.map(t => {
         const open = expanded === t.name;
         const color = tableColor(t.name);
+        const modules = TABLE_MODULES[t.name] ?? [];
+        const fieldDescs = FIELD_DESCRIPTIONS[t.name] ?? {};
+        const fkCount = t.columns.filter(c => c.is_fk).length;
         return (
           <div
             key={t.name}
-            style={{ background: "var(--color-bg2)", border: `1px solid ${open ? color + "55" : "var(--color-border)"}`, borderRadius: 10, overflow: "hidden", transition: "border-color 200ms" }}
+            style={{ background: "var(--color-bg2)", border: `1px solid ${open ? color + "44" : "var(--color-border)"}`, borderRadius: 10, overflow: "hidden", transition: "border-color 200ms" }}
           >
+            {/* Header */}
             <button
               onClick={() => setExpanded(open ? null : t.name)}
-              style={{ width: "100%", display: "flex", flexDirection: "column", gap: 4, padding: "12px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+              style={{ width: "100%", padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
-                <span style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-f1)", flex: 1 }}>{t.name}</span>
-                <span style={{ fontSize: 11, color: "var(--color-f4)" }}>{t.columns.length} campos</span>
-                <span style={{ color: "var(--color-f4)" }}>
-                  {open ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-                </span>
-              </div>
-              {TABLE_DESCRIPTIONS[t.name] && (
-                <div style={{ marginLeft: 22, fontSize: 11, color: "var(--color-f4)", lineHeight: 1.4 }}>
-                  {TABLE_DESCRIPTIONS[t.name]}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                {/* Color stripe */}
+                <div style={{ width: 3, borderRadius: 2, background: color, alignSelf: "stretch", flexShrink: 0, minHeight: 36 }} />
+                {/* Main content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Row 1: name + meta + chevron */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-f1)", fontFamily: "monospace" }}>{t.name}</span>
+                    <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 999, background: "rgba(255,255,255,0.06)", color: "var(--color-f4)", letterSpacing: 0.3 }}>
+                      {t.columns.length}f
+                    </span>
+                    {fkCount > 0 && (
+                      <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 999, background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.25)", color: "#A78BFA", letterSpacing: 0.3 }}>
+                        {fkCount} FK
+                      </span>
+                    )}
+                    <div style={{ flex: 1 }} />
+                    {/* Module tags */}
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      {modules.map(m => (
+                        <span key={m.label} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: m.color + "18", border: `1px solid ${m.color}44`, color: m.color, fontWeight: 500, letterSpacing: 0.2 }}>
+                          {m.label}
+                        </span>
+                      ))}
+                    </div>
+                    <span style={{ color: "var(--color-f4)", marginLeft: 4, flexShrink: 0 }}>
+                      {open ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                    </span>
+                  </div>
+                  {/* Row 2: description */}
+                  {TABLE_DESCRIPTIONS[t.name] && (
+                    <div style={{ fontSize: 11, color: "var(--color-f4)", lineHeight: 1.5 }}>
+                      {TABLE_DESCRIPTIONS[t.name]}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </button>
+
+            {/* Field table */}
             {open && (
-              <div style={{ borderTop: "1px solid var(--color-border)" }}>
+              <div style={{ borderTop: `1px solid ${color}22` }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "var(--color-bg3)" }}>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "8%" }}></th>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "26%" }}>Campo</th>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "20%" }}>Tipo</th>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "12%" }}>Nullable</th>
-                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500 }}>Default</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: 56 }}></th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "16%" }}>Campo</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "10%" }}>Tipo</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "9%" }}>Nullable</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500, width: "12%" }}>Default</th>
+                      <th style={{ padding: "6px 16px", textAlign: "left", color: "var(--color-f4)", fontWeight: 500 }}>Descrição</th>
                     </tr>
                   </thead>
                   <tbody>
                     {t.columns.map((c, i) => (
-                      <tr key={c.column_name} style={{ borderTop: "1px solid var(--color-border)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
-                        {/* PK / FK badges */}
+                      <tr key={c.column_name} style={{ borderTop: "1px solid var(--color-border)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.012)" }}>
                         <td style={{ padding: "6px 16px" }}>
                           <div style={{ display: "flex", gap: 3 }}>
                             {c.is_pk && (
@@ -666,13 +1181,18 @@ function SchemaTab({ expanded, setExpanded, liveSchema }: {
                             )}
                           </div>
                         </td>
-                        <td style={{ padding: "7px 16px", fontFamily: "monospace", color: c.is_pk ? "#22D3EE" : c.is_fk ? "#A78BFA" : color }}>{c.column_name}</td>
+                        <td style={{ padding: "7px 16px", fontFamily: "monospace", fontSize: 12, color: c.is_pk ? "#22D3EE" : c.is_fk ? "#A78BFA" : color }}>{c.column_name}</td>
                         <td style={{ padding: "7px 16px", fontFamily: "monospace", color: "var(--color-f3)", fontSize: 11 }}>{pgTypeLabel(c.data_type)}</td>
-                        <td style={{ padding: "7px 16px", color: c.is_nullable === "YES" ? "var(--color-f4)" : "var(--color-cyan)", fontSize: 11 }}>
-                          {c.is_nullable === "YES" ? "nullable" : "required"}
+                        <td style={{ padding: "7px 16px", fontSize: 11 }}>
+                          <span style={{ color: c.is_nullable === "YES" ? "var(--color-f4)" : "var(--color-cyan)", background: c.is_nullable === "YES" ? "transparent" : "rgba(34,211,238,0.08)", padding: c.is_nullable === "YES" ? 0 : "1px 6px", borderRadius: 4 }}>
+                            {c.is_nullable === "YES" ? "nullable" : "required"}
+                          </span>
                         </td>
                         <td style={{ padding: "7px 16px", fontFamily: "monospace", color: "var(--color-f4)", fontSize: 11 }}>
-                          {c.column_default ? c.column_default.replace(/^'(.*)'::.*$/, "$1").slice(0, 40) : "—"}
+                          {c.column_default ? c.column_default.replace(/^'(.*)'::.*$/, "$1").slice(0, 30) : "—"}
+                        </td>
+                        <td style={{ padding: "7px 16px", color: "var(--color-f3)", fontSize: 11, lineHeight: 1.4 }}>
+                          {fieldDescs[c.column_name] ?? <span style={{ color: "var(--color-f4)", fontStyle: "italic" }}>—</span>}
                         </td>
                       </tr>
                     ))}
@@ -683,7 +1203,7 @@ function SchemaTab({ expanded, setExpanded, liveSchema }: {
           </div>
         );
       })}
-      </div>{/* end maxWidth:900 cards wrapper */}
+      </div>
     </div>
   );
 }

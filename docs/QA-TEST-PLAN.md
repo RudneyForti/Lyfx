@@ -15,6 +15,33 @@
 
 ---
 
+### Instrução obrigatória para Agent Smith — Registro em tempo real
+
+**Ao iniciar qualquer sessão de QA, Smith DEVE:**
+
+1. **Criar o arquivo de resultados antes do primeiro teste:**
+   ```
+   docs/QA-RESULTS-YYYY-MM-DD.md
+   ```
+   Usar `docs/archive/QA-RESULTS-2026-05-22.md` como modelo de formato.
+
+2. **Registrar cada caso imediatamente após executá-lo** — não acumular para o final. Para cada caso, escrever no arquivo:
+   ```
+   ### ID — Título do caso
+   **Status:** ✅ PASSOU | ❌ FALHOU | ⚠️ PARCIAL | 🔵 MANUAL | ⏭️ SKIP
+   **Evidência:** [linha de código, output do browser, ou comando executado]
+   **Diagnóstico:** [o que foi observado — só se FALHOU ou PARCIAL]
+   **Prescrição:** [como corrigir — só se FALHOU ou PARCIAL]
+   ```
+
+3. **Atualizar o sumário executivo** no topo do arquivo ao final de cada seção (não ao final do QA inteiro).
+
+4. **Nunca deixar resultados apenas na conversa** — tudo que foi testado e observado vai para o arquivo. A conversa pode ser compactada; o arquivo persiste.
+
+> Referência de formato: `docs/archive/QA-RESULTS-2026-05-22.md`
+
+---
+
 ## Índice
 
 1. [Autenticação](#1-autenticação)
@@ -49,7 +76,7 @@
 
 ### A-01 — Criar conta em modo setup
 **Prioridade:** ALTO
-**Pré-condições:** Banco sem nenhum usuário cadastrado (`dev.db` limpo ou Studio sem usuários)
+**Pré-condições:** Banco sem nenhum usuário cadastrado (PostgreSQL limpo ou Studio sem usuários)
 **Passos:**
 1. Acessar `http://localhost:3000/login`
 2. Verificar que o formulário exibe 4 campos: Nome, E-mail, Senha, Confirmar senha
