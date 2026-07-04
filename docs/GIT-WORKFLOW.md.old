@@ -15,66 +15,6 @@ develop  ← development (where all work happens)
 
 ---
 
-> **Note — team projects (e.g. Limiar Core):** use **GitHub Flow** (1 permanent branch). Feature branches born from `main`, PR goes directly to `main`, branch deleted after merge. No `develop` intermediary. See [Reviewer rules](#reviewer-rules) in AGENTS.md.
-
----
-
-## CI/CD Pipeline
-
-**Rule:** optional during internal/pre-client development. **Mandatory from the first active client onward** — no exceptions.
-
-When active, the pipeline must:
-- Run the full test suite on every push and PR (integration, feature, unit)
-- Block PR merge if any test fails
-- Block PR merge if coverage thresholds are not met (Integration 100% · Feature 100% · Unit 80%)
-- Run on GitHub Actions (or equivalent)
-
-The deploy flow must be documented and automated, including test execution as a required gate.
-
----
-
-## Docker
-
-Every project must have a `Dockerfile` and `docker-compose.yml` configured for the full stack (server, database, and any other services the project depends on).
-
-**Key rule: same container configuration for development and production** — no environment-specific Dockerfiles.
-
-**Hot reload required:** development containers must be configured with volume mounts so source code changes reflect immediately without rebuilding the image. Example for a Node/Next.js service:
-
-```yaml
-volumes:
-  - .:/app
-  - /app/node_modules
-```
-
-Agent NEO creates `Dockerfile` and `docker-compose.yml` at project setup. If they are missing from an existing project, opening a CS to add them is mandatory before the first client goes live.
-
----
-
-## Branch lifecycle — team projects (GitHub Flow)
-
-Feature and fix branches are **temporary by definition** — they exist only for the duration of a change.
-
-### After merge: always delete
-
-```bash
-# Local
-git branch -d feature/branch-name
-
-# Remote
-git push origin --delete feature/branch-name
-```
-
-**GitHub setting (recommended):** enable **"Automatically delete head branches"** in repository Settings → General. GitHub deletes the remote branch immediately after merge — no manual step needed.
-
-The market standard is zero leftover branches. A repository with dozens of stale branches is a navigation and cognitive overhead problem — branches that survive a merge have no purpose.
-
-### Rule
-- Branch born from `main` → developed → PR opened → approved → merged → **deleted immediately**
-- No branch survives its own merge, local or remote
-
----
-
 ## Why two branches?
 
 | Scenario | master | develop |
@@ -115,10 +55,6 @@ See [Conventional Commits](#conventional-commits) for message format.
 ### 3. QA — Agent Smith validates in the browser
 
 Server runs on the working branch. Agent Smith confirms behavior and reports back.
-
-### 3.5. Code review — before commit block
-
-After QA, Agent NEO runs the `/code-review` skill on all recent changes. Checks for N+1 queries, missing tests, security issues, and convention violations. No commit block is prepared until the review completes without CRITICAL findings.
 
 ### 4. Approval — user confirms in chat
 

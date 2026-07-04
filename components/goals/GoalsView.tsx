@@ -41,13 +41,19 @@ function NewGoalForm({ avgBalance, onClose }: { avgBalance: number; onClose: () 
   const [isPending, startTransition] = useTransition();
   const [name, setName]               = useState("");
   const [description, setDescription] = useState("");
-  const [targetAmount, setTarget]     = useState("");
+  const [targetAmount, setTarget]     = useState("10000"); // CS-42: default coerente com placeholder
   const [deadline, setDeadline]       = useState("");
   const [color, setColor]             = useState(GOAL_COLORS[0]);
   const [error, setError]             = useState("");
 
   const months = deadline
-    ? Math.max(1, (() => { const d = new Date(deadline); const n = new Date(); return (d.getFullYear() - n.getFullYear()) * 12 + d.getMonth() - n.getMonth(); })())
+    ? Math.max(1, (() => {
+        // CS-42: usar getUTC* para consistência com server (Docker UTC+0) e client (UTC-3)
+        // "YYYY-MM" strings são interpretadas como UTC pelo Date constructor
+        const d = new Date(deadline);
+        const n = new Date();
+        return (d.getUTCFullYear() - n.getUTCFullYear()) * 12 + d.getUTCMonth() - n.getUTCMonth();
+      })())
     : 0;
   const monthly = months > 0 && targetAmount ? Math.ceil(Number(targetAmount) / months) : 0;
   const feasibility = monthly > 0 ? feasibilityLabel(monthly, avgBalance) : null;
@@ -121,7 +127,7 @@ function NewGoalForm({ avgBalance, onClose }: { avgBalance: number; onClose: () 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <span style={{ fontSize: 12, color: "var(--color-f3)" }}>Cobrança mensal gerada</span>
                 <span style={{ fontSize: 15, fontWeight: 700, color }}>
-                  {fmt(monthly)}<span style={{ fontSize: 11, color: "var(--color-f4)", fontWeight: 400 }}>/mês · {months} meses</span>
+                  {fmt(monthly)}<span style={{ fontSize: 11, color: "var(--color-f4)", fontWeight: 400 }}>/mês · {months} {months === 1 ? "mês" : "meses"}</span>
                 </span>
               </div>
               {feasibility && (
@@ -200,7 +206,7 @@ function GoalCard({ goal, avgBalance }: { goal: Goal; avgBalance: number }) {
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--color-f4)", marginTop: 5 }}>
           <span>{paidCount} de {goal.payments.length} cobranças pagas</span>
-          <span>Prazo: {new Date(goal.deadline).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}</span>
+          <span>Prazo: {new Date(goal.deadline).toLocaleDateString("pt-BR", { month: "short", year: "numeric", timeZone: "UTC" })}</span>
         </div>
       </div>
 
@@ -237,7 +243,8 @@ function GoalCard({ goal, avgBalance }: { goal: Goal; avgBalance: number }) {
                       {p.paid && <IconCheck size={11} style={{ color: "var(--color-green)" }} />}
                     </button>
                     <span style={{ fontSize: 12, color: p.paid ? "var(--color-f3)" : "var(--color-f1)", textDecoration: p.paid ? "line-through" : "none" }}>
-                      {PT_MONTHS[d.getMonth()]} {d.getFullYear()}
+                      {/* CS-42: getUTCMonth/getUTCFullYear — consistência server(UTC+0) e client(UTC-3) */}
+                      {PT_MONTHS[d.getUTCMonth()]} {d.getUTCFullYear()}
                     </span>
                     {overdue && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 999, background: "rgba(248,113,113,0.1)", color: "var(--color-red)" }}>Em atraso</span>}
                   </div>

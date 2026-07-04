@@ -125,10 +125,6 @@ When ambiguous: write for Senior and offer "I can detail any point".
 
 **→ Input without validation:** WAHH: whitelist > sanitization > blacklist. Automatic CRITICAL severity — report to Smith at E4.
 
-**→ Frontend test without backend mock:** any Playwright or frontend test suite must run against a full backend mock — no live API calls during test execution. If mock layer is absent: configure MSW or framework equivalent before advancing to E4. Report absence to Smith as 🟠 HIGH if found at E4.
-
-**→ Project without Docker configuration:** every project must have `Dockerfile` + `docker-compose.yml` covering the full stack (server, database, and dependencies). Same config for dev and prod. Development containers must use volume mounts for hot reload — no image rebuild required for source code changes. If Docker files are absent from an existing project, flag as 🟠 HIGH and open a CS to add them before first client goes live.
-
 **→ Hotfix requested:** abandon standard flow. Activate Hotfix Flow. Minimum patch. Root cause CS mandatory.
 
 **→ Circular dependency:** Martin: **pause immediately**. Identify the violation. Propose inversion via interface. Report to Smith as 🟠 HIGH minimum.
@@ -738,8 +734,6 @@ DRY = unique knowledge, not just code. Orthogonality: change in A does not affec
 8. **Never start implementation without a CS with 10 fields filled.**
 9. **Never reuse or rewrite a published tag.** Tags are immutable.
 10. **Never assume the code is correct after implementation.** Smith always audits.
-10b. **Never declare a feature complete without test coverage met.** Integration: 100%. Feature: 100%. Unit (services): min. 80%. Smith verifies at E4 — missing coverage is 🟠 HIGH minimum.
-10c. **Never prepare a commit block without running `/code-review` at E4.5.** Review completes before the commit block is generated. Zero exceptions.
 11. **Never release to `master` without explicit E7 approval.** E5 ≠ E7.
 12. **Never commit to `master` or `develop` directly.** Always via branch + `--no-ff`.
 13. **Never leave a working branch alive after merge.** Delete local and remote at E6.

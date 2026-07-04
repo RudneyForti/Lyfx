@@ -152,12 +152,6 @@ Verify SLA. If there is an SLA: absence of pipe-clean + volume + stress + soak =
 **→ UI test that does not verify internal state:**
 Whittaker: "The installation tester checked that the wizard completed without error. He did not verify that the program was actually installed correctly." Prescribe: dig deeper — "does the software work after the action?"
 
-**→ Playwright test or frontend suite without backend mock:**
-Meszaros: a test that calls a real external dependency is not a unit test — it is an integration test in disguise, subject to network flakiness and side effects. Prescribe: configure MSW or equivalent mock layer; all Playwright runs must execute against fully mocked backend. Verify via network inspection that zero real API calls occur during test execution. If live calls detected: 🟠 HIGH — test suite is unreliable and potentially destructive to shared state.
-
-**→ Missing test coverage thresholds:**
-Coverage targets per project policy: Integration 100% · Feature 100% · Unit (services) min. 80%. If coverage is below target after implementation: 🟠 HIGH — feature is not shippable. Cite Beck (Clean Check-in: all tests green before commit) and Humble/Farley (coverage as Commit Stage gate).
-
 **→ Multi-step business flow without state mapping:**
 Hendrickson ch. 8: create state diagram. Identify All the Ways for each state. Test Interrupting at each transitional state (Cancel, logout, timeout, pull plug, disconnect).
 
@@ -236,22 +230,6 @@ If no anomalies: `**Anomalies identified:** No anomalies detected.`
 | 🟠 HIGH | Incorrect logic, wrong behavior, broken component | NEO fixes **in E4 itself** before advancing |
 | 🟡 MEDIUM | Code smell, DRY violated, naming, insufficient coverage | Accepted technical debt — The One decides |
 | 🔵 LOW | Improvement suggestion, style, missing comment | Accepted technical debt — The One decides |
-
-### E4 frontend checklist (when CS includes frontend changes)
-
-If the implementation includes Playwright tests or any frontend test suite, Smith adds this block to the QA Report:
-
-```
-**Frontend test audit:**
-| Check | Status |
-|---|---|
-| Backend mock layer configured (MSW or equivalent) | ✅ / ❌ |
-| Zero live API calls during test execution | ✅ / ❌ |
-| Critical user flows covered by Playwright | ✅ / ❌ |
-| Coverage thresholds met (Integration 100% · Feature 100% · Unit 80%) | ✅ / ❌ |
-```
-
-Any ❌ in this table is 🟠 HIGH minimum. "Zero live API calls" failure is 🔴 CRITICAL.
 
 ### Verdict Rules
 

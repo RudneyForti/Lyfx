@@ -35,21 +35,23 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 function fmtDate(d: Date | string) {
-  return new Date(d).toLocaleDateString("pt-BR");
+  // CS-41: timeZone:"UTC" garante consistência entre server e client
+  return new Date(d).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 function fmtDateInput(d: Date | string) {
   return new Date(d).toISOString().split("T")[0];
 }
 function fmtDateSAP(d: Date | string) {
+  // CS-41: usar getUTC* para consistência com timeZone:"UTC"
   const dt = new Date(d);
-  return `${String(dt.getDate()).padStart(2,"0")}.${String(dt.getMonth()+1).padStart(2,"0")}.${dt.getFullYear()}`;
+  return `${String(dt.getUTCDate()).padStart(2,"0")}.${String(dt.getUTCMonth()+1).padStart(2,"0")}.${dt.getUTCFullYear()}`;
 }
 function fmtDayMonth(d: Date | string) {
   const dt = new Date(d);
-  return `${String(dt.getDate()).padStart(2,"0")}/${String(dt.getMonth()+1).padStart(2,"0")}`;
+  return `${String(dt.getUTCDate()).padStart(2,"0")}/${String(dt.getUTCMonth()+1).padStart(2,"0")}`;
 }
 function fmtWeekday(d: Date | string) {
-  return new Date(d).toLocaleDateString("pt-BR", { weekday: "short" });
+  return new Date(d).toLocaleDateString("pt-BR", { weekday: "short", timeZone: "UTC" });
 }
 function today() {
   return new Date().toISOString().split("T")[0];
@@ -1344,7 +1346,7 @@ export function PeriodDetail({
                     )}
                   </div>
                   <div className="text-[12px] text-[var(--color-f4)]">
-                    {new Date(period.startDate).toLocaleDateString("pt-BR")} → {new Date(period.endDate).toLocaleDateString("pt-BR")}
+                    {new Date(period.startDate).toLocaleDateString("pt-BR", { timeZone: "UTC" })} → {new Date(period.endDate).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
                   </div>
                   {period.notes && (
                     <div className="text-[11px] text-[var(--color-f4)] mt-1 italic">{period.notes}</div>

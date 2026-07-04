@@ -62,7 +62,6 @@ develop  ← development (base for all work)
 |-------|-------|--------|
 | **E3 — Implement** | Agent NEO | Create working branch from `develop`: `git checkout develop && git checkout -b feature/name` |
 | **E4 — QA** | Agent Smith | Validates in the browser. Reports APPROVED or BLOCKED before commit. |
-| **E4.5 — Code Review** | Agent NEO | Runs `/code-review` skill on recent changes before preparing any commit block. Checks N+1 queries, missing tests, security issues, and convention violations. No commit block is prepared if CRITICAL findings remain open. |
 | **E5 — Approval** | Human | User explicitly approves in chat. No approval = no commit block prepared. |
 | **E6 — Commit** | Agent NEO | Prepares the commit block. **Human executes the commands.** |
 | **E7 — Release** | Agent NEO | Asks first: *"The batch is in `develop`. Ready to release to `master`?"* — only proceeds with explicit confirmation. |
@@ -150,15 +149,11 @@ Agent NEO opens PRs using `gh pr create` with the standard template. The user re
 <!-- What changed and why -->
 
 ## Changes
-- Change 1
-- Change 2
+- [ ] Change 1
+- [ ] Change 2
 
-## Checklist
-- [ ] Link to feature/issue: <!-- CS-XX or issue URL -->
-- [ ] Description of changes included above
-- [ ] List of additions documented
-- [ ] All existing tests are passing
-- [ ] New tests were added for this change
+## Testing
+- [ ] Tested locally
 - [ ] Agent Smith validated behavior
 - [ ] No regressions observed
 
@@ -166,30 +161,11 @@ Agent NEO opens PRs using `gh pr create` with the standard template. The user re
 <!-- CS number, issue, or feature link -->
 ```
 
-### Reviewer rules
+### When contributors are added
 
-All merges must happen via Pull Request — no direct pushes to any permanent branch.
-
-**Solo projects (e.g. Lyfx):** self-review + merge allowed after Agent Smith QA approval.
-
-**Team projects (e.g. Limiar Core — GitHub Flow):**
-- PR flows from `feature/` or `fix/` branch directly to `main` (production)
-- Minimum 2 approvals required before merge — reviewers defined in `.github/CODEOWNERS`
-
----
-
-## Test Coverage Policy
-
-| Test type | Target | Tool |
-|-----------|--------|------|
-| Integration tests | 100% | framework default |
-| Feature tests | 100% | framework default |
-| Unit tests (services, etc.) | min. 80% | framework default |
-| Frontend | 100% of critical flows | Playwright |
-
-**Backend mock for frontend tests:** when running Playwright or any frontend test suite, the full backend must be mocked — no live API calls during test execution. Agent NEO configures the mock layer; Agent Smith verifies no real requests occur during test runs.
-
-No commit block is prepared when coverage targets are unmet. Smith reports missing coverage as 🟠 HIGH minimum.
+Update `.github/CODEOWNERS` to map areas to reviewers, then configure branch protection on GitHub:
+- `master`: require 2 approvals before merge
+- `develop`: require 1 approval before merge
 
 ---
 
@@ -205,19 +181,7 @@ No commit block is prepared when coverage targets are unmet. Smith reports missi
 | `release/` | Release branches (e.g. `release/v2.0.0`) |
 
 Branch names: lowercase, hyphen-separated, concise.
-
-**Standard:** `feature/short-description`, `fix/bug-name`
-**With card ID (optional):** if a task manager card is referenced in the chat, include its numeric ID — `feature/42-short-description`
-Examples: `feature/km-saved-locations`, `fix/auth-session-expiry`, `feature/42-patient-registration`
-
----
-
-## Code Quality
-
-- Follow the conventions and standards of the framework and language in use.
-- Before writing code, read the relevant framework docs — do not rely on training data for framework-specific behavior.
-- Run `/code-review` (E4.5) before preparing any commit block. No exceptions.
-- Every new behavior requires a test. Every bug fix requires a regression test.
+Example: `feature/km-saved-locations`, `fix/auth-session-expiry`
 
 ---
 

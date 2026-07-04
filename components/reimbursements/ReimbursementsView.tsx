@@ -79,11 +79,11 @@ function ReimbursementRow({ tx }: { tx: Transaction }) {
         </div>
         <div className="flex items-center gap-3 mt-0.5">
           <span className="text-[10px] text-[var(--color-f4)]">
-            {date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+            {date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
           </span>
           {isPaid && reimbDate && (
             <span className="text-[10px] text-[var(--color-green)]">
-              Reembolsada em {reimbDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+              Reembolsada em {reimbDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" })}
             </span>
           )}
           {!isPaid && (
