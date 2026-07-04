@@ -1,291 +1,395 @@
 # Lyfx — Git Workflow
-> Estrutura de branches e processo de subida para o GitHub  
-> Válido a partir de 25/05/2026
+> Branch structure and deployment process
+> Updated: 2026-07-03
 
 ---
 
-## Visão geral
+## Overview
 
-O Lyfx usa **dois branches permanentes** — nada mais aparece no GitHub fora de uma sessão de trabalho ativa.
+Lyfx uses **two permanent branches** — nothing else appears on GitHub outside of an active working session.
 
 ```
-master   ← produção (o que está estável e "no ar")
-develop  ← desenvolvimento (onde todo trabalho acontece)
+master   ← production (stable — what is live)
+develop  ← development (where all work happens)
 ```
 
 ---
 
-## Por que dois branches?
-
-| Cenário | master | develop |
-|---------|--------|---------|
-| Código que você usa hoje | ✅ | ✅ |
-| Trabalho em andamento | ❌ | ✅ |
-| Onde o agente implementa | ❌ | ✅ (via branch temporária) |
-| Commit direto permitido | ❌ | ❌ |
-| Avança via merge de | `develop` | branch de trabalho |
+> **Note — team projects (e.g. Limiar Core):** use **GitHub Flow** (1 permanent branch). Feature branches born from `main`, PR goes directly to `main`, branch deleted after merge. No `develop` intermediary. See [Reviewer rules](#reviewer-rules) in AGENTS.md.
 
 ---
 
-## Fluxo completo de uma sessão de CSs
+## CI/CD Pipeline
 
-### 1. Início da sessão — agente parte de `develop`
+**Rule:** optional during internal/pre-client development. **Mandatory from the first active client onward** — no exceptions.
+
+When active, the pipeline must:
+- Run the full test suite on every push and PR (integration, feature, unit)
+- Block PR merge if any test fails
+- Block PR merge if coverage thresholds are not met (Integration 100% · Feature 100% · Unit 80%)
+- Run on GitHub Actions (or equivalent)
+
+The deploy flow must be documented and automated, including test execution as a required gate.
+
+---
+
+## Docker
+
+Every project must have a `Dockerfile` and `docker-compose.yml` configured for the full stack (server, database, and any other services the project depends on).
+
+**Key rule: same container configuration for development and production** — no environment-specific Dockerfiles.
+
+**Hot reload required:** development containers must be configured with volume mounts so source code changes reflect immediately without rebuilding the image. Example for a Node/Next.js service:
+
+```yaml
+volumes:
+  - .:/app
+  - /app/node_modules
+```
+
+Agent NEO creates `Dockerfile` and `docker-compose.yml` at project setup. If they are missing from an existing project, opening a CS to add them is mandatory before the first client goes live.
+
+---
+
+## Branch lifecycle — team projects (GitHub Flow)
+
+Feature and fix branches are **temporary by definition** — they exist only for the duration of a change.
+
+### After merge: always delete
+
+```bash
+# Local
+git branch -d feature/branch-name
+
+# Remote
+git push origin --delete feature/branch-name
+```
+
+**GitHub setting (recommended):** enable **"Automatically delete head branches"** in repository Settings → General. GitHub deletes the remote branch immediately after merge — no manual step needed.
+
+The market standard is zero leftover branches. A repository with dozens of stale branches is a navigation and cognitive overhead problem — branches that survive a merge have no purpose.
+
+### Rule
+- Branch born from `main` → developed → PR opened → approved → merged → **deleted immediately**
+- No branch survives its own merge, local or remote
+
+---
+
+## Why two branches?
+
+| Scenario | master | develop |
+|----------|--------|---------|
+| Code currently in use | ✅ | ✅ |
+| Work in progress | ❌ | ✅ |
+| Where agents implement | ❌ | ✅ (via working branch) |
+| Direct commit allowed | ❌ | ❌ |
+| Advances via merge from | `develop` | working branch |
+
+---
+
+## Full session flow
+
+### 1. Session start — agent branches from `develop`
 
 ```bash
 git checkout develop
-git pull origin develop          # garantir que está atualizado
-git checkout -b fix/nome-do-cs   # branch temporária de trabalho
+git pull origin develop
+git checkout -b feature/feature-name   # or fix/bug-name
 ```
 
-### 2. Implementação — commits na branch de trabalho
+### 2. Implementation — commits on the working branch
+
+Agent 1 prepares the commit block. **The user executes the commands.**
 
 ```bash
-# trabalho normal, commits descritivos
-git add <arquivos>
-git commit -m "fix(módulo): descrição [CS-XX]"
+# Agent prepares and delivers this block — user runs it
+git add <files>
+git commit -m "feat(scope): short description
+
+- detail line
+- detail line"
 ```
 
-### 3. QA — Agent Smith valida no browser
+See [Conventional Commits](#conventional-commits) for message format.
 
-O servidor roda na branch de trabalho. Testes de browser confirma o comportamento.
+### 3. QA — Agent Smith validates in the browser
 
-### 4. Aprovação — você confirma na conversa
+Server runs on the working branch. Agent Smith confirms behavior and reports back.
 
-Sem aprovação explícita, o agente não avança para o merge.
+### 3.5. Code review — before commit block
 
-### 5. Merge em `develop` — branch de trabalho some
+After QA, Agent NEO runs the `/code-review` skill on all recent changes. Checks for N+1 queries, missing tests, security issues, and convention violations. No commit block is prepared until the review completes without CRITICAL findings.
+
+### 4. Approval — user confirms in chat
+
+Without explicit approval, no commit block is prepared. No exceptions.
+
+### 5. Merge into `develop` — working branch is deleted
+
+**Agent NEO prepares this block — user executes it:**
 
 ```bash
 git checkout develop
-git merge fix/nome-do-cs --no-ff -m "merge: fix/nome-do-cs → develop [CS-XX]"
+git merge feature/feature-name --no-ff -m "chore(merge): feature/feature-name → develop"
 git push origin develop
 
-# deletar imediatamente — local e remoto
-git branch -d fix/nome-do-cs
-git push origin --delete fix/nome-do-cs
+# Delete immediately — local and remote
+git branch -d feature/feature-name
+git push origin --delete feature/feature-name
 ```
 
-**Resultado no GitHub:** apenas `master` e `develop` visíveis. Nada mais.
+**Result on GitHub:** only `master` and `develop` are visible. Nothing else.
 
-### 6. Release — você decide quando ir para produção
+### 6. Pull Request
 
-Quando o lote de CSs estiver testado e aprovado por você:
+Agent 1 opens a PR using `gh pr create` with the standard template.
+The user reviews and merges when ready.
+
+```bash
+gh pr create \
+  --title "feat(scope): short description" \
+  --body "$(cat .github/pull_request_template.md)"
+```
+
+### 7. Release — user decides when to go to production
+
+When the batch is tested and approved:
 
 ```bash
 git checkout master
-git merge develop --no-ff -m "release: v1.X.Y — [resumo do que entrou]"
-git push origin master
+git merge develop --no-ff -m "release: vX.X.Y — summary"
+git tag vX.X.Y
+git push origin master --tags
+git checkout develop
+git merge master --no-ff -m "chore: sync develop after release vX.X.Y"
+git push origin develop
 ```
 
 ---
 
-## Worktree de produção
+## Conventional Commits
 
-O ambiente de produção roda em um worktree separado em `../lyfx-production` (branch `master`, porta 4000).
+Format: `type(scope): subject`
 
-**Setup inicial do worktree** — rodar uma vez ao criar `lyfx-production/`:
+| Type | When to use |
+|------|-------------|
+| `feat` | New feature or capability |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `refactor` | Code restructure — no behavior change |
+| `test` | Adding or updating tests |
+| `chore` | Tooling, dependencies, build, merges |
+| `ci` | CI/CD pipeline changes |
+| `perf` | Performance improvement |
+| `revert` | Reverts a previous commit |
+
+**Breaking change:** append `!` after type → `feat!: redesign auth API`
+
+**Scope examples:** `auth`, `studio`, `transactions`, `km`, `goals`, `dashboard`, `schema`
+
+**Subject rules:**
+- Lowercase, no period at the end
+- Imperative mood: `add`, `fix`, `remove` — not `added`, `fixes`, `removed`
+- Max 72 characters
+
+**Full example:**
+```
+feat(studio): add field descriptions to all schema models
+
+- Map FIELD_DESCRIPTIONS for all 28 tables
+- Fix installmentGroupId key in Transaction
+- Remove non-existent completedAt from Goal
+```
+
+---
+
+## Commit block format
+
+Every time a commit is ready, Agent NEO delivers this block. The user runs the commands.
+
+```
+### ✅ Ready to commit
+
+**Files to stage:**
+git add path/to/file
+
+**Commit message:**
+type(scope): subject
+
+- detail
+- detail
+
+**Run these commands in order:**
+git add <files>
+git commit -m "type(scope): subject
+
+- detail
+- detail"
+git push origin branch-name
+```
+
+---
+
+## Production worktree
+
+The production environment runs in a separate worktree at `../lyfx-production` (branch `master`, port 4000).
+
+**Initial setup — run once:**
 
 ```bash
 cd C:/Users/rudne/projetos/lyfx-production
 npm install
 npx prisma generate
-npx prisma db push   # cria prod.db com o schema completo
+npx prisma db push
 ```
 
-**Regra:** sempre que um `npm install` ou `npm uninstall` for executado em `lyfx/`, rodar o mesmo comando em `lyfx-production/` na sequência:
+**Sync rule:** whenever `npm install` or `npm uninstall` runs in `lyfx/`, replicate in `lyfx-production/`:
 
 ```bash
-# Exemplo — instalar novo pacote
-cd C:/Users/rudne/projetos/lyfx && npm install <pacote>
-cd C:/Users/rudne/projetos/lyfx-production && npm install <pacote>
-```
-
-Isso garante que os dois ambientes permanecem com `node_modules` idênticos.
-
----
-
-## Isolamento de bancos de dados por ambiente
-
-Cada ambiente tem seu próprio arquivo `.env` (gitignored — nunca rastreado pelo git) com `DATABASE_URL` apontando para seu banco exclusivo:
-
-| Ambiente | Arquivo `.env` | `DATABASE_URL` | Banco |
-|----------|---------------|----------------|-------|
-| Desenvolvimento | `lyfx/.env` | `file:./dev.db` | `lyfx/dev.db` — dados de teste, pode ser resetado livremente |
-| Produção local | `lyfx-production/.env` | `file:./prod.db` | `lyfx-production/prod.db` — dados reais do usuário |
-
-**Por que merges não afetam o banco:**
-Como `.env*` está no `.gitignore`, o arquivo de configuração de cada ambiente nunca entra no git. Ao fazer `develop → master`, o `lyfx-production/.env` permanece intocado — o banco de produção é sempre preservado automaticamente.
-
-**Regra crítica:** nunca alterar `DATABASE_URL` em `lyfx-production/.env` para apontar para `dev.db`. Cada ambiente aponta exclusivamente para seu próprio arquivo de banco.
-
----
-
-## Convenção de portas
-
-| Ambiente | Branch | Porta | Comando |
-|----------|--------|-------|---------|
-| Desenvolvimento | `develop` | **3000** | `npm run dev -- --port 3000` |
-| Produção local | `master` | **4000** | `npm run dev -- --port 4000` |
-
-- Portas 3001–3009 reservadas para branches temporárias de trabalho em `develop`
-- Portas 4001–4009 reservadas para testes pontuais em `master`
-- Nunca subir `master` em porta 3000–3009 nem `develop` em porta 4000–4009
-
----
-
-## Diagrama temporal
-
-```
-develop  ──●──────────────────●────────────────── (merge de lote)──►
-            │                 │                         │
-            └─ fix/cs-01 ─────┘ (deletado)              │
-               feature/cs-06 ────────────────────────────┘ (deletado)
-
-master   ──────────────────────────────────────────────●────────────►
-                                                    (release aprovado)
+cd C:/Users/rudne/projetos/lyfx && npm install <package>
+cd C:/Users/rudne/projetos/lyfx-production && npm install <package>
 ```
 
 ---
 
-## Nomenclatura de branches temporárias
+## Database isolation
 
-| Prefixo | Exemplo | Quando usar |
-|---------|---------|-------------|
-| `fix/` | `fix/security-login` | Correção de bug, segurança, validação |
-| `feature/` | `feature/tags-edit` | Nova funcionalidade |
-| `refactor/` | `refactor/session-module` | Refatoração sem mudança de comportamento |
+Each environment has its own `.env` (gitignored — never tracked) pointing to its exclusive database:
 
-> Branches de trabalho são descartáveis. Nascem e morrem dentro do mesmo lote de CSs.
+| Environment | `.env` file | `DATABASE_URL` | Database |
+|-------------|-------------|----------------|----------|
+| Development | `lyfx/.env` | `file:./dev.db` | `lyfx/dev.db` — test data, freely resettable |
+| Production | `lyfx-production/.env` | `file:./prod.db` | `lyfx-production/prod.db` — real user data |
 
----
-
-## Pergunta obrigatória antes do E7
-
-Antes de qualquer merge `develop → master`, o agente **deve perguntar ao usuário**:
-
-> *"O lote está em `develop`. Quer validar antes ou posso fazer o release para `master` agora?"*
-
-Nunca assumir que aprovação de implementação = aprovação de release para produção.
+**Critical rule:** never change `DATABASE_URL` in `lyfx-production/.env` to point to `dev.db`.
 
 ---
 
-## Regras invioláveis
+## Port conventions
 
-1. **Nunca commitar direto em `master`** — sem exceção
-2. **Nunca commitar direto em `develop`** — sempre via branch de trabalho + merge
-3. **Deletar branches após merge** — imediatamente, local e remoto
-4. **Sempre usar `--no-ff`** nos merges — preserva histórico de quem fez o quê
-5. **`master` só avança via `develop`** — nunca via branch de trabalho diretamente
-6. **Release só com aprovação explícita** — o agente nunca faz `develop → master` por conta própria
-7. **Todo merge para `master` exige documentação atualizada** — `DOCUMENTATION.md` (seções técnicas afetadas) e `docs/FEATURES.md` (seções de produto afetadas) devem estar atualizados antes do merge. Sem documentação, sem merge.
-8. **Toda nova feature exige plano de testes** — qualquer lote que inclua nova funcionalidade deve atualizar `docs/QA-TEST-PLAN.md` com cenários de teste automatizados para a feature antes do merge para `master`.
-9. **`docs/DOC-INDEX.md` é obrigatório em todo merge** — qualquer alteração em documentos (novo arquivo, renomeação, arquivamento, mudança de versão) deve ser refletida no índice antes do merge para `master`.
+| Environment | Branch | Port range | Command |
+|-------------|--------|------------|---------|
+| Development | `develop` + working branches | 3000–3009 | `npm run dev -- --port 3000` |
+| Production | `master` | 4000–4009 | `npm run dev -- --port 4000` |
 
 ---
 
-## E7 — Checklist de release (develop → master)
+## Timeline diagram
 
-Execute nesta ordem. Nenhum passo é opcional.
+```
+develop  ──●──────────────────●──────────────── (batch merge) ──►
+            │                 │                       │
+            └─ fix/cs-01 ─────┘ (deleted)             │
+               feature/cs-06 ──────────────────────────┘ (deleted)
 
-### 1. Determinar a nova versão
+master   ──────────────────────────────────────────────●─────────►
+                                                  (approved release)
+```
 
-Consultar `VERSIONING.md` para decidir se é PATCH, MINOR ou MAJOR com base no que entrou no lote.
+---
 
-### 2. Atualizar `package.json`
+## Inviolable rules
+
+1. **Never commit directly to `master`** — no exceptions
+2. **Never commit directly to `develop`** — always via working branch + merge
+3. **Delete branches after merge** — immediately, local and remote
+4. **Always use `--no-ff`** on merges — preserves history
+5. **`master` advances only via `develop`** — never from a working branch directly
+6. **Release only with explicit approval** — agent never merges `develop → master` autonomously
+7. **Every master merge requires updated documentation** — `DOCUMENTATION.md` and `docs/FEATURES.md` before merge
+8. **Every new feature requires a test plan** — update `docs/QA-TEST-PLAN.md` before master merge
+9. **`docs/DOC-INDEX.md` is mandatory on every merge** — reflect any new file, rename, or archive
+
+---
+
+## E7 — Release checklist (develop → master)
+
+Run in this order. No step is optional.
+
+### 1. Determine the new version
+
+Check `VERSIONING.md` to decide PATCH, MINOR, or MAJOR based on what is in the batch.
+
+### 2. Update `package.json`
 
 ```json
 "version": "X.X.X"
 ```
 
-### 3. Atualizar `README.md`
+### 3. Update `README.md`
 
-Dois pontos obrigatórios:
-
-**Badge de versão** (linha ~10):
+**Version badge:**
 ```markdown
 ![Version](https://img.shields.io/badge/version-X.X.X-22D3EE?style=flat-square)
 ```
 
-**Rodapé** (última linha):
+**Footer:**
 ```markdown
-*vX.X.X · Mês Ano · Projeto pessoal em desenvolvimento ativo.*
+*vX.X.X · Month Year · Personal project in active development.*
 ```
 
-**Tabela de módulos** — adicionar linha se o lote incluiu novo módulo:
+**Module table** — add a row if the batch included a new module.
+
+### 4. Update `VERSIONING.md`
+
+Add a row to the history table:
 ```markdown
-| **NomeDoMódulo** | Descrição do que faz |
+| `X.X.X` | PATCH/MINOR/MAJOR | What was built in this batch |
 ```
 
-### 4. Atualizar `VERSIONING.md`
+### 5. Update `DOCUMENTATION.md`
 
-Adicionar linha na tabela de histórico:
-```markdown
-| `X.X.X` | PATCH/MINOR/MAJOR | O que foi construído neste lote |
-```
+Update only the sections touched by the batch:
+- New module → routes, Server Actions, Prisma schema, calculation formulas, data flow
+- Auth change → update "Authentication and Session"
+- New schema field → update "Database Schema" with the full annotated model
+- New external integration → document endpoint, parameters, expected response, gotchas
+- New architectural decision → add to "Architectural Decisions" with technical rationale
 
-Remover a entrada de "Próximos marcos" correspondente se ela existir.
+### 6. Update `docs/FEATURES.md`
 
-### 5. Atualizar `DOCUMENTATION.md` — planta técnica
+Audience: analysts, managers, users in onboarding — non-technical language.
 
-**Cabeçalho** (linha 2):
-```markdown
-> Lyfx — Documentação Técnica · vX.X.X · Mês Ano
-```
+Update only the sections touched by the batch:
+- New feature → new chapter: what it does, how to use it, where data goes, module interactions, user value
+- Modified feature → update description, flow, and impacts
+- Do not mention routes, Prisma, code, or variable names in this document
 
-**Seções afetadas** — atualizar apenas as seções que o lote tocou:
-- Novo módulo → rotas, Server Actions, schema Prisma, fórmulas de cálculo, fluxo de dados
-- Mudança de autenticação → atualizar "Autenticação e Sessão"
-- Novo campo no schema → atualizar "Schema do Banco de Dados" com modelo completo anotado
-- Nova integração externa → documentar endpoint, parâmetros, resposta esperada, gotchas
-- Nova decisão arquitetural → adicionar em "Decisões Arquiteturais" com justificativa técnica
+### 7. Update `docs/QA-TEST-PLAN.md` *(required if batch includes a new feature)*
 
-### 6. Atualizar `docs/FEATURES.md` — narrativa de produto
+For each new feature, add a section with:
+- Test scenarios (happy path + edge cases)
+- Measurable acceptance criteria
+- Reproduction steps for Agent Smith
 
-Audiência: analista, gestor, usuário em capacitação — linguagem não-técnica.
+### 8. Update `docs/DOC-INDEX.md` *(required on every merge)*
 
-**Seções afetadas** — atualizar apenas as seções que o lote tocou:
-- Nova feature → novo capítulo com: o que faz, como usar, onde vai a informação, interação com outros módulos, valor ao usuário, referencial de negócio
-- Feature modificada → atualizar descrição, fluxo e impactos
-- Não mencionar rotas, Prisma, código ou nomes de variáveis neste documento
+- New document created → add row to the corresponding table
+- Document moved or renamed → update path
+- Document archived → move row to the archive section
+- Document version changed → update the Version column
 
-### 7. Atualizar `docs/QA-TEST-PLAN.md` *(obrigatório se o lote incluiu nova feature)*
+### 9. Merge, tag, and sync
 
-Para cada nova funcionalidade, adicionar seção com:
-- Cenários de teste (happy path + edge cases)
-- Critérios de aceite mensuráveis
-- Passos de reprodução para Agent Smith
-
-Se apenas bugfixes no lote → verificar se algum teste existente ficou desatualizado e corrigir.
-
-### 8. Atualizar `docs/DOC-INDEX.md` *(obrigatório em todo merge)*
-
-Revisar o índice central de documentação e atualizar conforme o que mudou no lote:
-- Novo documento criado → adicionar linha na tabela correspondente
-- Documento movido ou renomeado → atualizar caminho
-- Documento arquivado → mover linha para a seção de arquivo
-- Versão de documento alterada → atualizar coluna **Versão**
-
-### 9. Fazer o merge e a tag
+**Agent NEO prepares this block — user executes it:**
 
 ```bash
 git checkout master
-git merge develop --no-ff -m "release: vX.X.X — [resumo do lote]"
+git merge develop --no-ff -m "release: vX.X.X — batch summary"
 git tag vX.X.X
 git push origin master --tags
 git checkout develop
-git merge master --no-ff -m "chore: sync develop após release vX.X.X"
+git merge master --no-ff -m "chore: sync develop after release vX.X.X"
 git push origin develop
 ```
 
-> O último merge (master → develop) garante que develop não fique atrás de master após o release.
-
 ---
 
-## Estado atual (07/06/2026)
+## Current state (2026-07-03)
 
-| Branch | Versão | Conteúdo |
-|--------|--------|----------|
-| `master` | v1.11.0 | CS-01 a CS-30 implementados e QA aprovado — inclui lote de qualidade/segurança v1.11.0 |
-| `develop` | v1.11.2 | CS-23 Docker completo (PG containerizado) — aguardando release para master |
+| Branch | Version | Contents |
+|--------|---------|----------|
+| `master` | v1.11.0 | CS-01 through CS-30 implemented and QA approved |
+| `develop` | v1.11.2 | CS-23 Docker complete — pending release to master |
 
-Próximos releases previstos: `v1.12.0` — Studio Roadmap/Backlog (CS-20) · `v1.13.0` — Importação OFX/CSV (CS-21).
+Next planned releases: `v1.12.0` — Studio Roadmap/Backlog (CS-20) · `v1.13.0` — OFX/CSV import (CS-21).

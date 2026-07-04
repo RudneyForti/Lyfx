@@ -1,76 +1,267 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# Agent Workflow Rules
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+## Language
 
-<!-- BEGIN:git-workflow-rules -->
-# Git Workflow — Regras para Agentes
+All code, commit messages, PR descriptions, branch names, comments, and documentation must be written in **English**.
+Verbal and chat communication with the project owner may remain in Portuguese.
 
-## Estrutura de branches
+---
+
+## Agents
+
+### Agent NEO — Implementation
+The primary agent. Responsible for coding, file changes, branch management, preparing commits and PRs.
+Owns Pipeline NEO from E3 to E7.
+**Never executes `git commit`, `git push`, or any destructive git command. No exceptions.**
+
+### Agent Smith — QA
+The quality assurance agent. Spawned by Agent NEO at E4.
+Responsible for browser validation, behavior verification, and regression detection.
+Operates exclusively via browser tools — never touches the codebase.
+Reports findings back to Agent NEO in a structured format before any commit block is prepared.
+
+**Agent Smith spawn template** — Agent NEO always spawns Smith with this structure:
 
 ```
-master   ← produção (estável, nunca recebe commit direto)
-develop  ← desenvolvimento (branch base para todo trabalho)
-```
+You are Agent Smith, QA agent for the Lyfx project.
 
-## Pipeline NEO — etapas Git
+## Context
+[What was implemented — feature name, CS reference]
 
-| Etapa | O que fazer |
-|-------|-------------|
-| **E3 — Implementar** | Criar branch de trabalho **a partir de `develop`**: `git checkout develop && git checkout -b fix/nome` ou `feature/nome` |
-| **E6 — Commit** | Merge da branch de trabalho em `develop`: `git checkout develop && git merge fix/nome --no-ff` → push → **deletar branch imediatamente** |
-| **E7 — Release** | **Perguntar primeiro:** *"O lote está em `develop`. Quer validar antes ou posso fazer o release para `master`?"* — só avançar com resposta afirmativa explícita. Executar o checklist completo em `docs/GIT-WORKFLOW.md#e7` antes do merge: (1) determinar versão via `VERSIONING.md`, (2) atualizar `package.json`, (3) atualizar badge e rodapé do `README.md`, (4) adicionar linha no histórico de `VERSIONING.md`, (5) atualizar seções técnicas afetadas em `DOCUMENTATION.md`, (6) atualizar seções de produto afetadas em `docs/FEATURES.md`, (7) se o lote incluiu nova feature → atualizar `docs/QA-TEST-PLAN.md` com plano de testes automatizado para a funcionalidade, (8) atualizar `docs/DOC-INDEX.md` — versões, novos arquivos, arquivamentos, (9) fazer merge + tag + sync develop |
+## Files changed
+[List of modified files]
 
-## Regras obrigatórias
+## What to validate
+[Numbered checklist of behaviors to verify]
 
-- **Nunca** criar branch a partir de `master`
-- **Nunca** fazer commit direto em `master` ou `develop`
-- **Sempre** deletar a branch de trabalho após o merge em `develop` (local e remoto)
-- **Sempre** usar `--no-ff` nos merges para preservar histórico
-- `master` só avança via merge de `develop`, nunca por commit direto
-- Branch de trabalho existe apenas durante a implementação — nasce e morre no mesmo lote de CSs
-- **Todo merge para `master` exige** `DOCUMENTATION.md` e `docs/FEATURES.md` atualizados — sem documentação, sem merge
-- **Toda nova feature exige** plano de testes atualizado em `docs/QA-TEST-PLAN.md` antes do merge
-- **`docs/DOC-INDEX.md` é obrigatório em todo merge** — refletir qualquer novo arquivo, renomeação, arquivamento ou mudança de versão
+## How to access
+- URL: http://localhost:3000/[route]
+- Credentials if needed: [details]
 
-## Nomenclatura de branches
-
-| Prefixo | Quando usar |
-|---------|-------------|
-| `fix/` | Correção de bug ou segurança |
-| `feature/` | Nova funcionalidade |
-| `refactor/` | Refatoração sem mudança de comportamento |
-| `release/` | Apenas para branches de release com versão (ex: `release/v2.0.0`) |
-
-## Sincronização do worktree de produção
-
-**Setup inicial do worktree** (rodar uma vez ao criar `lyfx-production/`):
-```bash
-cd lyfx-production && npm install && npx prisma generate
-```
-
-**Sincronização contínua** — sempre que instalar ou remover pacote em `lyfx/`, replicar em `lyfx-production/`:
-
-```bash
-npm install <pacote>   # em lyfx/
-npm install <pacote>   # em lyfx-production/
+## Reporting format
+Reply with:
+- ✅ PASS or ❌ FAIL for each checklist item
+- Screenshot or DOM evidence for any failure
+- One-line overall verdict: APPROVED or BLOCKED
 ```
 
 ---
 
-## Convenção de portas
+## Git Workflow
 
-| Branch | Porta | Regra |
-|--------|-------|-------|
-| `develop` + branches temporárias | **3000–3009** | Sempre neste range |
-| `master` | **4000–4009** | Sempre neste range |
+### Branch structure
 
-Nunca iniciar `master` em porta 3000–3099 nem `develop` em porta 4000–4099.
+```
+master   ← production (stable — never receives direct commits)
+develop  ← development (base for all work)
+```
+
+### Pipeline NEO — stages
+
+| Stage | Owner | Action |
+|-------|-------|--------|
+| **E3 — Implement** | Agent NEO | Create working branch from `develop`: `git checkout develop && git checkout -b feature/name` |
+| **E4 — QA** | Agent Smith | Validates in the browser. Reports APPROVED or BLOCKED before commit. |
+| **E4.5 — Code Review** | Agent NEO | Runs `/code-review` skill on recent changes before preparing any commit block. Checks N+1 queries, missing tests, security issues, and convention violations. No commit block is prepared if CRITICAL findings remain open. |
+| **E5 — Approval** | Human | User explicitly approves in chat. No approval = no commit block prepared. |
+| **E6 — Commit** | Agent NEO | Prepares the commit block. **Human executes the commands.** |
+| **E7 — Release** | Agent NEO | Asks first: *"The batch is in `develop`. Ready to release to `master`?"* — only proceeds with explicit confirmation. |
 
 ---
 
-## Referência completa
+## Commits and pushes — MANUAL EXECUTION ONLY
 
-Ver `docs/GIT-WORKFLOW.md` para o fluxo detalhado com exemplos de comandos.
-<!-- END:git-workflow-rules -->
+**Agent NEO never runs `git commit`, `git push`, or any destructive git command. No exceptions.**
+
+After user approval (E5), Agent NEO delivers a commit block in this exact format:
+
+---
+### ✅ Ready to commit
+
+**Files to stage:**
+```bash
+git add path/to/file1 path/to/file2
+```
+
+**Commit message:**
+```
+type(scope): short description
+
+- detail line
+- detail line
+```
+
+**Run these commands in order:**
+```bash
+git add <files>
+git commit -m "type(scope): short description
+
+- detail line
+- detail line"
+git push origin branch-name
+```
+---
+
+The user copies and runs these commands. Agent NEO waits for confirmation before proceeding.
+
+---
+
+## Conventional Commits
+
+Format: `type(scope): subject`
+
+| Type | When to use |
+|------|-------------|
+| `feat` | New feature or capability |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `refactor` | Code restructure — no behavior change |
+| `test` | Adding or updating tests |
+| `chore` | Tooling, dependencies, build process |
+| `ci` | CI/CD pipeline changes |
+| `perf` | Performance improvement |
+| `revert` | Reverts a previous commit |
+
+**Breaking change:** append `!` after the type → `feat!: redesign auth API`
+
+**Scope:** the module or area affected (e.g. `auth`, `studio`, `transactions`, `km`, `goals`, `dashboard`)
+
+**Subject rules:**
+- Lowercase, no period at the end
+- Imperative mood: `add`, `fix`, `remove` — not `added`, `fixes`, `removed`
+- Max 72 characters
+
+---
+
+## Pull Requests
+
+### Solo contributor flow (current)
+
+```
+implement → QA → approval → commit (manual) → push (manual) → open PR → CI passes → self-merge
+```
+
+Agent NEO opens PRs using `gh pr create` with the standard template. The user reviews and merges.
+
+### PR template
+
+```markdown
+## Summary
+<!-- What changed and why -->
+
+## Changes
+- Change 1
+- Change 2
+
+## Checklist
+- [ ] Link to feature/issue: <!-- CS-XX or issue URL -->
+- [ ] Description of changes included above
+- [ ] List of additions documented
+- [ ] All existing tests are passing
+- [ ] New tests were added for this change
+- [ ] Agent Smith validated behavior
+- [ ] No regressions observed
+
+## References
+<!-- CS number, issue, or feature link -->
+```
+
+### Reviewer rules
+
+All merges must happen via Pull Request — no direct pushes to any permanent branch.
+
+**Solo projects (e.g. Lyfx):** self-review + merge allowed after Agent Smith QA approval.
+
+**Team projects (e.g. Limiar Core — GitHub Flow):**
+- PR flows from `feature/` or `fix/` branch directly to `main` (production)
+- Minimum 2 approvals required before merge — reviewers defined in `.github/CODEOWNERS`
+
+---
+
+## Test Coverage Policy
+
+| Test type | Target | Tool |
+|-----------|--------|------|
+| Integration tests | 100% | framework default |
+| Feature tests | 100% | framework default |
+| Unit tests (services, etc.) | min. 80% | framework default |
+| Frontend | 100% of critical flows | Playwright |
+
+**Backend mock for frontend tests:** when running Playwright or any frontend test suite, the full backend must be mocked — no live API calls during test execution. Agent NEO configures the mock layer; Agent Smith verifies no real requests occur during test runs.
+
+No commit block is prepared when coverage targets are unmet. Smith reports missing coverage as 🟠 HIGH minimum.
+
+---
+
+## Branch naming
+
+| Prefix | When to use |
+|--------|-------------|
+| `feature/` | New functionality |
+| `fix/` | Bug fix or security patch |
+| `refactor/` | Restructure without behavior change |
+| `chore/` | Tooling, CI, dependencies |
+| `hotfix/` | Urgent production fix |
+| `release/` | Release branches (e.g. `release/v2.0.0`) |
+
+Branch names: lowercase, hyphen-separated, concise.
+
+**Standard:** `feature/short-description`, `fix/bug-name`
+**With card ID (optional):** if a task manager card is referenced in the chat, include its numeric ID — `feature/42-short-description`
+Examples: `feature/km-saved-locations`, `fix/auth-session-expiry`, `feature/42-patient-registration`
+
+---
+
+## Code Quality
+
+- Follow the conventions and standards of the framework and language in use.
+- Before writing code, read the relevant framework docs — do not rely on training data for framework-specific behavior.
+- Run `/code-review` (E4.5) before preparing any commit block. No exceptions.
+- Every new behavior requires a test. Every bug fix requires a regression test.
+
+---
+
+## Mandatory rules
+
+- Never create a branch from `master`
+- Never commit directly to `master` or `develop`
+- Always delete working branches after merge — local and remote
+- Always use `--no-ff` on merges to preserve history
+- `master` advances only via `develop` — never from a working branch directly
+- Every merge to `master` requires updated `DOCUMENTATION.md` and `docs/FEATURES.md`
+- Every new feature requires an updated `docs/QA-TEST-PLAN.md`
+- `docs/DOC-INDEX.md` must be updated on every master merge
+
+---
+
+## Release checklist (E7)
+
+Before any `develop → master` merge, run in this order:
+
+1. Determine version (SemVer) from `VERSIONING.md`
+2. Update version in `package.json`
+3. Update version badge and footer in `README.md`
+4. Add entry to the history table in `VERSIONING.md`
+5. Update affected sections in `DOCUMENTATION.md`
+6. Update affected sections in `docs/FEATURES.md`
+7. If the batch includes a new feature → update `docs/QA-TEST-PLAN.md`
+8. Update `docs/DOC-INDEX.md`
+9. Merge + tag + sync `develop`
+
+---
+
+## Port conventions (Lyfx-specific)
+
+| Environment | Branch | Port range |
+|-------------|--------|------------|
+| Development | `develop` + working branches | 3000–3009 |
+| Production | `master` | 4000–4009 |
+
+Never start `master` on port 3000–3099 or `develop` on port 4000–4099.
+
+---
+
+## Next.js note (Lyfx-specific)
+
+This version has breaking changes — APIs, conventions, and file structure may differ from training data.
+Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
