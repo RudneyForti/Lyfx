@@ -49,23 +49,23 @@ Reply with:
 
 ## Git Workflow
 
-### Branch structure
+### Branch structure (GitHub Flow — LC standard)
 
 ```
-master   ← production (stable — never receives direct commits)
-develop  ← development (base for all work)
+main              ← the only permanent branch. Always deployable.
+feature/<slug>    ← born from main, dies at merge (via Pull Request)
 ```
 
 ### Pipeline NEO — stages
 
 | Stage | Owner | Action |
 |-------|-------|--------|
-| **E3 — Implement** | Agent NEO | Create working branch from `develop`: `git checkout develop && git checkout -b feature/name` |
-| **E4 — QA** | Agent Smith | Validates in the browser. Reports APPROVED or BLOCKED before commit. |
-| **E4.5 — Code Review** | Agent NEO | Runs `/code-review` skill on recent changes before preparing any commit block. Checks N+1 queries, missing tests, security issues, and convention violations. No commit block is prepared if CRITICAL findings remain open. |
-| **E5 — Approval** | Human | User explicitly approves in chat. No approval = no commit block prepared. |
-| **E6 — Commit** | Agent NEO | Prepares the commit block. **Human executes the commands.** |
-| **E7 — Release** | Agent NEO | Asks first: *"The batch is in `develop`. Ready to release to `master`?"* — only proceeds with explicit confirmation. |
+| **E3 — Implement** | Agent NEO | Create working branch from `main`: `git checkout main && git pull && git checkout -b feature/name` |
+| **E4 — QA** | Agent Smith | Validates in the browser. Reports APPROVED or BLOCKED before any PR. |
+| **E4.5 — Code Review** | Agent NEO | Runs `/code-review` skill on all changes before opening the PR. Checks N+1 queries, missing tests, security issues, and convention violations. No PR is opened if CRITICAL findings remain open. |
+| **E5 — Approval** | Human | User explicitly approves in chat. No approval = no PR opened. |
+| **E6 — Pull Request** | Agent NEO | Pushes the branch and opens the PR via `gh pr create` with the template checklist. CI must pass. **Human reviews and merges in the GitHub UI.** |
+| **E7 — Release** | Agent NEO | Asks first: *"The batch is merged in `main`. Ready to tag and deploy?"* — runs the E7 checklist, tags `main`, and production worktree pulls. Only with explicit confirmation. |
 
 ---
 
@@ -138,10 +138,10 @@ Format: `type(scope): subject`
 ### Solo contributor flow (current)
 
 ```
-implement → QA → approval → commit (manual) → push (manual) → open PR → CI passes → self-merge
+implement → QA → /code-review → approval → push → open PR → CI passes → self-review → merge → branch deleted
 ```
 
-Agent NEO opens PRs using `gh pr create` with the standard template. The user reviews and merges.
+Agent NEO opens PRs using `gh pr create` with the standard template. The user reviews and merges in the GitHub UI. GitHub auto-deletes the remote branch on merge.
 
 ### PR template
 
@@ -223,20 +223,20 @@ Examples: `feature/km-saved-locations`, `fix/auth-session-expiry`, `feature/42-p
 
 ## Mandatory rules
 
-- Never create a branch from `master`
-- Never commit directly to `master` or `develop`
-- Always delete working branches after merge — local and remote
-- Always use `--no-ff` on merges to preserve history
-- `master` advances only via `develop` — never from a working branch directly
-- Every merge to `master` requires updated `DOCUMENTATION.md` and `docs/FEATURES.md`
+- All working branches are born from `main` — always after `git pull`
+- Never commit directly to `main` — every change enters via Pull Request
+- Never merge a PR with red CI
+- Always delete working branches after merge — remote is automatic, local is manual
+- `main` is always deployable — a merge that breaks it is priority zero
+- Every release (tag) requires updated `DOCUMENTATION.md` and `docs/FEATURES.md`
 - Every new feature requires an updated `docs/QA-TEST-PLAN.md`
-- `docs/DOC-INDEX.md` must be updated on every master merge
+- `docs/DOC-INDEX.md` must be updated on every release
 
 ---
 
 ## Release checklist (E7)
 
-Before any `develop → master` merge, run in this order:
+Before tagging `main`, run in this order:
 
 1. Determine version (SemVer) from `VERSIONING.md`
 2. Update version in `package.json`
@@ -246,7 +246,8 @@ Before any `develop → master` merge, run in this order:
 6. Update affected sections in `docs/FEATURES.md`
 7. If the batch includes a new feature → update `docs/QA-TEST-PLAN.md`
 8. Update `docs/DOC-INDEX.md`
-9. Merge + tag + sync `develop`
+9. Merge the bump PR → tag `main` → push tags
+10. Deploy: pull `main` in `lyfx-production/` (+ `prisma db push` if schema changed)
 
 ---
 
@@ -254,10 +255,10 @@ Before any `develop → master` merge, run in this order:
 
 | Environment | Branch | Port range |
 |-------------|--------|------------|
-| Development | `develop` + working branches | 3000–3009 |
-| Production | `master` | 4000–4009 |
+| Development (`lyfx/`) | current working branch | 3000–3009 |
+| Production (`lyfx-production/`) | `main` (pinned) | 4000–4009 |
 
-Never start `master` on port 3000–3099 or `develop` on port 4000–4099.
+Never run the production worktree on 3000–3099 or the dev workspace on 4000–4099.
 
 ---
 
