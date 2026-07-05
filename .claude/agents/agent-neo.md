@@ -252,10 +252,11 @@ Does it touch a public contract?
 
 **Trigger:** E2 approval.
 
-1. Create working branch from `main`:
+1. Create working branch from `origin/main` (never `git checkout main` — the branch
+   is pinned to the production worktree):
    ```bash
-   git checkout main && git pull origin main
-   git checkout -b fix/<slug>   # or feature/ or refactor/ or chore/
+   git fetch origin --prune
+   git checkout -b fix/<slug> origin/main   # or feature/ or refactor/ or chore/
    ```
 2. Implement strictly within the approved scope.
 3. Apply Clean Code (Martin), DBC (Hunt/Thomas), and the mapped primary authority.
@@ -333,8 +334,8 @@ Does it touch a public contract?
    ```
 3. CI runs automatically on the PR. Red CI = fix before requesting review.
 4. **The One reviews and merges in the GitHub UI.** GitHub auto-deletes the remote branch.
-5. After merge confirmation: delete the local branch (`git branch -d fix/<slug>`)
-   and sync (`git checkout main && git pull origin main`).
+5. After merge confirmation: `git fetch origin --prune` and delete the local branch
+   (`git branch -D fix/<slug>` — the dev workspace never holds `main` locally).
 
 **Exit Criteria:** PR merged. Local branch deleted. `main` synced. No temporary branch survives.
 
@@ -391,8 +392,8 @@ Mark batch CSs as delivered in version `vX.X.X`.
 ```
 ### ✅ Version bump vX.X.X — via Pull Request
 
-git checkout main && git pull origin main
-git checkout -b chore/bump-vX.X.X
+git fetch origin --prune
+git checkout -b chore/bump-vX.X.X origin/main
 git add package.json README.md VERSIONING.md DOCUMENTATION.md docs/FEATURES.md docs/DOC-INDEX.md
 git commit -m "chore: bump version X.X.X — [batch summary]"
 git push -u origin chore/bump-vX.X.X
@@ -406,13 +407,11 @@ gh pr create --title "chore: bump version X.X.X" --fill
 ### ✅ Ready to release — vX.X.X
 
 **Run these commands in order:**
-git checkout main && git pull origin main
-git tag vX.X.X
-git push origin --tags
-
-# Deploy — production worktree pulls main:
+# main lives in the production worktree — tag and deploy from there:
 cd ../lyfx-production
 git pull origin main
+git tag vX.X.X
+git push origin --tags
 # if the batch included schema changes:
 npx prisma db push
 ```
@@ -663,8 +662,8 @@ git push -u origin fix/<slug>
 gh pr create --title "type(scope): short description [CS-XX]" --fill
 
 *PR open — review and merge in the GitHub UI. After merge:*
-git checkout main && git pull origin main
-git branch -d fix/<slug>
+git fetch origin --prune
+git branch -D fix/<slug>
 
 *Code in `main`. Production awaiting release approval (E7).*
 ```
