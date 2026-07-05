@@ -45,5 +45,29 @@ jobs:
           ADMIN_SECRET: ci-placeholder-admin
           NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ci-placeholder
 
-  # Test job is added in Phase 1 (Vitest + Playwright + MSW).
-  # It becomes a required status check once the suite exists.
+  test:
+    name: Unit and integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run tests
+        run: npm test
+        env:
+          SESSION_SECRET: ci-test-secret
+
+  # E2E (Playwright) runs locally for now — added to CI when the retrofit
+  # reaches the flows that justify browser time on every PR.
