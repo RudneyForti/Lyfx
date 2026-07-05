@@ -8,7 +8,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { ALL_MODULE_KEYS, ALWAYS_ACCESSIBLE, type ModuleKey } from "@/lib/modules";
 import { getConfigBool, getConfigValue } from "@/lib/config";
-import { getUnreadCount, syncDangerAlerts } from "@/app/actions/notifications";
+import { syncDangerAlerts } from "@/app/actions/notifications";
+import { shouldRun } from "@/lib/throttle-gate";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const userId = await getSessionUserId();
@@ -22,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
   }
 
+  const now = new Date();
   const [user, maintenanceMode, maintenanceBanner, betaModulesRaw, unreadCount] = await Promise.all([
     db.user.findUnique({
       where: { id: userId },
@@ -30,14 +32,29 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getConfigBool("maintenanceMode"),
     getConfigValue("maintenanceBanner", "O sistema está temporariamente indisponível para manutenção."),
     getConfigValue("betaModules", ""),
-    getUnreadCount(),  // CS-26: session-based, não aceita userId externo
+    // Badge de não lidas — inline com o userId já validado acima, evitando a
+    // segunda consulta de sessão que getUnreadCount() faria via requireAuth()
+    db.notification.count({
+      where: {
+        userId,
+        fingerprint: null,
+        readAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+    }),
   ]);
 
-  // CS-18: converter alertas danger em notificações (fingerprint dedup, TTL 7d)
-  await syncDangerAlerts(userId);
+  // CS-18: converter alertas danger em notificações (fingerprint dedup, TTL 7d).
+  // Throttled (1×/5min por usuário) e fire-and-forget — alertas de orçamento não
+  // mudam a cada clique; recalculá-los por navegação custava ~7 queries por página.
+  if (shouldRun(`danger-alerts:${userId}`, 5 * 60_000)) {
+    syncDangerAlerts(userId).catch(() => {});
+  }
 
-  // Atualiza presença do usuário (para métricas de "online agora" no Studio)
-  db.user.update({ where: { id: userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
+  // Presença para métricas do Studio — throttled a 1 write/min por usuário
+  if (shouldRun(`last-seen:${userId}`, 60_000)) {
+    db.user.update({ where: { id: userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
+  }
 
   let betaModules: string[] | undefined;
   if (betaModulesRaw) {

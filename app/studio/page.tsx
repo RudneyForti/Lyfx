@@ -1,5 +1,6 @@
 import { getAdminSession, getStudioData, getDocumentation, getLiveSchema, getAppConfig, getKanbanBoard } from "./actions";
-import { StudioLoginForm, StudioMain } from "./StudioClient";
+import { StudioLoginForm } from "./StudioLoginForm";
+import { StudioMain } from "./StudioClient";
 
 export const dynamic = "force-dynamic";
 

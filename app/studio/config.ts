@@ -18,14 +18,25 @@ const CONFIG_DEFAULTS: Record<string, string> = {
   betaModules:       JSON.stringify(ALL_MODULES.filter(m => m.isBeta).map(m => m.key)),
 };
 
+// [PERF] Seed dos defaults roda 1× por processo — antes eram 5 upserts
+// sequenciais em toda abertura do Studio
+let defaultsSeeded = false;
+
 export async function getAppConfig(): Promise<AppConfigEntry[]> {
   await requireAdmin();
-  for (const [key, value] of Object.entries(CONFIG_DEFAULTS)) {
-    await db.appConfig.upsert({
-      where:  { key },
-      update: {},
-      create: { key, value },
-    });
+  if (!defaultsSeeded) {
+    const keys = Object.keys(CONFIG_DEFAULTS);
+    const existing = await db.appConfig.count({ where: { key: { in: keys } } });
+    if (existing < keys.length) {
+      for (const [key, value] of Object.entries(CONFIG_DEFAULTS)) {
+        await db.appConfig.upsert({
+          where:  { key },
+          update: {},
+          create: { key, value },
+        });
+      }
+    }
+    defaultsSeeded = true;
   }
   return db.appConfig.findMany({ orderBy: { key: "asc" } });
 }
