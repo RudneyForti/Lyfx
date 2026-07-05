@@ -44,9 +44,19 @@ export async function GET(request: NextRequest) {
 
     const providerUserId = claims.oid;
     const name           = claims.name ?? claims.preferred_username ?? "Usuário Microsoft";
-    const email          = claims.email ?? claims.preferred_username ?? "";
+    // Linking por email usa APENAS o claim `email` — `preferred_username` pode ser
+    // um UPN arbitrário definido pelo tenant, não um email verificado. Usá-lo para
+    // linking permitiria vincular a conta de outro usuário via email forjado.
+    const linkEmail      = claims.email ?? "";
+    const displayEmail   = claims.email ?? claims.preferred_username ?? "";
 
-    const userId = await findOrCreateOAuthUser({ provider: "microsoft", providerUserId, name, email });
+    const userId = await findOrCreateOAuthUser({
+      provider: "microsoft",
+      providerUserId,
+      name,
+      linkEmail,
+      displayEmail,
+    });
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? null;
     await setSession(userId);
@@ -63,17 +73,18 @@ async function findOrCreateOAuthUser(opts: {
   provider:       string;
   providerUserId: string;
   name:           string;
-  email:          string;
+  linkEmail:      string;   // usado para vincular a conta existente — só claim `email`
+  displayEmail:   string;   // usado ao criar usuário novo — pode incluir preferred_username
 }): Promise<string> {
-  const { provider, providerUserId, name, email } = opts;
+  const { provider, providerUserId, name, linkEmail, displayEmail } = opts;
 
   const existing = await db.oAuthAccount.findUnique({
     where: { provider_providerUserId: { provider, providerUserId } },
   });
   if (existing) return existing.userId;
 
-  if (email) {
-    const byEmail = await db.user.findFirst({ where: { email: email.toLowerCase() } });
+  if (linkEmail) {
+    const byEmail = await db.user.findFirst({ where: { email: linkEmail.toLowerCase() } });
     if (byEmail) {
       await db.oAuthAccount.create({
         data: { userId: byEmail.id, provider, providerUserId },
@@ -83,7 +94,7 @@ async function findOrCreateOAuthUser(opts: {
   }
 
   const newUser = await db.user.create({
-    data: { name, email: email ? email.toLowerCase() : null, password: "" },
+    data: { name, email: displayEmail ? displayEmail.toLowerCase() : null, password: "" },
   });
   await db.oAuthAccount.create({
     data: { userId: newUser.id, provider, providerUserId },

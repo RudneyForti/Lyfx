@@ -12,7 +12,8 @@ async function fetchDefaultPolyline(origin: string, destination: string): Promis
     if (!apiKey) return null;
     const params = new URLSearchParams({ origin, destination, key: apiKey });
     const res = await fetch(
-      `https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`
+      `https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`,
+      { signal: AbortSignal.timeout(5000) }
     );
     if (!res.ok) return null;
     const data = await res.json() as {

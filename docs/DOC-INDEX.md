@@ -27,6 +27,8 @@
 | `QA-TEST-PLAN.md` | `/docs/QA-TEST-PLAN.md` | v1.14.0 | Agent Smith / QA | Plano de testes executável com 400+ casos. Cobre autenticação, todos os módulos, Studio G2, Reembolso Especial (CS-17/CS-25), Central de Notificações (CS-18/CS-19), segurança, isolamento multi-usuário e fluxos E2E. Atualizado em v1.13.0 com casos de sessões com estado (CS-34), Audit Log (CS-35) e OAuth Google/Microsoft (CS-36). |
 | `QA-RESULTS-2026-06-09.md` | `/docs/QA-RESULTS-2026-06-09.md` | v1.14.0 | Agent Smith / QA | Resultado do ciclo de QA completo executado em 09/06/2026 para a v1.14.0. 324 casos, 297 PASS, 5 FAIL, 4 bugs ativos (chips). Cobre todos os 24 módulos + segurança + isolamento + fluxos E2E. |
 | `PEDAGOGY_V2.md` | `/docs/PEDAGOGY_V2.md` | v2.0 | Conteudistas / Desenvolvedores | Metodologia pedagógica do módulo `/education`. Define estrutura das pílulas (concept/why/how/quiz), taxonomia de tópicos, critérios editoriais e modelo de progressão por trilhas. |
+| `CONDUCT-MODEL.md` | `/docs/CONDUCT-MODEL.md` | v1.14.1 | Desenvolvedores / Agentes | Log da padronização do sistema de agentes vs. dev-requirements da Limiar Core: 18 mudanças detalhadas, tabela de cobertura 17/17 requisitos e backlog de pendências de aplicação por projeto. |
+| `WORKFLOW-TEMPLATES.md` | `/docs/WORKFLOW-TEMPLATES.md` | v1.14.1 | Desenvolvedores / Agentes | Biblioteca de 12 templates do pipeline E1→E7: Change Spec, Classification, Plan, Handoff, QA Report, Approval, Commit Block, Release, PR, Test Plan e Feature Doc. |
 | **`DOC-INDEX.md`** | `/docs/DOC-INDEX.md` | v1.10.0 | Todos | **Este arquivo.** Índice central de toda a documentação do projeto. |
 
 ---

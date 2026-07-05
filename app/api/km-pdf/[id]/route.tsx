@@ -56,7 +56,8 @@ async function resolvePolyline(
   try {
     const params = new URLSearchParams({ origin, destination, key: apiKey });
     const res = await fetch(
-      `https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`
+      `https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`,
+      { signal: AbortSignal.timeout(5000) }
     );
     if (res.ok) {
       const data = await res.json() as {
@@ -91,7 +92,8 @@ async function fetchMapDataUrl(
     if (destination)  params.append("markers", `color:0x2ECC40ff|label:B|${destination}`);
 
     const mapRes = await fetch(
-      `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`
+      `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`,
+      { signal: AbortSignal.timeout(8000) }
     );
     if (!mapRes.ok) return null;
 

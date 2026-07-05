@@ -58,6 +58,10 @@ model Transaction {
   tags             TransactionTag[]
   // [CS-30] FK explícita: período de reembolso vinculado a esta transação
   kmPeriod         KmPeriod?
+
+  @@index([userId, date])           // consulta dominante: extrato/DRE do mês
+  @@index([userId, category, date]) // orçamentos, alertas e relatórios por categoria
+  @@index([installmentGroupId])     // operações em grupo de parcelas
 }
 
 model Goal {

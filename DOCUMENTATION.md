@@ -1,5 +1,5 @@
 ﻿# Lyfx — Documentação Técnica
-> Life Fixed · v1.14.0 · Junho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
+> Life Fixed · v1.14.1 · Julho 2026 · [Política de versionamento → VERSIONING.md](./VERSIONING.md)
 
 ---
 
@@ -1065,8 +1065,9 @@ Painel administrativo protegido por senha separada da sessão do usuário.
 
 #### Autenticação e sessão
 
-- **Senha**: configurada em `.env` → `ADMIN_SECRET`. Comparação direta (sem hash) — segredo de operação
-- **Cookie**: `lyfx_admin` com `httpOnly: true`, `sameSite: lax`, expiração 2 horas, `path: "/studio"` (não vaza para outras rotas)
+- **Senha**: configurada em `.env` → `ADMIN_SECRET`. Comparação com `timingSafeEqual` — segredo de operação
+- **Cookie**: `lyfx_admin` HMAC-assinado (v1.14.1) — formato `{expiresAtMs}.{HMAC-SHA256(lyfx_admin.{expiresAtMs}, SESSION_SECRET)}`. `httpOnly: true`, `sameSite: lax`, 2 horas, `path: "/studio"`. Infalsificável, expira server-side; revogação global via rotação de `SESSION_SECRET`
+- **Módulos**: `app/studio/actions.ts` é barrel de re-export — código real em `auth.ts`, `users.ts`, `data.ts`, `config.ts`, `notifications.ts`, `events.ts`, `board.ts`, `system-info.ts` (v1.14.1)
 - **Acesso**: `/studio` — independente da sessão do app principal; acessível via link discreto na página `/login`
 - **Logout**: limpa `lyfx_admin` (com `path: "/studio"`) **e** `lyfx_session` (com `path: "/"`) simultaneamente → redireciona para `/` via `redirect()` no server action (sem flash de tela)
 - **Login form**: botão `← Login` no topo esquerdo navega para `/login`
@@ -1394,6 +1395,10 @@ GET /api/auth/google/callback?code=...&state=...
   5. createSession() → cookie HMAC → redirect /dashboard
   6. Em caso de erro → redirectWithOAuthError() (flash cookie, não URL param)
 ```
+
+**Proteção contra account takeover via linking (v1.14.1)**:
+- **Google**: linking por email exige `email_verified === true` no userinfo — sem isso, redireciona com erro `email_not_verified`
+- **Microsoft**: linking por email usa **apenas** o claim `email`; `preferred_username` (UPN mutável pelo tenant) serve só como display/criação, nunca para vincular a conta existente
 
 **Microsoft especificidade**: usa `claims.oid` (Object ID) como `providerUserId` — mais estável que `sub` (que muda entre tenants). Requer permissão `User.Read` delegada no Azure.
 

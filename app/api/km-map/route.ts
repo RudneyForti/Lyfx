@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
     try {
       const dirParams = new URLSearchParams({ origin: orig, destination: dest, key: apiKey });
       const dirRes = await fetch(
-        `https://maps.googleapis.com/maps/api/directions/json?${dirParams.toString()}`
+        `https://maps.googleapis.com/maps/api/directions/json?${dirParams.toString()}`,
+        { signal: AbortSignal.timeout(5000) }
       );
       if (dirRes.ok) {
         const dirData = await dirRes.json();
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
 
   const url = `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return NextResponse.json({ error: "Google Maps retornou erro" }, { status: 502 });
     const buf = await res.arrayBuffer();
     return new NextResponse(buf, {
