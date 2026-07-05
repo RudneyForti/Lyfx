@@ -39,16 +39,24 @@ export async function GET(request: NextRequest) {
     // Busca dados do usuário na Google UserInfo API
     const userInfoRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
       headers: { Authorization: `Bearer ${tokens.accessToken()}` },
+      signal: AbortSignal.timeout(5000),
     });
     if (!userInfoRes.ok) throw new Error("Falha ao buscar dados do Google.");
 
     const userInfo = await userInfoRes.json() as {
-      sub:   string;
-      name:  string;
-      email: string;
+      sub:             string;
+      name:            string;
+      email:           string;
+      email_verified?: boolean;
     };
 
     const { sub, name, email } = userInfo;
+
+    // Account linking por email exige email verificado pelo provider —
+    // sem isso, um email forjado vincularia a sessão à conta de outro usuário.
+    if (userInfo.email_verified !== true) {
+      return redirectWithOAuthError(request.url, "email_not_verified");
+    }
 
     const userId = await findOrCreateOAuthUser({ provider: "google", providerUserId: sub, name, email });
 

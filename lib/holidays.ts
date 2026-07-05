@@ -14,7 +14,7 @@ export async function getHolidays(year: number): Promise<Set<string>> {
   try {
     const res = await fetch(
       `https://brasilapi.com.br/api/feriados/v1/${year}`,
-      { next: { revalidate: 86400 } } // cache Next.js por 24h
+      { next: { revalidate: 86400 }, signal: AbortSignal.timeout(5000) } // cache Next.js 24h
     );
     if (!res.ok) return new Set();
     const data: Array<{ date: string; name: string; type: string }> = await res.json();

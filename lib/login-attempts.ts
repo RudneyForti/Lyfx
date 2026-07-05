@@ -127,6 +127,7 @@ export async function verifyCaptcha(token: string): Promise<boolean> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ secret: secretKey, response: token }),
+      signal: AbortSignal.timeout(5000),
     });
     const data = (await res.json()) as { success: boolean };
     return data.success === true;
