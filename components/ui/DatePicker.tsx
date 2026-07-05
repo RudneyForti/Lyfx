@@ -68,13 +68,15 @@ export function DatePicker({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Sync viewing month when value changes externally
-  useEffect(() => {
+  // Sync viewing month when value changes externally — setState during
+  // render with prev tracking (React docs pattern), not an effect
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     if (selected) {
       setViewing({ year: selected.getFullYear(), month: selected.getMonth() });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }
 
   // Close on outside click
   useEffect(() => {

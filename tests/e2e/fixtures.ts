@@ -26,6 +26,7 @@ export const test = base.extend({
     // Cloudflare Turnstile → blocked (login uses dev bypass without secret)
     await page.route("**://challenges.cloudflare.com/**", (route) => route.abort());
 
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture `use`, not a React hook
     await use(page);
   },
 });

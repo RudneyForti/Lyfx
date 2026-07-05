@@ -79,8 +79,13 @@ export function CountrySelect({ value, onChange, placeholder = "Ex: Brasil" }: P
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Keep query in sync when value changes from outside
-  useEffect(() => { setQuery(value); }, [value]);
+  // Keep query in sync when value changes from outside — setState during
+  // render with prev tracking (React docs pattern), not an effect
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setQuery(value);
+  }
 
   // Close on outside click
   useEffect(() => {

@@ -325,7 +325,7 @@ const SECTIONS: Section[] = [
               Transações mensais aparecem em todos os meses futuros. Transações anuais aparecem apenas no mês correspondente. Parcelas com data de encerramento somem automaticamente quando terminam.
             </p>
             <Callout type="info">
-              O valor "livre" em cada mês das Projeções é a diferença entre receitas e despesas comprometidas. É o teto máximo de gastos não planejados naquele mês.
+              O valor &quot;livre&quot; em cada mês das Projeções é a diferença entre receitas e despesas comprometidas. É o teto máximo de gastos não planejados naquele mês.
             </Callout>
             <div className="bg-[var(--color-bg3)] border border-[var(--color-border)] rounded-[12px] p-4">
               <div className="text-[10px] font-bold tracking-[1.8px] uppercase text-[var(--color-f4)] mb-3">Como usar as projeções</div>

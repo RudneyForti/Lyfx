@@ -270,8 +270,11 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
   // CS-36: ler erro OAuth do cookie flash (URL permanece limpa)
   const [oauthError, setOauthError] = useState<string | null>(null);
   useEffect(() => {
+    // Hydration-safe by design: document.cookie only exists client-side —
+    // the sync setState after hydration is intentional.
     const match = document.cookie.match(/(?:^|;\s*)oauth_error=([^;]+)/);
     if (match) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOauthError(decodeURIComponent(match[1]));
       // apaga o cookie imediatamente
       document.cookie = "oauth_error=; max-age=0; path=/";
@@ -298,7 +301,10 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
   // CS-16: detectar idioma do localStorage (set pela LandingPage)
   const [lang, setLang] = useState<Lang>("pt");
   useEffect(() => {
+    // Hydration-safe by design: localStorage only exists client-side —
+    // a lazy initializer would cause an SSR/client markup mismatch.
     const stored = localStorage.getItem("lyfx-lang");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stored === "pt" || stored === "en" || stored === "es") setLang(stored);
   }, []);
 
