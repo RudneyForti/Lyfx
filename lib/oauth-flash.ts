@@ -10,9 +10,10 @@ import { NextResponse } from "next/server";
 export const OAUTH_ERROR_COOKIE = "oauth_error";
 
 const MESSAGES: Record<string, string> = {
-  missing_params:  "Link expirado ou inválido. Tente novamente.",
-  state_mismatch:  "Link expirado ou inválido. Tente novamente.",
-  failed:          "Não foi possível autenticar com o provedor. Tente novamente.",
+  missing_params:     "Link expirado ou inválido. Tente novamente.",
+  state_mismatch:     "Link expirado ou inválido. Tente novamente.",
+  failed:             "Não foi possível autenticar com o provedor. Tente novamente.",
+  email_not_verified: "Seu email não está verificado no provedor. Verifique-o e tente novamente.",
 };
 
 export function redirectWithOAuthError(baseUrl: string, code: keyof typeof MESSAGES): NextResponse {
