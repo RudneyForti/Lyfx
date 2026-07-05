@@ -1,169 +1,108 @@
-# Lyfx — Git Workflow
-> Branch structure and deployment process
-> Updated: 2026-07-03
+# Lyfx — Git Workflow (GitHub Flow)
+> Branch structure and deployment process — LC standard
+> Updated: 2026-07-05 · Replaces the master/develop model (retired at v1.14.1)
 
 ---
 
 ## Overview
 
-Lyfx uses **two permanent branches** — nothing else appears on GitHub outside of an active working session.
+Lyfx uses **GitHub Flow**: one permanent branch and short-lived feature branches.
 
 ```
-master   ← production (stable — what is live)
-develop  ← development (where all work happens)
+main              ← the only permanent branch. Always deployable.
+feature/<slug>    ← born from main, dies at merge (via Pull Request)
+fix/<slug>
+refactor/<slug>
+chore/<slug>
 ```
 
----
-
-> **Note — team projects (e.g. Limiar Core):** use **GitHub Flow** (1 permanent branch). Feature branches born from `main`, PR goes directly to `main`, branch deleted after merge. No `develop` intermediary. See [Reviewer rules](#reviewer-rules) in AGENTS.md.
+**Every merge into `main` happens via Pull Request. No exceptions.**
 
 ---
 
-## CI/CD Pipeline
+## Why GitHub Flow?
 
-**Rule:** optional during internal/pre-client development. **Mandatory from the first active client onward** — no exceptions.
-
-When active, the pipeline must:
-- Run the full test suite on every push and PR (integration, feature, unit)
-- Block PR merge if any test fails
-- Block PR merge if coverage thresholds are not met (Integration 100% · Feature 100% · Unit 80%)
-- Run on GitHub Actions (or equivalent)
-
-The deploy flow must be documented and automated, including test execution as a required gate.
-
----
-
-## Docker
-
-Every project must have a `Dockerfile` and `docker-compose.yml` configured for the full stack (server, database, and any other services the project depends on).
-
-**Key rule: same container configuration for development and production** — no environment-specific Dockerfiles.
-
-**Hot reload required:** development containers must be configured with volume mounts so source code changes reflect immediately without rebuilding the image. Example for a Node/Next.js service:
-
-```yaml
-volumes:
-  - .:/app
-  - /app/node_modules
-```
-
-Agent NEO creates `Dockerfile` and `docker-compose.yml` at project setup. If they are missing from an existing project, opening a CS to add them is mandatory before the first client goes live.
-
----
-
-## Branch lifecycle — team projects (GitHub Flow)
-
-Feature and fix branches are **temporary by definition** — they exist only for the duration of a change.
-
-### After merge: always delete
-
-```bash
-# Local
-git branch -d feature/branch-name
-
-# Remote
-git push origin --delete feature/branch-name
-```
-
-**GitHub setting (recommended):** enable **"Automatically delete head branches"** in repository Settings → General. GitHub deletes the remote branch immediately after merge — no manual step needed.
-
-The market standard is zero leftover branches. A repository with dozens of stale branches is a navigation and cognitive overhead problem — branches that survive a merge have no purpose.
-
-### Rule
-- Branch born from `main` → developed → PR opened → approved → merged → **deleted immediately**
-- No branch survives its own merge, local or remote
-
----
-
-## Why two branches?
-
-| Scenario | master | develop |
-|----------|--------|---------|
-| Code currently in use | ✅ | ✅ |
-| Work in progress | ❌ | ✅ |
-| Where agents implement | ❌ | ✅ (via working branch) |
-| Direct commit allowed | ❌ | ❌ |
-| Advances via merge from | `develop` | working branch |
+| Principle | Practice |
+|-----------|----------|
+| `main` is always deployable | CI must pass before any merge |
+| Work is isolated | Every change lives on its own branch |
+| Review is the gate | PR + checklist + CI replace the old E5/E6 approval chain |
+| History stays clean | Branches are deleted at merge — zero leftovers |
+| Release = tag | Production advances by tagging `main`, not by merging branches |
 
 ---
 
 ## Full session flow
 
-### 1. Session start — agent branches from `develop`
+### 1. Session start — branch from `main`
 
 ```bash
-git checkout develop
-git pull origin develop
-git checkout -b feature/feature-name   # or fix/bug-name
+git checkout main
+git pull origin main
+git checkout -b feature/feature-name   # or fix/ chore/ refactor/
 ```
 
 ### 2. Implementation — commits on the working branch
 
-Agent 1 prepares the commit block. **The user executes the commands.**
+Conventional Commits format (see below). Commit early, commit often.
+
+### 3. QA — Agent Smith validates
+
+Server runs on the working branch (port 3000). Smith audits and reports APPROVED or BLOCKED.
+
+### 3.5. Code review — before the PR
+
+Agent NEO runs the `/code-review` skill on all changes. No PR is opened until the review completes without CRITICAL findings.
+
+### 4. Push + open the Pull Request
 
 ```bash
-# Agent prepares and delivers this block — user runs it
-git add <files>
-git commit -m "feat(scope): short description
-
-- detail line
-- detail line"
+git push -u origin feature/feature-name
+gh pr create --title "feat(scope): short description" --fill
 ```
 
-See [Conventional Commits](#conventional-commits) for message format.
+The PR template checklist must be filled. CI runs automatically on the PR.
 
-### 3. QA — Agent Smith validates in the browser
+### 5. Review and merge — in the GitHub UI
 
-Server runs on the working branch. Agent Smith confirms behavior and reports back.
+- CI green + checklist complete → **Squash and merge** (or Merge commit for multi-commit history worth preserving)
+- GitHub deletes the remote branch automatically (repo setting)
+- Delete the local branch: `git branch -d feature/feature-name`
 
-### 3.5. Code review — before commit block
+### 6. Release — tag on `main`
 
-After QA, Agent NEO runs the `/code-review` skill on all recent changes. Checks for N+1 queries, missing tests, security issues, and convention violations. No commit block is prepared until the review completes without CRITICAL findings.
-
-### 4. Approval — user confirms in chat
-
-Without explicit approval, no commit block is prepared. No exceptions.
-
-### 5. Merge into `develop` — working branch is deleted
-
-**Agent NEO prepares this block — user executes it:**
+When a batch of merged PRs is ready for production:
 
 ```bash
-git checkout develop
-git merge feature/feature-name --no-ff -m "chore(merge): feature/feature-name → develop"
-git push origin develop
-
-# Delete immediately — local and remote
-git branch -d feature/feature-name
-git push origin --delete feature/feature-name
+git checkout main && git pull origin main
+# E7 checklist first (versioning + docs), then:
+git tag vX.X.X
+git push origin main --tags
 ```
 
-**Result on GitHub:** only `master` and `develop` are visible. Nothing else.
-
-### 6. Pull Request
-
-Agent 1 opens a PR using `gh pr create` with the standard template.
-The user reviews and merges when ready.
+### 7. Deploy — production worktree pulls `main`
 
 ```bash
-gh pr create \
-  --title "feat(scope): short description" \
-  --body "$(cat .github/pull_request_template.md)"
+cd C:/Users/rudne/projetos/lyfx-production
+git pull origin main
+# if the release included schema changes:
+npx prisma db push
 ```
 
-### 7. Release — user decides when to go to production
+Production only moves when **you** run the pull. Merging a PR does not auto-deploy.
 
-When the batch is tested and approved:
+---
 
-```bash
-git checkout master
-git merge develop --no-ff -m "release: vX.X.Y — summary"
-git tag vX.X.Y
-git push origin master --tags
-git checkout develop
-git merge master --no-ff -m "chore: sync develop after release vX.X.Y"
-git push origin develop
-```
+## Local environments
+
+| Environment | Directory | Branch | Port | Database |
+|-------------|-----------|--------|------|----------|
+| Development | `lyfx/` | current feature branch | 3000–3009 | `lyfx_dev` (container `lyfx-db-dev`, host port 5433) |
+| Production | `lyfx-production/` | `main` (pinned) | 4000–4009 | `lyfx_prod` (container `lyfx-db-prod`, host port 5434) |
+
+**Critical rule:** never point `lyfx-production/.env` at the dev database.
+
+**npm sync rule:** whenever a package is installed/removed in `lyfx/`, replicate in `lyfx-production/`.
 
 ---
 
@@ -184,212 +123,76 @@ Format: `type(scope): subject`
 | `revert` | Reverts a previous commit |
 
 **Breaking change:** append `!` after type → `feat!: redesign auth API`
-
-**Scope examples:** `auth`, `studio`, `transactions`, `km`, `goals`, `dashboard`, `schema`
-
-**Subject rules:**
-- Lowercase, no period at the end
-- Imperative mood: `add`, `fix`, `remove` — not `added`, `fixes`, `removed`
-- Max 72 characters
-
-**Full example:**
-```
-feat(studio): add field descriptions to all schema models
-
-- Map FIELD_DESCRIPTIONS for all 28 tables
-- Fix installmentGroupId key in Transaction
-- Remove non-existent completedAt from Goal
-```
+**Subject rules:** lowercase, imperative mood, no trailing period, max 72 chars.
 
 ---
 
-## Commit block format
+## Pull Request rules
 
-Every time a commit is ready, Agent NEO delivers this block. The user runs the commands.
-
-```
-### ✅ Ready to commit
-
-**Files to stage:**
-git add path/to/file
-
-**Commit message:**
-type(scope): subject
-
-- detail
-- detail
-
-**Run these commands in order:**
-git add <files>
-git commit -m "type(scope): subject
-
-- detail
-- detail"
-git push origin branch-name
-```
+- Template: `.github/pull_request_template.md` — checklist is mandatory
+- CI (`.github/workflows/ci.yml`) must be green before merge
+- Solo flow: self-review allowed after Agent Smith QA approval
+- Reviewers resolve via `.github/CODEOWNERS`
+- **"Automatically delete head branches"** must stay enabled in repo Settings → General
 
 ---
 
-## Production worktree
+## Branch lifecycle
 
-The production environment runs in a separate worktree at `../lyfx-production` (branch `master`, port 4000).
-
-**Initial setup — run once:**
-
-```bash
-cd C:/Users/rudne/projetos/lyfx-production
-npm install
-npx prisma generate
-npx prisma db push
-```
-
-**Sync rule:** whenever `npm install` or `npm uninstall` runs in `lyfx/`, replicate in `lyfx-production/`:
-
-```bash
-cd C:/Users/rudne/projetos/lyfx && npm install <package>
-cd C:/Users/rudne/projetos/lyfx-production && npm install <package>
-```
-
----
-
-## Database isolation
-
-Each environment has its own `.env` (gitignored — never tracked) pointing to its exclusive database:
-
-| Environment | `.env` file | `DATABASE_URL` | Database |
-|-------------|-------------|----------------|----------|
-| Development | `lyfx/.env` | `file:./dev.db` | `lyfx/dev.db` — test data, freely resettable |
-| Production | `lyfx-production/.env` | `file:./prod.db` | `lyfx-production/prod.db` — real user data |
-
-**Critical rule:** never change `DATABASE_URL` in `lyfx-production/.env` to point to `dev.db`.
-
----
-
-## Port conventions
-
-| Environment | Branch | Port range | Command |
-|-------------|--------|------------|---------|
-| Development | `develop` + working branches | 3000–3009 | `npm run dev -- --port 3000` |
-| Production | `master` | 4000–4009 | `npm run dev -- --port 4000` |
-
----
-
-## Timeline diagram
+Feature branches are **temporary by definition**.
 
 ```
-develop  ──●──────────────────●──────────────── (batch merge) ──►
-            │                 │                       │
-            └─ fix/cs-01 ─────┘ (deleted)             │
-               feature/cs-06 ──────────────────────────┘ (deleted)
-
-master   ──────────────────────────────────────────────●─────────►
-                                                  (approved release)
+main ──●───────────────●──────────────●──── (tag vX.X.X) ──►
+        \             /│\            /
+         feature/a ──● │ fix/b ─────●   ← PRs; branches deleted at merge
+                       │
+                  (CI on every PR)
 ```
+
+- Born from `main` → developed → PR → CI green → merged → **deleted immediately**
+- No branch survives its own merge, local or remote
 
 ---
 
 ## Inviolable rules
 
-1. **Never commit directly to `master`** — no exceptions
-2. **Never commit directly to `develop`** — always via working branch + merge
-3. **Delete branches after merge** — immediately, local and remote
-4. **Always use `--no-ff`** on merges — preserves history
-5. **`master` advances only via `develop`** — never from a working branch directly
-6. **Release only with explicit approval** — agent never merges `develop → master` autonomously
-7. **Every master merge requires updated documentation** — `DOCUMENTATION.md` and `docs/FEATURES.md` before merge
-8. **Every new feature requires a test plan** — update `docs/QA-TEST-PLAN.md` before master merge
-9. **`docs/DOC-INDEX.md` is mandatory on every merge** — reflect any new file, rename, or archive
+1. **Never commit directly to `main`** — every change enters via PR
+2. **Never merge a PR with red CI**
+3. **Delete branches after merge** — remote is automatic, local is manual
+4. **`main` is always deployable** — if a merge breaks it, fixing it is priority zero
+5. **Release only with explicit approval** — tagging is a human decision
+6. **Every release requires updated documentation** — see E7 checklist
+7. **Schema changes in a release require `prisma db push` on production**
 
 ---
 
-## E7 — Release checklist (develop → master)
+## E7 — Release checklist (tag on main)
 
-Run in this order. No step is optional.
+Run in this order before tagging. No step is optional.
 
-### 1. Determine the new version
-
-Check `VERSIONING.md` to decide PATCH, MINOR, or MAJOR based on what is in the batch.
-
-### 2. Update `package.json`
-
-```json
-"version": "X.X.X"
-```
-
-### 3. Update `README.md`
-
-**Version badge:**
-```markdown
-![Version](https://img.shields.io/badge/version-X.X.X-22D3EE?style=flat-square)
-```
-
-**Footer:**
-```markdown
-*vX.X.X · Month Year · Personal project in active development.*
-```
-
-**Module table** — add a row if the batch included a new module.
-
-### 4. Update `VERSIONING.md`
-
-Add a row to the history table:
-```markdown
-| `X.X.X` | PATCH/MINOR/MAJOR | What was built in this batch |
-```
-
-### 5. Update `DOCUMENTATION.md`
-
-Update only the sections touched by the batch:
-- New module → routes, Server Actions, Prisma schema, calculation formulas, data flow
-- Auth change → update "Authentication and Session"
-- New schema field → update "Database Schema" with the full annotated model
-- New external integration → document endpoint, parameters, expected response, gotchas
-- New architectural decision → add to "Architectural Decisions" with technical rationale
-
-### 6. Update `docs/FEATURES.md`
-
-Audience: analysts, managers, users in onboarding — non-technical language.
-
-Update only the sections touched by the batch:
-- New feature → new chapter: what it does, how to use it, where data goes, module interactions, user value
-- Modified feature → update description, flow, and impacts
-- Do not mention routes, Prisma, code, or variable names in this document
-
-### 7. Update `docs/QA-TEST-PLAN.md` *(required if batch includes a new feature)*
-
-For each new feature, add a section with:
-- Test scenarios (happy path + edge cases)
-- Measurable acceptance criteria
-- Reproduction steps for Agent Smith
-
-### 8. Update `docs/DOC-INDEX.md` *(required on every merge)*
-
-- New document created → add row to the corresponding table
-- Document moved or renamed → update path
-- Document archived → move row to the archive section
-- Document version changed → update the Version column
-
-### 9. Merge, tag, and sync
-
-**Agent NEO prepares this block — user executes it:**
+1. **Version** — decide PATCH / MINOR / MAJOR via `VERSIONING.md` + SemVer tree
+2. **`package.json`** — bump version
+3. **`README.md`** — version badge + footer
+4. **`VERSIONING.md`** — add history row
+5. **`DOCUMENTATION.md`** — header + affected sections
+6. **`docs/FEATURES.md`** — affected features (non-technical language)
+7. **`docs/QA-TEST-PLAN.md`** — required if the batch includes a new feature
+8. **`docs/DOC-INDEX.md`** — required on every release
+9. **Commit the bump via PR**, merge, then tag:
 
 ```bash
-git checkout master
-git merge develop --no-ff -m "release: vX.X.X — batch summary"
+git checkout main && git pull origin main
 git tag vX.X.X
-git push origin master --tags
-git checkout develop
-git merge master --no-ff -m "chore: sync develop after release vX.X.X"
-git push origin develop
+git push origin --tags
 ```
+
+10. **Deploy:** pull `main` in `lyfx-production/` + `prisma db push` if schema changed
 
 ---
 
-## Current state (2026-07-03)
+## Migration note (2026-07-05)
 
-| Branch | Version | Contents |
-|--------|---------|----------|
-| `master` | v1.11.0 | CS-01 through CS-30 implemented and QA approved |
-| `develop` | v1.11.2 | CS-23 Docker complete — pending release to master |
-
-Next planned releases: `v1.12.0` — Studio Roadmap/Backlog (CS-20) · `v1.13.0` — OFX/CSV import (CS-21).
+The previous model (`master` + `develop`, direct `--no-ff` merges, no PRs) was retired
+at v1.14.1 as part of the Limiar Core standardization. `master` was renamed to `main`;
+`develop` was deleted after full synchronization. History is preserved — every release
+tag up to v1.14.1 predates this migration.
