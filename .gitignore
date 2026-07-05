@@ -55,3 +55,10 @@ dev-server.log
 docs/Base de Conhecimento/
 .claude/agents/Agent_Smith/Base de Conhecimento/
 *.sql
+
+# playwright
+/test-results/
+/playwright-report/
+
+# vitest
+/coverage/
