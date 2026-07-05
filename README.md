@@ -8,7 +8,7 @@
 ![Docker](https://img.shields.io/badge/Docker-containerizado-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
-![Version](https://img.shields.io/badge/version-1.14.0-22D3EE?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.14.1-22D3EE?style=flat-square)
 
 ---
 
@@ -86,4 +86,4 @@ Para detalhes completos sobre arquitetura, schema do banco, relacionamentos, cat
 
 ---
 
-*v1.14.0 · Junho 2026 · Projeto pessoal em desenvolvimento ativo.*
+*v1.14.1 · Julho 2026 · Projeto pessoal em desenvolvimento ativo.*
