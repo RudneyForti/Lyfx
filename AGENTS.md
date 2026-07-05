@@ -60,7 +60,7 @@ feature/<slug>    ← born from main, dies at merge (via Pull Request)
 
 | Stage | Owner | Action |
 |-------|-------|--------|
-| **E3 — Implement** | Agent NEO | Create working branch from `main`: `git checkout main && git pull && git checkout -b feature/name` |
+| **E3 — Implement** | Agent NEO | Create working branch from `origin/main`: `git fetch origin && git checkout -b feature/name origin/main` (the dev workspace never checks out `main` — it is pinned to the production worktree) |
 | **E4 — QA** | Agent Smith | Validates in the browser. Reports APPROVED or BLOCKED before any PR. |
 | **E4.5 — Code Review** | Agent NEO | Runs `/code-review` skill on all changes before opening the PR. Checks N+1 queries, missing tests, security issues, and convention violations. No PR is opened if CRITICAL findings remain open. |
 | **E5 — Approval** | Human | User explicitly approves in chat. No approval = no PR opened. |

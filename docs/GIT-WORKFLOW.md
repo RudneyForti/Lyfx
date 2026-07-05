@@ -34,13 +34,16 @@ chore/<slug>
 
 ## Full session flow
 
-### 1. Session start — branch from `main`
+### 1. Session start — branch from `origin/main`
 
 ```bash
-git checkout main
-git pull origin main
-git checkout -b feature/feature-name   # or fix/ chore/ refactor/
+git fetch origin --prune
+git checkout -b feature/feature-name origin/main   # or fix/ chore/ refactor/
 ```
+
+> **Why not `git checkout main`?** The `main` branch is pinned to the production
+> worktree (`lyfx-production/`) — git refuses to check it out twice. The dev
+> workspace always branches directly from `origin/main`, never holds `main` locally.
 
 ### 2. Implementation — commits on the working branch
 
@@ -69,22 +72,16 @@ The PR template checklist must be filled. CI runs automatically on the PR.
 - GitHub deletes the remote branch automatically (repo setting)
 - Delete the local branch: `git branch -d feature/feature-name`
 
-### 6. Release — tag on `main`
+### 6–7. Release + Deploy — tag and pull from the production worktree
 
-When a batch of merged PRs is ready for production:
-
-```bash
-git checkout main && git pull origin main
-# E7 checklist first (versioning + docs), then:
-git tag vX.X.X
-git push origin main --tags
-```
-
-### 7. Deploy — production worktree pulls `main`
+`main` lives checked out in `lyfx-production/` — tagging and deploying happen there:
 
 ```bash
 cd C:/Users/rudne/projetos/lyfx-production
-git pull origin main
+git pull origin main          # deploy: brings the merged PRs into production
+# E7 checklist first (versioning + docs via PR), then:
+git tag vX.X.X
+git push origin --tags
 # if the release included schema changes:
 npx prisma db push
 ```
@@ -178,15 +175,16 @@ Run in this order before tagging. No step is optional.
 6. **`docs/FEATURES.md`** — affected features (non-technical language)
 7. **`docs/QA-TEST-PLAN.md`** — required if the batch includes a new feature
 8. **`docs/DOC-INDEX.md`** — required on every release
-9. **Commit the bump via PR**, merge, then tag:
+9. **Commit the bump via PR**, merge, then tag and deploy from the production worktree:
 
 ```bash
-git checkout main && git pull origin main
+cd C:/Users/rudne/projetos/lyfx-production
+git pull origin main
 git tag vX.X.X
 git push origin --tags
 ```
 
-10. **Deploy:** pull `main` in `lyfx-production/` + `prisma db push` if schema changed
+10. **Deploy finish:** `prisma db push` in `lyfx-production/` if the batch changed the schema
 
 ---
 
