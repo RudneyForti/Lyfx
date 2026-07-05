@@ -495,6 +495,10 @@ export function LandingPage({ version = "1.0.0" }: { version?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
+    // Hydration-safe by design: detectLang() reads localStorage/navigator,
+    // so it must run AFTER hydration — a lazy initializer would cause an
+    // SSR/client markup mismatch. The sync setState here is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLang(detectLang());
   }, []);
 

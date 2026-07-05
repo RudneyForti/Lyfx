@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { createElement, useState, useTransition } from "react";
 import { IconPlus, IconTrash, IconCheck, IconX, IconPencil } from "@tabler/icons-react";
 import { createTag, updateTag, deleteTag } from "@/app/actions/tags";
 import { TAG_ICONS, TAG_COLORS, getTagIcon, type TagIconKey } from "@/lib/tag-icons";
@@ -36,7 +36,9 @@ function TagForm({
     onSave({ name: name.trim(), color, icon });
   }
 
-  const PreviewIcon = getTagIcon(icon);
+  // Selecting an existing icon component (not defining one) — render via
+  // createElement so react-hooks/static-components doesn't misread it
+  const previewIconEl = createElement(getTagIcon(icon), { size: 11 });
 
   return (
     <div className="bg-[var(--color-bg2)] border border-[var(--color-border2)] rounded-[12px] p-5 flex flex-col gap-4">
@@ -81,7 +83,7 @@ function TagForm({
       <div className="flex flex-col gap-1.5">
         <label className="text-[11px] font-medium text-[var(--color-f2)]">Ícone</label>
         <div className="flex gap-1.5 flex-wrap">
-          {(Object.entries(TAG_ICONS) as [TagIconKey, any][]).map(([key, Icon]) => (
+          {(Object.entries(TAG_ICONS) as [TagIconKey, (typeof TAG_ICONS)[TagIconKey]][]).map(([key, Icon]) => (
             <button
               key={key}
               type="button"
@@ -108,7 +110,7 @@ function TagForm({
           className="flex items-center gap-1 pl-2.5 pr-3 py-1 rounded-full text-[12px] font-medium border"
           style={{ color, borderColor: `${color}44`, backgroundColor: `${color}14` }}
         >
-          <PreviewIcon size={11} />
+          {previewIconEl}
           {name || "Nome da tag"}
         </span>
       </div>

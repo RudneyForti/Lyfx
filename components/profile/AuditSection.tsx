@@ -67,8 +67,8 @@ export function AuditSection() {
   const [logs, setLogs]       = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // loading starts true — no sync setState needed inside the mount effect
   async function load() {
-    setLoading(true);
     try {
       const data = await getAuditLogs();
       setLogs(data);
@@ -77,7 +77,7 @@ export function AuditSection() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   return (
     <div className="flex flex-col gap-4">

@@ -119,7 +119,7 @@ export function FixedExpensesView({ allTransactions }: Props) {
         <IconCalendarDue size={40} className="text-[var(--color-f4)] mb-4" />
         <div className="text-[14px] font-medium text-[var(--color-f2)] mb-2">Nenhuma conta fixa registrada</div>
         <div className="text-[12px] text-[var(--color-f4)] max-w-xs">
-          Ao cadastrar uma transação com recorrência "Todo mês" ou "Todo ano", ela aparecerá aqui.
+          Ao cadastrar uma transação com recorrência &quot;Todo mês&quot; ou &quot;Todo ano&quot;, ela aparecerá aqui.
         </div>
       </div>
     );

@@ -760,7 +760,7 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
             }}
           >
             <span style={{ flex: 1, color: "var(--color-f2)" }}>
-              Confirmar quitação de "{liability.name}"?
+              Confirmar quitação de &quot;{liability.name}&quot;?
             </span>
             <button
               onClick={handleMarkPaid}
@@ -811,7 +811,7 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
             }}
           >
             <span style={{ flex: 1, color: "var(--color-f2)" }}>
-              Excluir "{liability.name}"? Esta ação não pode ser desfeita.
+              Excluir &quot;{liability.name}&quot;? Esta ação não pode ser desfeita.
             </span>
             <button
               onClick={handleDelete}
@@ -862,7 +862,7 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
             }}
           >
             <span style={{ flex: 1, color: "var(--color-f2)" }}>
-              Reativar "{liability.name}"?
+              Reativar &quot;{liability.name}&quot;?
             </span>
             <button
               onClick={handleReactivate}

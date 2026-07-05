@@ -29,10 +29,13 @@ export function MonthPicker({ value, onChange, placeholder = "Selecione o mês",
     ? `${MONTHS_FULL[selMonth]} de ${selYear}`
     : "";
 
-  // Sync year display when value changes from outside
-  useEffect(() => {
+  // Sync year display when value changes from outside — setState during
+  // render with prev tracking (React docs pattern), not an effect
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     if (value) setYear(parseInt(value.split("-")[0]));
-  }, [value]);
+  }
 
   // Close on outside click
   useEffect(() => {

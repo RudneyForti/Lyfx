@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { markReimbursed, unmarkReimbursed } from "@/app/actions/transactions";
-import { Transaction } from "@/lib/types";
+import { Transaction, TransactionCategory } from "@/lib/types";
 import { getCategoryDef } from "@/lib/categories";
 import {
   IconCheck,
@@ -19,7 +19,7 @@ function fmt(v: number) {
 function ReimbursementRow({ tx }: { tx: Transaction }) {
   const [isPending, startTransition] = useTransition();
   const isPaid = !!tx.reimbursedAt;
-  const cat = getCategoryDef(tx.category as any);
+  const cat = getCategoryDef(tx.category as TransactionCategory);
   const date = new Date(tx.date);
   const reimbDate = tx.reimbursedAt ? new Date(tx.reimbursedAt as unknown as string) : null;
 
@@ -180,7 +180,7 @@ export function ReimbursementsView({ transactions }: { transactions: Transaction
             Nenhuma despesa reembolsável
           </div>
           <div className="text-[12px] text-[var(--color-f4)] max-w-xs">
-            Ao registrar uma transação marcada como "Reembolsável", ela aparecerá aqui para acompanhamento.
+            Ao registrar uma transação marcada como &quot;Reembolsável&quot;, ela aparecerá aqui para acompanhamento.
           </div>
         </div>
       )}

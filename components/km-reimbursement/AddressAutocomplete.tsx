@@ -33,8 +33,13 @@ function AutocompleteInner({ value, onChange, placeholder, className, required, 
   const serviceRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync when parent value changes (e.g. form reset)
-  useEffect(() => { setInputVal(value); }, [value]);
+  // Sync when parent value changes (e.g. form reset) — setState during
+  // render with prev tracking (React docs pattern), not an effect
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setInputVal(value);
+  }
 
   // Init Places service once maps is loaded
   useEffect(() => {

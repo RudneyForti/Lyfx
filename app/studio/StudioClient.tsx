@@ -1735,7 +1735,7 @@ function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; na
       )}
 
       {plans.length === 0 && !showCreate && (
-        <div style={{ color: "var(--color-f4)", fontSize: 13 }}>Nenhum plano criado ainda. Clique em "Criar plano Full" para começar.</div>
+        <div style={{ color: "var(--color-f4)", fontSize: 13 }}>Nenhum plano criado ainda. Clique em &quot;Criar plano Full&quot; para começar.</div>
       )}
 
       {plans.map(plan => (
@@ -1800,7 +1800,7 @@ function PlansTab({ plans, users }: { plans: PlanItem[]; users: { id: string; na
               {confirmDeleteId === plan.id && (
                 <div style={{ marginTop: 12, padding: "14px 16px", borderRadius: 8, background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.25)" }}>
                   <div style={{ fontSize: 12, color: "var(--color-red)", fontWeight: 600, marginBottom: 6 }}>
-                    Excluir "{plan.name}"
+                    Excluir &quot;{plan.name}&quot;
                     {plan.userCount > 0 && ` · ${plan.userCount} usuário${plan.userCount !== 1 ? "s" : ""} serão migrados`}
                   </div>
 
@@ -2125,7 +2125,7 @@ function ControlPanelTab({ appConfig, data }: { appConfig: AppConfigEntry[]; dat
 
   useEffect(() => {
     startMetrics(async () => { setMetrics(await getServerMetrics()); });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   function getValue(key: string) { return appConfig.find(c => c.key === key)?.value ?? ""; }
   const allowUserCreation = getValue("allowUserCreation") === "true";
@@ -2803,7 +2803,7 @@ function DataTab({ data }: { data: StudioData }) {
   // Initial load on mount
   useEffect(() => {
     loadEvents("all", "all", "all");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   function handleEventType(et: EventTypeFilter) {

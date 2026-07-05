@@ -144,13 +144,12 @@ export async function GET(
     })
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const element = React.createElement(PeriodPdfDocument, {
     period,
     config,
     userName,
     mapImages,
-  }) as any;
+  }) as React.ReactElement<import("@react-pdf/renderer").DocumentProps>;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer: any = await pdf(element).toBuffer();

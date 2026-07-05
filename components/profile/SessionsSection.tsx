@@ -32,8 +32,8 @@ export function SessionsSection() {
   const [msg, setMsg]               = useState<{ ok?: boolean; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // loading starts true — no sync setState needed inside the mount effect
   async function load() {
-    setLoading(true);
     try {
       const data = await getSessions();
       setSessions(data);
@@ -42,7 +42,7 @@ export function SessionsSection() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   function flash(ok: boolean, text: string) {
     setMsg({ ok, text });

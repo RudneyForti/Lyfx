@@ -199,7 +199,7 @@ function MapWithDirections({
   // Extract via_waypoints from saved route so DirectionsService reconstructs the custom path
   const savedWaypoints = useMemo(() => {
     if (!initialDirections) return undefined;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const viaPoints: Array<{ lat: number | (() => number); lng: number | (() => number) }> =
       (initialDirections as unknown as {
         routes: { legs: { via_waypoints: Array<{ lat: number | (() => number); lng: number | (() => number) }> }[] }[];
@@ -210,7 +210,7 @@ function MapWithDirections({
       const lng = typeof wp.lng === "function" ? (wp.lng as () => number)() : (wp.lng as number);
       return { location: { lat, lng }, stopover: false };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [initialDirections]);
 
   // Compute km balloon position — midpoint of the overview polyline.

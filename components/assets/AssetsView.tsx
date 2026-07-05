@@ -223,12 +223,17 @@ function ExpenseForm({
   const [isPending, start] = useTransition();
   const suggestions = EXPENSE_SUGGESTIONS[assetType as AssetType] ?? EXPENSE_SUGGESTIONS.other;
 
-  const [form, setForm] = useState({
-    type:    expense?.type ?? suggestions[0],
-    name:    expense?.name ?? "",
-    amount:  expense?.amount != null ? String(expense.amount) : "",
-    dueDate: expense?.dueDate ? new Date(expense.dueDate).toISOString().split("T")[0] : "",
-    notes:   expense?.notes ?? "",
+  const [form, setForm] = useState(() => {
+    const type = expense?.type ?? suggestions[0];
+    // [FIX B-1 revisited] default name resolved in the lazy initializer — no mount effect
+    const defaultName = ASSET_EXPENSE_TYPE_LABELS[type as AssetExpenseType] ?? type;
+    return {
+      type,
+      name:    expense?.name ?? defaultName,
+      amount:  expense?.amount != null ? String(expense.amount) : "",
+      dueDate: expense?.dueDate ? new Date(expense.dueDate).toISOString().split("T")[0] : "",
+      notes:   expense?.notes ?? "",
+    };
   });
 
   // Auto-preenche o nome quando o tipo muda e o nome ainda está vazio/igual a label anterior
@@ -240,15 +245,6 @@ function ExpenseForm({
       name: (!f.name || Object.values(ASSET_EXPENSE_TYPE_LABELS).includes(f.name)) ? label : f.name,
     }));
   }
-
-  // [FIX B-1] Initialize name via useEffect, not useState (no side-effects during render)
-  useEffect(() => {
-    if (!form.name) {
-      const label = ASSET_EXPENSE_TYPE_LABELS[form.type as AssetExpenseType] ?? form.type;
-      setForm((f) => ({ ...f, name: label }));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();

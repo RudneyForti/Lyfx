@@ -85,8 +85,12 @@ export function NotificationPanel({ unreadCount }: Props) {
     return () => document.removeEventListener("mousedown", handle);
   }, [open]);
 
-  // Sync badge on navigation
-  useEffect(() => { setLocalUnread(unreadCount); }, [unreadCount]);
+  // Sync badge on navigation — setState during render with prev tracking
+  const [prevUnread, setPrevUnread] = useState(unreadCount);
+  if (unreadCount !== prevUnread) {
+    setPrevUnread(unreadCount);
+    setLocalUnread(unreadCount);
+  }
 
   async function handleOpen() {
     const willOpen = !open;

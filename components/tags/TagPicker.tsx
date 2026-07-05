@@ -166,7 +166,7 @@ export function TagPicker({ initialTags, selectedTagIds, onChange }: Props) {
 
               {/* Icon palette */}
               <div className="flex gap-1 flex-wrap">
-                {(Object.entries(TAG_ICONS) as [TagIconKey, any][]).map(([key, Icon]) => (
+                {(Object.entries(TAG_ICONS) as [TagIconKey, (typeof TAG_ICONS)[TagIconKey]][]).map(([key, Icon]) => (
                   <button
                     key={key}
                     type="button"
