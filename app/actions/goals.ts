@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { parseLocalDate } from "@/lib/dates";
 import { requireAuth } from "@/lib/session";
 
 export async function getGoals() {
@@ -22,7 +23,7 @@ export async function createGoal(data: {
   icon: string;
 }) {
   const userId = await requireAuth();
-  const deadline = new Date(data.deadline);
+  const deadline = parseLocalDate(data.deadline);
   const now = new Date();
 
   // CS-05: rejeitar prazo no passado (comparar com início do mês atual)
