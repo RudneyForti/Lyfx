@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/session";
 import { db } from "@/lib/db";
+import { parseLocalDate } from "@/lib/dates";
 import { addBusinessDays } from "@/lib/km-utils";
 
 // ── Helper: busca polyline padrão via Directions API ──────────────────────────
@@ -245,8 +246,8 @@ export async function createKmPeriod(data: {
     data: {
       userId,
       name: data.name,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
+      startDate: parseLocalDate(data.startDate),
+      endDate: parseLocalDate(data.endDate),
       fuelType: data.fuelType ?? "gasoline",
       notes: data.notes ?? null,
     },
@@ -268,8 +269,8 @@ export async function updateKmPeriod(id: string, data: {
     where: { id },
     data: {
       name: data.name.trim(),
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
+      startDate: parseLocalDate(data.startDate),
+      endDate: parseLocalDate(data.endDate),
       notes: data.notes?.trim() ?? null,
     },
   });
@@ -310,7 +311,7 @@ export async function createKmRoute(data: {
     data: {
       userId,
       periodId: data.periodId,
-      date: new Date(data.date),
+      date: parseLocalDate(data.date),
       origin: data.origin,
       destination: data.destination,
       km: data.km,
@@ -383,7 +384,7 @@ export async function updateKmRoute(id: string, data: {
   await db.kmRoute.update({
     where: { id },
     data: {
-      date: new Date(data.date),
+      date: parseLocalDate(data.date),
       origin: data.origin,
       destination: data.destination,
       km: data.km,
@@ -420,7 +421,7 @@ export async function createKmReceipt(data: {
     data: {
       userId,
       periodId: data.periodId,
-      date: new Date(data.date),
+      date: parseLocalDate(data.date),
       fuelType: data.fuelType,
       liters: data.liters,
       totalAmount: data.totalAmount,
@@ -444,7 +445,7 @@ export async function updateKmReceipt(id: string, data: {
   await db.kmReceipt.update({
     where: { id },
     data: {
-      date: new Date(data.date),
+      date: parseLocalDate(data.date),
       fuelType: data.fuelType,
       liters: data.liters,
       totalAmount: data.totalAmount,
@@ -479,7 +480,7 @@ export async function createKmExpense(data: {
       userId,
       periodId: data.periodId,
       type: data.type,
-      date: new Date(data.date),
+      date: parseLocalDate(data.date),
       amount: data.amount,
       notes: data.notes ?? null,
     },

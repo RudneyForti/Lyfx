@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
+import { parseLocalDate } from "@/lib/dates";
 import { requireAuth } from "@/lib/session";
 import { TransactionCategory, TransactionType, DRESummary, Recurrence, Transaction } from "@/lib/types";
 
@@ -45,8 +46,8 @@ export async function createTransaction(data: {
       data: {
         ...rest,
         userId,
-        date: new Date(rest.date),
-        recurrenceEndsAt: recurrenceEndsAt ? new Date(recurrenceEndsAt) : undefined,
+        date: parseLocalDate(rest.date),
+        recurrenceEndsAt: recurrenceEndsAt ? parseLocalDate(recurrenceEndsAt) : undefined,
         tags: tagIds?.length
           ? { create: tagIds.map((tagId) => ({ tagId })) }
           : undefined,
@@ -105,7 +106,7 @@ export async function updateTransaction(
       where: { id, userId },
       data: {
         ...rest,
-        date: new Date(rest.date),
+        date: parseLocalDate(rest.date),
         tags:
           tagIds !== undefined
             ? { deleteMany: {}, create: tagIds.map((tagId) => ({ tagId })) }
@@ -213,7 +214,7 @@ export async function createInstallments(data: {
   const baseAmount = Math.floor((data.totalAmount / data.count) * 100) / 100;
   const lastAmount = Math.round((data.totalAmount - baseAmount * (data.count - 1)) * 100) / 100;
 
-  const firstDate = new Date(data.firstDate);
+  const firstDate = parseLocalDate(data.firstDate);
 
   const records = Array.from({ length: data.count }, (_, i) => {
     const date = new Date(firstDate.getFullYear(), firstDate.getMonth() + i, firstDate.getDate());

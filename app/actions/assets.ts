@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { parseLocalDate } from "@/lib/dates";
 import { requireAuth } from "@/lib/session";
 
 // [FIX M-1] Parse Brazilian decimal format: "1.234,56" → 1234.56
@@ -64,7 +65,7 @@ export async function createAsset(data: {
       plate: data.plate ?? null,
       purchaseValue: parseBR(data.purchaseValue),
       currentValue: parseBR(data.currentValue),
-      purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
+      purchaseDate: data.purchaseDate ? parseLocalDate(data.purchaseDate) : null,
       notes: data.notes ?? null,
     },
   });
@@ -94,7 +95,7 @@ export async function updateAsset(id: string, data: {
       purchaseValue: data.purchaseValue !== undefined ? parseBR(data.purchaseValue) : undefined,
       currentValue: data.currentValue !== undefined ? parseBR(data.currentValue) : undefined,
       purchaseDate: data.purchaseDate !== undefined
-        ? (data.purchaseDate ? new Date(data.purchaseDate) : null)
+        ? (data.purchaseDate ? parseLocalDate(data.purchaseDate) : null)
         : undefined,
     },
   });
@@ -130,7 +131,7 @@ export async function createAssetExpense(data: {
       name: data.name,
       type: data.type,
       amount: data.amount,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      dueDate: data.dueDate ? parseLocalDate(data.dueDate) : null,
       notes: data.notes ?? null,
     },
   });
@@ -151,7 +152,7 @@ export async function updateAssetExpense(id: string, data: {
     data: {
       ...data,
       dueDate: data.dueDate !== undefined
-        ? (data.dueDate ? new Date(data.dueDate) : null)
+        ? (data.dueDate ? parseLocalDate(data.dueDate) : null)
         : undefined,
     },
   });
