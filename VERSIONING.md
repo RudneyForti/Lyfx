@@ -1,5 +1,7 @@
 # Lyfx — Política de Versionamento
 
+> [Read in English](./VERSIONING.en.md)
+
 > Regra consolidada. Seguida por todos os contribuidores — humanos e agentes.
 
 ---
