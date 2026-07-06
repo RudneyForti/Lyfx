@@ -192,7 +192,7 @@ function MapWithDirections({
   // When true, DirectionsService runs without via_waypoints → shortest path
   const [useDefaultRoute, setUseDefaultRoute] = useState(false);
 
-  const requested = useRef(false);
+  const [requested, setRequested] = useState(false); // drives render — state, not ref
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const skipNextChange = useRef(false);
 
@@ -238,7 +238,7 @@ function MapWithDirections({
   const mounted = useRef(false);
   useEffect(() => {
     if (!mounted.current) { mounted.current = true; return; }
-    requested.current = false;
+    setRequested(false);
     skipNextChange.current = false;
     setDirections(null);
     setRouteKm(null);
@@ -331,7 +331,7 @@ function MapWithDirections({
           styles: isDarkStyle ? DARK_MAP_STYLES : NATURAL_MAP_STYLES,
         }}
       >
-        {origin && destination && !requested.current && (
+        {origin && destination && !requested && (
           <DirectionsService
             options={{
               destination,
@@ -343,7 +343,7 @@ function MapWithDirections({
                 : {}),
             }}
             callback={(r: google.maps.DirectionsResult | null, s: google.maps.DirectionsStatus) => {
-              requested.current = true;
+              setRequested(true);
               handleDirections(r, s);
             }}
           />
@@ -424,7 +424,7 @@ function MapWithDirections({
             <div className="h-1" />
             <ResetRouteBtn onClick={() => {
               setUseDefaultRoute(true);
-              requested.current = false;
+              setRequested(false);
               skipNextChange.current = false;
               setDirections(null);
               setRouteKm(null);

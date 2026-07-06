@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   IconCheck,
@@ -142,7 +142,11 @@ interface Props {
 
 export function PillReader({ pill, initialRecord }: Props) {
   const router = useRouter();
-  const startedAt = useRef<number>(Date.now());
+  // Date.now() is impure during render — capture the start timestamp on mount
+  const startedAt = useRef<number | null>(null);
+  useEffect(() => {
+    if (startedAt.current === null) startedAt.current = Date.now();
+  }, []);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
@@ -173,7 +177,7 @@ export function PillReader({ pill, initialRecord }: Props) {
       router.push("/education");
       return;
     }
-    const elapsed = Math.round((Date.now() - startedAt.current) / 1000);
+    const elapsed = Math.round((Date.now() - (startedAt.current ?? Date.now())) / 1000);
     setSubmitting(true);
     try {
       await completePill({
