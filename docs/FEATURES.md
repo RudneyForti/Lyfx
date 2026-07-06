@@ -1,4 +1,5 @@
 # Lyfx — Guia Completo de Funcionalidades
+> [Read in English](./FEATURES.en.md)
 > Documento de referência para analistas financeiros, gestores de produto e material de capacitação
 > Versão 1.14.0 · Junho 2026
 

@@ -22,7 +22,7 @@
 
 | Arquivo | Caminho | Versão | Audiência | Descrição |
 |---|---|---|---|---|
-| `FEATURES.md` | `/docs/FEATURES.md` | v1.14.0 | Analistas / Gestores / Capacitação | Guia completo de funcionalidades em linguagem não-técnica. Responde: o que faz, como usar, onde vai a informação, valor ao usuário e referencial de negócio. Não contém rotas, Prisma ou código. Cobre todos os módulos do sistema (seções 1–4.21). |
+| `FEATURES.md` | `/docs/FEATURES.md` | v1.14.0 | Analistas / Gestores / Capacitação | Guia completo de funcionalidades em linguagem não-técnica. Responde: o que faz, como usar, onde vai a informação, valor ao usuário e referencial de negócio. Não contém rotas, Prisma ou código. Cobre todos os módulos do sistema (seções 1–4.21). Espelho em inglês: `FEATURES.en.md`. |
 | `GIT-WORKFLOW.md` | `/docs/GIT-WORKFLOW.md` | v1.10.0 | Desenvolvedores / Agentes | Fluxo Git detalhado: branches `master`/`develop`, pipeline de sessão (1–8), checklist E7 de release completo, convenção de portas (3000 dev / 4000 prod), worktree de produção e regras invioláveis. |
 | `QA-TEST-PLAN.md` | `/docs/QA-TEST-PLAN.md` | v1.14.0 | Agent Smith / QA | Plano de testes executável com 400+ casos. Cobre autenticação, todos os módulos, Studio G2, Reembolso Especial (CS-17/CS-25), Central de Notificações (CS-18/CS-19), segurança, isolamento multi-usuário e fluxos E2E. Atualizado em v1.13.0 com casos de sessões com estado (CS-34), Audit Log (CS-35) e OAuth Google/Microsoft (CS-36). |
 | `QA-RESULTS-2026-06-09.md` | `/docs/QA-RESULTS-2026-06-09.md` | v1.14.0 | Agent Smith / QA | Resultado do ciclo de QA completo executado em 09/06/2026 para a v1.14.0. 324 casos, 297 PASS, 5 FAIL, 4 bugs ativos (chips). Cobre todos os 24 módulos + segurança + isolamento + fluxos E2E. |
