@@ -1,4 +1,4 @@
-/** Meses para quitar ao pagar `payment` por mês (taxa mensal r, saldo B). */
+/** Months to pay off at `payment` per month (monthly rate r, balance B). */
 export function monthsToPayoff(
   balance: number,
   monthlyRate: number,
@@ -6,7 +6,7 @@ export function monthsToPayoff(
 ): number | null {
   if (balance <= 0) return 0;
   if (payment <= 0) return null;
-  // Se o pagamento não cobre nem os juros do primeiro mês, nunca quita
+  // If the payment does not even cover the first month interest, it never pays off
   if (monthlyRate > 0 && payment <= balance * (monthlyRate / 100)) return null;
   let b = balance;
   const r = monthlyRate / 100;

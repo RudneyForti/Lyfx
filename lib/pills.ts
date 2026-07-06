@@ -166,7 +166,7 @@ export function fmtSeconds(secs: number): string {
 }
 
 export function fmtDate(date: Date): string {
-  // CS-41: timeZone:"UTC" garante consistência entre server (Docker UTC+0) e client (browser local)
+  // CS-41: timeZone:"UTC" keeps server (Docker UTC+0) and client (local browser) consistent
   return new Date(date).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "short",

@@ -1,22 +1,22 @@
 /**
- * CS-35 — Audit Log de eventos de segurança
+ * CS-35 — Security event Audit Log
  *
- * Registra ações sensíveis para rastreabilidade e detecção de anomalias.
- * O log NUNCA bloqueia o fluxo principal — use logEventBg() para fire-and-forget.
+ * Records sensitive actions for traceability and anomaly detection.
+ * The log NEVER blocks the main flow — use logEventBg() for fire-and-forget.
  *
- * Catálogo de ações:
- *   auth.login.success      — login bem-sucedido
- *   auth.login.failed       — credenciais inválidas
- *   auth.login.blocked      — IP bloqueado por rate limiting
- *   auth.login.captcha      — CAPTCHA exigido (threshold atingido)
- *   auth.logout             — logout explícito
- *   auth.password.changed   — troca de senha bem-sucedida
- *   session.revoked         — sessão específica encerrada pelo usuário
- *   session.revoked_all     — todas as outras sessões encerradas
- *   auth.2fa.enabled        — 2FA ativado pelo usuário (CS-37a)
- *   auth.2fa.disabled       — 2FA desativado pelo usuário (CS-37a)
- *   auth.2fa.failed         — código TOTP inválido no login (CS-37a)
- *   auth.2fa.backup_used    — código de backup utilizado no login (CS-37a)
+ * Action catalog:
+ *   auth.login.success      — successful login
+ *   auth.login.failed       — invalid credentials
+ *   auth.login.blocked      — IP blocked by rate limiting
+ *   auth.login.captcha      — CAPTCHA required (threshold reached)
+ *   auth.logout             — explicit logout
+ *   auth.password.changed   — successful password change
+ *   session.revoked         — specific session ended by the user
+ *   session.revoked_all     — all other sessions ended
+ *   auth.2fa.enabled        — 2FA enabled by the user (CS-37a)
+ *   auth.2fa.disabled       — 2FA disabled by the user (CS-37a)
+ *   auth.2fa.failed         — invalid TOTP code at login (CS-37a)
+ *   auth.2fa.backup_used    — backup code used at login (CS-37a)
  */
 
 import { db } from "@/lib/db";
@@ -44,7 +44,7 @@ export interface AuditEventOptions {
   metadata?:  Record<string, unknown>;
 }
 
-/** Registra um evento no audit log. */
+/** Records an event in the audit log. */
 export async function logEvent(opts: AuditEventOptions): Promise<void> {
   await db.auditLog.create({
     data: {
@@ -53,21 +53,21 @@ export async function logEvent(opts: AuditEventOptions): Promise<void> {
       sessionId: opts.sessionId ?? null,
       ip:        opts.ip        ?? null,
       userAgent: opts.userAgent ?? null,
-      // JSON.parse/stringify converte para objeto JSON puro — compatível com o campo Json? do Prisma
+      // JSON.parse/stringify converts to a plain JSON object — compatible with Prisma's Json? field
       metadata:  opts.metadata ? JSON.parse(JSON.stringify(opts.metadata)) : undefined,
     },
   });
 }
 
 /**
- * Fire-and-forget — não bloqueia o fluxo principal.
- * Falhas são silenciadas (o log nunca deve impedir uma operação).
+ * Fire-and-forget — does not block the main flow.
+ * Failures are swallowed (logging must never prevent an operation).
  */
 export function logEventBg(opts: AuditEventOptions): void {
   logEvent(opts).catch(() => {});
 }
 
-// ── Rótulos e ícones para a UI ────────────────────────────────────────────────
+// ── Labels and icons for the UI ───────────────────────────────────────────────
 
 export interface AuditMeta {
   label:       string;

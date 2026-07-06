@@ -1,28 +1,28 @@
 /**
- * km-utils.ts — Utilitários de cálculo para reembolso por km. [CS-25]
+ * km-utils.ts — Calculation utilities for km reimbursement. [CS-25]
  *
- * addBusinessDays: versão async que considera feriados nacionais via BrasilAPI.
- * Movido de app/actions/km-reimbursement.ts (era síncrono, ignorava feriados).
+ * addBusinessDays: async version that accounts for national holidays via
+ * BrasilAPI. Moved from app/actions/km-reimbursement.ts (was sync, ignored holidays).
  */
 
 import { getHolidays } from "./holidays";
 
 /**
- * Avança `days` dias úteis a partir de `startDate`, pulando:
- * - sábados (getDay() === 6)
- * - domingos (getDay() === 0)
- * - feriados nacionais via BrasilAPI
+ * Advances `days` business days from `startDate`, skipping:
+ * - Saturdays (getDay() === 6)
+ * - Sundays (getDay() === 0)
+ * - national holidays via BrasilAPI
  *
- * Fallback seguro: se BrasilAPI estiver indisponível, considera apenas sáb/dom.
+ * Safe fallback: if BrasilAPI is unavailable, only weekends are skipped.
  */
 export async function addBusinessDays(startDate: Date, days: number): Promise<Date> {
-  // Guard contra input inválido
+  // Guard against invalid input
   const safeDays = Number.isFinite(days) && days >= 0 ? Math.round(days) : 0;
 
   const d = new Date(startDate);
   let added = 0;
 
-  // Cache de feriados por ano (evita múltiplas chamadas ao mesmo ano)
+  // Per-year holiday cache (avoids repeated calls for the same year)
   const loadedYears = new Set<number>();
   const holidays = new Set<string>();
 
@@ -34,12 +34,12 @@ export async function addBusinessDays(startDate: Date, days: number): Promise<Da
     }
   };
 
-  // Pré-carregar feriados do ano inicial
+  // Preload holidays for the starting year
   await ensureYear(d.getFullYear());
 
   while (added < safeDays) {
     d.setDate(d.getDate() + 1);
-    // Carregar feriados se virar o ano
+    // Load holidays when crossing into a new year
     await ensureYear(d.getFullYear());
 
     const dow = d.getDay();

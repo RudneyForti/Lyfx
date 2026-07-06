@@ -1,13 +1,13 @@
 import { Transaction, ProjectedTransaction } from "./types";
 
 /**
- * Gera projeções de transações recorrentes para um mês/ano alvo.
+ * Generates recurring-transaction projections for a target month/year.
  * Regras:
- * - Só projeta para meses FUTUROS ao mês de origem (histórico é intocável)
- * - monthly: projeta no mesmo dia de todo mês seguinte ao de origem
- * - yearly:  projeta no mesmo dia/mês de anos seguintes ao de origem
- * - Se já existe transação real naquele mês com mesmo description+category,
- *   não duplica a projeção
+ * - Only projects into months AFTER the origin month (history is untouchable)
+ * - monthly: projects on the same day of every month after the origin
+ * - yearly:  projects on the same day/month of subsequent years
+ * - If a real transaction already exists that month with the same
+ *   description+category, the projection is not duplicated
  */
 export function getProjectedTransactions(
   allTransactions: Transaction[],
@@ -18,7 +18,7 @@ export function getProjectedTransactions(
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
 
-  // Só projeta para meses futuros (após o mês atual)
+  // Only project into future months (after the current one)
   const targetIsStrictlyFuture =
     targetYear > currentYear ||
     (targetYear === currentYear && targetMonth > currentMonth);
@@ -37,20 +37,20 @@ export function getProjectedTransactions(
     let shouldProject = false;
 
     if (tx.recurrence === "monthly") {
-      // Projeta se target é depois do mês de origem
+      // Project when the target is after the origin month
       shouldProject =
         targetYear > originYear ||
         (targetYear === originYear && targetMonth > originMonth);
     }
 
     if (tx.recurrence === "yearly") {
-      // Projeta se mesmo mês mas ano posterior
+      // Project when same month but a later year
       shouldProject = targetMonth === originMonth && targetYear > originYear;
     }
 
     if (!shouldProject) continue;
 
-    // Verifica se já existe transação real neste mês com mesmo description+category
+    // Check whether a real transaction already exists this month with the same description+category
     const alreadyRecorded = allTransactions.some((t) => {
       const d = new Date(t.date);
       return (
@@ -64,7 +64,7 @@ export function getProjectedTransactions(
 
     if (alreadyRecorded) continue;
 
-    // Garante que o dia é válido no mês alvo (ex: dia 31 em fevereiro)
+    // Ensure the day is valid in the target month (e.g. the 31st in February)
     const lastDayOfTarget = new Date(targetYear, targetMonth + 1, 0).getDate();
     const projectedDay = Math.min(originDay, lastDayOfTarget);
 
@@ -80,7 +80,7 @@ export function getProjectedTransactions(
   return projected;
 }
 
-// Estende Transaction com flag opcional para uso unificado no calendário
+// Extends Transaction with an optional flag for unified calendar usage
 declare module "./types" {
   interface Transaction {
     isProjected?: boolean;

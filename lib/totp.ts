@@ -25,7 +25,7 @@ export async function generateQrCodeUrl(email: string, secret: string): Promise<
   return QRCode.toDataURL(uri, {
     width:  200,
     margin: 2,
-    color:  { dark: "#000000", light: "#ffffff" }, // standard — máxima compatibilidade
+    color:  { dark: "#000000", light: "#ffffff" }, // standard — maximum compatibility
   });
 }
 
@@ -63,7 +63,7 @@ function normalizeBackupCode(code: string): string {
   return code.replace(/-/g, "").toUpperCase();
 }
 
-/* ── Pending 2FA cookie (após senha validada, antes do TOTP) ── */
+/* ── Pending 2FA cookie (after the password is validated, before TOTP) ── */
 
 const PENDING_COOKIE = "lyfx_2fa";
 

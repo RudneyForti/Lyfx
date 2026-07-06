@@ -1,15 +1,15 @@
 /**
- * CS-33 — Política de senha forte
+ * CS-33 — Strong password policy
  *
- * Utilitário puro — sem imports server-only.
- * Pode ser usado em Server Actions e em componentes client.
+ * Pure utility — no server-only imports.
+ * Usable from Server Actions and client components.
  *
- * Regras obrigatórias:
- *   1. Mínimo 8 caracteres
- *   2. Ao menos uma letra maiúscula (A-Z)
- *   3. Ao menos uma letra minúscula (a-z)
- *   4. Ao menos um número (0-9)
- *   5. Ao menos um caractere especial (!@#$%...)
+ * Mandatory rules:
+ *   1. Minimum of 8 characters
+ *   2. At least one uppercase letter (A-Z)
+ *   3. At least one lowercase letter (a-z)
+ *   4. At least one number (0-9)
+ *   5. At least one special character (!@#$%...)
  */
 
 export type PasswordStrength = "weak" | "fair" | "good" | "strong";
@@ -19,10 +19,10 @@ export interface PasswordRules {
   hasUpper:   boolean; // A-Z
   hasLower:   boolean; // a-z
   hasNumber:  boolean; // 0-9
-  hasSpecial: boolean; // qualquer caractere não alfanumérico
+  hasSpecial: boolean; // any non-alphanumeric character
 }
 
-/** Verifica cada regra individualmente. */
+/** Checks each rule individually. */
 export function checkPasswordRules(password: string): PasswordRules {
   return {
     hasLength:  password.length >= 8,
@@ -34,8 +34,8 @@ export function checkPasswordRules(password: string): PasswordRules {
 }
 
 /**
- * Calcula o nível de força da senha.
- * Score = número de regras atendidas (0-5).
+ * Computes the password strength level.
+ * Score = number of rules satisfied (0-5).
  *   0-1 → weak  · 2 → fair  · 3 → good  · 4-5 → strong
  */
 export function getPasswordStrength(password: string): PasswordStrength {
@@ -50,11 +50,11 @@ export function getPasswordStrength(password: string): PasswordStrength {
 }
 
 /**
- * Validação estrita — retorna a mensagem da primeira regra que falha,
- * ou null se a senha atende a todos os requisitos.
+ * Strict validation — returns the message of the first failing rule,
+ * or null when the password satisfies every requirement.
  *
- * Usar em Server Actions (setup, changePassword) e na validação client-side
- * do formulário antes do submit.
+ * Use in Server Actions (setup, changePassword) and in client-side form
+ * validation before submit. Messages stay in pt-BR — they are user-facing.
  */
 export function validatePasswordStrict(password: string): string | null {
   const r = checkPasswordRules(password);

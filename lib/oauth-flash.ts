@@ -2,7 +2,7 @@
  * CS-36 — Flash cookie para erros OAuth
  *
  * Em vez de expor ?error= na URL, grava um cookie HttpOnly de vida curta.
- * O LoginForm lê e apaga o cookie na primeira renderização — URL permanece limpa.
+ * The LoginForm reads and clears the cookie on first render — the URL stays clean.
  */
 
 import { NextResponse } from "next/server";

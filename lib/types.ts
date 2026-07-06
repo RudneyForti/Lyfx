@@ -49,7 +49,7 @@ export interface Transaction {
 
 export interface ProjectedTransaction extends Omit<Transaction, "createdAt" | "updatedAt"> {
   isProjected: true;
-  sourceId: string; // id da transação original
+  sourceId: string; // id of the original transaction
 }
 
 export interface DRESummary {

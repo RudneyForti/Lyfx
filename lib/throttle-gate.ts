@@ -1,15 +1,15 @@
 /**
- * throttle-gate.ts — gate de execução por chave com cooldown em memória.
+ * throttle-gate.ts — per-key execution gate with an in-memory cooldown.
  *
- * Usado para limitar trabalho repetitivo em hot paths (ex.: sync de alertas
- * e presença no layout, que roda em toda navegação). O estado vive no
- * processo Node — reinício do servidor zera os cooldowns, o que é aceitável:
- * o pior caso é uma execução extra.
+ * Used to limit repetitive work on hot paths (e.g. alert sync and presence
+ * in the layout, which runs on every navigation). State lives in the Node
+ * process — a server restart resets the cooldowns, which is acceptable:
+ * the worst case is one extra execution.
  */
 
 const lastRun = new Map<string, number>();
 
-/** Retorna true no máximo 1× por `intervalMs` para cada `key`. */
+/** Returns true at most once per `intervalMs` for each `key`. */
 export function shouldRun(key: string, intervalMs: number): boolean {
   const now = Date.now();
   const last = lastRun.get(key) ?? 0;

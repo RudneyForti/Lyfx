@@ -1,6 +1,6 @@
 /**
- * Constrói a URL do proxy /api/km-map para uso em @react-pdf/renderer.
- * O proxy busca a imagem no servidor (sem CORS) e a repassa ao browser.
+ * Builds the /api/km-map proxy URL for use with @react-pdf/renderer.
+ * The proxy fetches the image server-side (no CORS) and relays it to the browser.
  */
 export function buildKmMapUrl({
   polyline,
@@ -28,8 +28,8 @@ export function buildKmMapUrl({
 }
 
 /**
- * Extrai o encoded polyline de um DirectionsResult serializado (JSON do banco)
- * ou de uma instância ao vivo do Google Maps SDK.
+ * Extracts the encoded polyline from a serialized DirectionsResult (DB JSON)
+ * or from a live Google Maps SDK instance.
  */
 export function extractPolyline(result: unknown): string | null {
   if (!result) return null;

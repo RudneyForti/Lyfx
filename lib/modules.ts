@@ -46,7 +46,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
   { key: "institutions",   label: "Instituições",     group: "Planejamento", summary: "Organize bancos e corretoras com saldos por conta." },
   { key: "assets",         label: "Bens e Imóveis",   group: "Planejamento", summary: "Registre bens, imóveis e veículos com valor de compra e atual.", isBeta: true },
 
-  // Análise
+  // Analysis
   { key: "alerts",         label: "Alertas",          group: "Análise",      summary: "Notificações automáticas quando gastos ultrapassam o limite.", isBeta: true },
   { key: "health",         label: "Saúde Financeira", group: "Análise",      summary: "Score e diagnóstico da sua situação financeira geral." },
   { key: "reports",        label: "Relatórios",       group: "Análise",      summary: "Relatórios detalhados com gráficos por período e categoria." },
@@ -57,7 +57,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
   // Aprender
   { key: "education",      label: "Educação",         group: "Aprender",     summary: "Pílulas de educação financeira gamificadas e progressivas.", isBeta: true },
 
-  // Perfil — sempre acessível, não é controlado por plano
+  // Profile — always accessible, not gated by plan
   { key: "profile",        label: "Perfil",           group: "Principal",    summary: "Configurações da conta, avatar e preferências pessoais." },
 ];
 
