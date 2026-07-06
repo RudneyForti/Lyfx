@@ -4,66 +4,66 @@ import { useState, useRef, useEffect } from "react";
 import { IconChevronDown, IconX } from "@tabler/icons-react";
 
 const COUNTRIES = [
-  // Lusófonos primeiro
+  // Portuguese-speaking countries first
   "Brasil", "Portugal", "Angola", "Moçambique", "Cabo Verde",
   "Guiné-Bissau", "São Tomé e Príncipe", "Timor-Leste", "Guiné Equatorial",
-  // América do Sul
+  // South America
   "Argentina", "Bolívia", "Chile", "Colômbia", "Equador", "Guiana",
   "Guiana Francesa", "Paraguai", "Peru", "Suriname", "Uruguai", "Venezuela",
-  // América Central e Caribe
+  // Central America and Caribbean
   "Belize", "Costa Rica", "Cuba", "El Salvador", "Guatemala", "Haiti",
   "Honduras", "Jamaica", "México", "Nicarágua", "Panamá",
   "República Dominicana", "Trinidad e Tobago",
   "Antígua e Barbuda", "Bahamas", "Barbados", "Dominica", "Granada",
   "Santa Lúcia", "São Cristóvão e Nevis", "São Vicente e Granadinas",
-  // América do Norte
+  // North America
   "Canadá", "Estados Unidos",
-  // Europa Ocidental
+  // Western Europe
   "Alemanha", "Andorra", "Áustria", "Bélgica", "Chipre", "Dinamarca",
   "Espanha", "Finlândia", "França", "Grécia", "Irlanda", "Islândia",
   "Itália", "Liechtenstein", "Luxemburgo", "Malta", "Mônaco",
   "Noruega", "Países Baixos", "Reino Unido", "San Marino", "Suécia",
   "Suíça", "Vaticano",
-  // Europa Oriental e Central
+  // Eastern and Central Europe
   "Albânia", "Bielorrússia", "Bósnia e Herzegovina", "Bulgária", "Croácia",
   "Eslováquia", "Eslovênia", "Estônia", "Hungria", "Kosovo", "Letônia",
   "Lituânia", "Macedônia do Norte", "Moldávia", "Montenegro", "Polônia",
   "República Checa", "Romênia", "Rússia", "Sérvia", "Ucrânia",
-  // Ásia Ocidental / Oriente Médio
+  // Western Asia / Middle East
   "Afeganistão", "Arábia Saudita", "Armênia", "Azerbaijão", "Bahrein",
   "Catar", "Emirados Árabes Unidos", "Geórgia", "Iêmen", "Iraque", "Irã",
   "Israel", "Jordânia", "Kuwait", "Líbano", "Omã", "Palestina",
   "Síria", "Turquia",
-  // Ásia Central
+  // Central Asia
   "Cazaquistão", "Quirguistão", "Tadjiquistão", "Turcomenistão", "Uzbequistão",
-  // Ásia Oriental
+  // East Asia
   "China", "Coreia do Norte", "Coreia do Sul", "Japão", "Mongólia",
   "Taiwan",
-  // Ásia do Sul
+  // South Asia
   "Bangladesh", "Butão", "Índia", "Maldivas", "Nepal", "Paquistão",
   "Sri Lanka",
-  // Sudeste Asiático
+  // Southeast Asia
   "Brunei", "Camboja", "Filipinas", "Indonésia", "Laos", "Malásia",
   "Mianmar", "Singapura", "Tailândia", "Vietnã",
   // Oceania
   "Austrália", "Fiji", "Ilhas Marshall", "Ilhas Salomão", "Kiribati",
   "Micronésia", "Nauru", "Nova Zelândia", "Palau", "Papua-Nova Guiné",
   "Samoa", "Tonga", "Tuvalu", "Vanuatu",
-  // África do Norte
+  // North Africa
   "Argélia", "Egito", "Líbia", "Marrocos", "Mauritânia", "Sudão",
   "Sudão do Sul", "Tunísia",
-  // África Ocidental
+  // West Africa
   "Benim", "Burkina Fasso", "Camarões", "Costa do Marfim", "Gana",
   "Guiné", "Libéria", "Mali", "Níger", "Nigéria", "Senegal",
   "Serra Leoa", "Togo",
-  // África Central
+  // Central Africa
   "Burundi", "Chade", "Congo", "Gabão", "República Centro-Africana",
   "República Democrática do Congo", "Ruanda",
-  // África Oriental
+  // East Africa
   "Comores", "Djibuti", "Eritreia", "Etiópia", "Ilhas Maurício",
   "Quênia", "Madagascar", "Malawi", "Seychelles", "Somália",
   "Tanzânia", "Uganda", "Zâmbia", "Zimbábue",
-  // África Austral
+  // Southern Africa
   "África do Sul", "Botsuana", "Essuatíni", "Lesoto", "Namíbia",
 ];
 

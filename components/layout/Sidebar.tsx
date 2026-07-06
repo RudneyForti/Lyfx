@@ -133,7 +133,7 @@ export function Sidebar({ allowedModules, betaModules }: Props) {
       {/* Nav */}
       <div className={cn(
         "flex-1 overflow-y-auto overflow-x-hidden px-2.5 pt-3 pb-5",
-        // scrollbar fino dentro do container — não é clipado pelo overflow:hidden do nav
+        // thin scrollbar inside the container — not clipped by the nav's overflow:hidden
         "[&::-webkit-scrollbar]:w-[3px]",
         "[&::-webkit-scrollbar-track]:bg-transparent",
         "[&::-webkit-scrollbar-thumb]:bg-[rgba(255,255,255,0.12)]",

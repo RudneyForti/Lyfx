@@ -11,7 +11,7 @@ interface Props {
   initialTags: Tag[];
 }
 
-// Formulário de criação/edição inline
+// Inline create/edit form
 function TagForm({
   mode,
   initial,
@@ -142,7 +142,7 @@ function TagForm({
 export function TagsManager({ initialTags }: Props) {
   const [tags, setTags]     = useState<Tag[]>(initialTags);
   const [creating, setCreating] = useState(false);
-  // CS-07: estado de edição inline
+  // CS-07: inline edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState("");

@@ -377,7 +377,7 @@ export function AlertsView({ alerts, notifications = [] }: Props) {
       )}
 
       {alerts.length === 0 ? (
-        /* Empty state — só mostra se também não tem notificações */
+        /* Empty state — only shown when there are also no notifications */
         notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-16 h-16 rounded-full bg-[var(--color-green-dim)] flex items-center justify-center mb-4">

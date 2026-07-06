@@ -1,15 +1,15 @@
 "use client";
 
 /**
- * CS-33 — Barra visual de força de senha
+ * CS-33 — Visual password strength bar
  *
- * Mostra 4 segmentos coloridos + lista das regras ainda não atendidas.
- * Aparece automaticamente quando `password` não está vazio.
+ * Shows 4 colored segments + a list of the rules not yet satisfied.
+ * Appears automatically when `password` is not empty.
  */
 
 import { checkPasswordRules, getPasswordStrength, PasswordStrength } from "@/lib/password-strength";
 
-/* ── Mapeamentos de nível ── */
+/* ── Level mappings ── */
 const STRENGTH_LABELS: Record<PasswordStrength, string> = {
   weak:   "Fraca",
   fair:   "Razoável",
@@ -17,7 +17,7 @@ const STRENGTH_LABELS: Record<PasswordStrength, string> = {
   strong: "Forte",
 };
 
-// Segmentos ativos (de 4) por nível
+// Active segments (out of 4) per level
 const STRENGTH_SEGMENTS: Record<PasswordStrength, number> = {
   weak:   1,
   fair:   2,
@@ -25,7 +25,7 @@ const STRENGTH_SEGMENTS: Record<PasswordStrength, number> = {
   strong: 4,
 };
 
-// Cor do segmento ativo por nível
+// Active segment color per level
 const STRENGTH_COLORS: Record<PasswordStrength, string> = {
   weak:   "var(--color-red)",
   fair:   "#F59E0B",                 // amber-400

@@ -24,7 +24,7 @@ function fmt(v: number) {
 }
 function fmtDate(d: Date | null) {
   if (!d) return "—";
-  // CS-41: timeZone:"UTC" garante consistência entre server e client
+  // CS-41: timeZone:"UTC" keeps server and client consistent
   return new Date(d).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
@@ -236,7 +236,7 @@ function ExpenseForm({
     };
   });
 
-  // Auto-preenche o nome quando o tipo muda e o nome ainda está vazio/igual a label anterior
+  // Auto-fills the name when the type changes and the name is still empty/equal to the previous label
   function handleTypeChange(t: string) {
     const label = ASSET_EXPENSE_TYPE_LABELS[t as AssetExpenseType] ?? t;
     setForm((f) => ({

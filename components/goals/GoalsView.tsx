@@ -48,8 +48,8 @@ function NewGoalForm({ avgBalance, onClose }: { avgBalance: number; onClose: () 
 
   const months = deadline
     ? Math.max(1, (() => {
-        // CS-42: usar getUTC* para consistência com server (Docker UTC+0) e client (UTC-3)
-        // "YYYY-MM" strings são interpretadas como UTC pelo Date constructor
+        // CS-42: use getUTC* for consistency between server (Docker UTC+0) and client (UTC-3)
+        // "YYYY-MM" strings are interpreted as UTC by the Date constructor
         const d = new Date(deadline);
         const n = new Date();
         return (d.getUTCFullYear() - n.getUTCFullYear()) * 12 + d.getUTCMonth() - n.getUTCMonth();

@@ -113,7 +113,7 @@ export function MonthPicker({ value, onChange, placeholder = "Selecione o mês",
           <div className="grid grid-cols-4 gap-1">
             {MONTHS_SHORT.map((label, i) => {
               const isSelected = selYear === year && selMonth === i;
-              // CS-14: destacar o mês atual com borda cyan quando não está selecionado
+              // CS-14: highlight the current month with a cyan border when not selected
               const now = new Date();
               const isCurrentMonth = year === now.getFullYear() && i === now.getMonth();
               return (

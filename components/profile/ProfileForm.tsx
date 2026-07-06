@@ -123,7 +123,7 @@ export function ProfileForm({ user }: Props) {
     reader.readAsDataURL(file);
   }
 
-  // ViaCEP auto-fill — [CS-28] AbortController com timeout de 5s
+  // ViaCEP auto-fill — [CS-28] AbortController with a 5s timeout
   async function handleCepBlur() {
     const raw = form.zipCode.replace(/\D/g, "");
     if (raw.length !== 8) return;
@@ -181,7 +181,7 @@ export function ProfileForm({ user }: Props) {
   function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
     setPwMsg(null);
-    // CS-33: validação de política de senha forte
+    // CS-33: strong password policy validation
     const pwError = validatePasswordStrict(pw.next);
     if (pwError) return setPwMsg({ text: pwError });
     if (pw.next !== pw.confirm) return setPwMsg({ text: "As senhas não coincidem." });

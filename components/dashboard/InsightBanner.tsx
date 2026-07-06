@@ -42,7 +42,7 @@ function generateInsight(summary: DRESummary, goals: Goal[]): {
     };
   }
 
-  // 3. Meta ativa com saldo livre disponível
+  // 3. Active goal with available free balance
   const activeGoals = goals.filter((g) => g.status === "active");
   if (activeGoals.length > 0 && result > 0) {
     const goal = activeGoals[0];
@@ -55,7 +55,7 @@ function generateInsight(summary: DRESummary, goals: Goal[]): {
     }
   }
 
-  // 4. Taxa de poupança baixa
+  // 4. Low savings rate
   const saveRate = credits.total > 0 ? saved / credits.total : 0;
   if (result > 0 && saveRate < 0.1) {
     return {
@@ -64,7 +64,7 @@ function generateInsight(summary: DRESummary, goals: Goal[]): {
     };
   }
 
-  // 5. Mês positivo com boa poupança
+  // 5. Positive month with good savings
   if (result > 0 && saveRate >= 0.1) {
     return {
       type: "positive",

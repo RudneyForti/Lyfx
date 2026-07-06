@@ -26,12 +26,12 @@ interface Props {
 
 /**
  * CS-32 — Widget do Cloudflare Turnstile.
- * Carrega o script da Cloudflare uma vez e renderiza o desafio.
- * Fallback em dev: usa a test sitekey que sempre passa (1x00000000000000000000AA).
+ * Loads the Cloudflare script once and renders the challenge.
+ * Dev fallback: uses the test sitekey that always passes (1x00000000000000000000AA).
  */
 export function TurnstileWidget({ onToken, onExpire }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  // Chave pública — exposta no client intencionalmente
+  // Public key — intentionally exposed on the client
   const siteKey =
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ??
     "1x00000000000000000000AA"; // test key Cloudflare (sempre passa)
@@ -67,7 +67,7 @@ export function TurnstileWidget({ onToken, onExpire }: Props) {
       script.onload = renderWidget;
       document.head.appendChild(script);
     } else {
-      // Script já está carregando — aguarda com polling
+      // Script is already loading — wait with polling
       const interval = setInterval(() => {
         if (window.turnstile) {
           clearInterval(interval);

@@ -47,21 +47,21 @@ model Transaction {
   notes            String?
   recurrence         String           @default("once")
   recurrenceEndsAt   DateTime?
-  installmentGroupId String?          // UUID compartilhado entre todas as parcelas do grupo
-  installmentNumber  Int?             // 1-based: qual parcela é esta
-  installmentTotal   Int?             // total de parcelas do grupo
+  installmentGroupId String?          // UUID shared by every installment in the group
+  installmentNumber  Int?             // 1-based: which installment this is
+  installmentTotal   Int?             // total number of installments in the group
   context            String?
   reimbursable     Boolean          @default(false)
   reimbursedAt     DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   tags             TransactionTag[]
-  // [CS-30] FK explícita: período de reembolso vinculado a esta transação
+  // [CS-30] Explicit FK: reimbursement period linked to this transaction
   kmPeriod         KmPeriod?
 
-  @@index([userId, date])           // consulta dominante: extrato/DRE do mês
-  @@index([userId, category, date]) // orçamentos, alertas e relatórios por categoria
-  @@index([installmentGroupId])     // operações em grupo de parcelas
+  @@index([userId, date])           // dominant query: monthly statement/DRE
+  @@index([userId, category, date]) // budgets, alerts and reports by category
+  @@index([installmentGroupId])     // installment group operations
 }
 
 model Goal {
@@ -129,14 +129,14 @@ model Asset {
   userId        String
   name          String
   type          String         @default("real_estate") // real_estate | vehicle | other
-  // Imóvel
+  // Real estate
   propertyAddress String?
-  // Veículo
+  // Vehicle
   make          String?
   model         String?
   year          Int?
   plate         String?
-  // Comum
+  // Common
   purchaseValue Float?
   currentValue  Float?
   purchaseDate  DateTime?
@@ -205,7 +205,7 @@ model User {
   // CS-37a: 2FA TOTP
   twoFactorSecret      String?
   twoFactorEnabled     Boolean  @default(false)
-  twoFactorBackupCodes String?  // JSON: string[] de hashes bcrypt
+  twoFactorBackupCodes String?  // JSON: string[] of bcrypt hashes
 }
 
 model Liability {
@@ -213,9 +213,9 @@ model Liability {
   userId         String   @default("")
   name           String
   type           String   // cheque_especial | rotativo | emprestimo | financiamento | outro
-  currentBalance Float    // saldo devedor atual (positivo = quanto deve)
-  interestRate   Float    @default(0)   // % ao mês
-  minimumPayment Float    @default(0)   // parcela mínima mensal
+  currentBalance Float    // current outstanding balance (positive = amount owed)
+  interestRate   Float    @default(0)   // % per month
+  minimumPayment Float    @default(0)   // minimum monthly installment
   institutionId  String?
   creditor       String?
   notes          String?
@@ -241,7 +241,7 @@ model Settings {
   id                    String   @id @default(cuid())
   userId                String   @default("") @unique
   expectedMonthlyIncome Float    @default(0)
-  reserveBalance        Float    @default(0)  // saldo real do fundo de reserva declarado pelo usuário
+  reserveBalance        Float    @default(0)  // real reserve fund balance declared by the user
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -253,7 +253,7 @@ model AppConfig {
   updatedAt DateTime @updatedAt
 }
 
-// CS-18: Central de notificações
+// CS-18: Notification center
 model Notification {
   id          String    @id @default(cuid())
   userId      String
@@ -262,8 +262,8 @@ model Notification {
   type        String    @default("info")  // info | warning | danger | success
   link        String?
   readAt      DateTime?
-  fingerprint String?   // dedup de alertas automáticos (= alert.id da origem)
-  broadcastId String?   // agrupa notificações manuais enviadas no mesmo lote pelo Studio
+  fingerprint String?   // automatic alert dedup (= source alert.id)
+  broadcastId String?   // groups manual notifications sent in the same Studio batch
   expiresAt   DateTime? // TTL — danger alerts: createdAt + 7d
   createdAt   DateTime  @default(now())
 
@@ -277,11 +277,11 @@ model Notification {
 model KmConfig {
   id           String   @id @default(cuid())
   userId       String   @unique
-  gasolineRate Float    @default(0.25)  // 25% do preço/litro por km
-  ethanolRate  Float    @default(0.36)  // 36% do preço/litro por km
-  minFuelPct   Float    @default(0.15)  // mínimo 15% em notas vs. montante
-  paymentDays  Int      @default(5)     // D+5 dias úteis
-  vehiclePlate String   @default("")    // placa do veículo
+  gasolineRate Float    @default(0.25)  // 25% of the price/liter per km
+  ethanolRate  Float    @default(0.36)  // 36% of the price/liter per km
+  minFuelPct   Float    @default(0.15)  // minimum 15% in receipts vs. amount
+  paymentDays  Int      @default(5)     // D+5 business days
+  vehiclePlate String   @default("")    // vehicle plate
   vehicleType  String   @default("Carro") // ex: Carro
   vehicleBrand String   @default("")    // ex: Toyota, Honda
   createdAt    DateTime @default(now())
@@ -305,7 +305,7 @@ model KmPeriod {
   extraAmount   Float        @default(0)
   grandTotal    Float        @default(0)
   notes         String?
-  // [CS-30] FK explícita para Transaction (era campo solto sem relação declarada)
+  // [CS-30] Explicit FK to Transaction (used to be a loose field with no declared relation)
   transactionId String?      @unique
   transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
   createdAt     DateTime     @default(now())
@@ -362,8 +362,8 @@ model KmPlace {
   id                 String   @id @default(cuid())
   userId             String
   name               String   // Ex: "Empresa XYZ"
-  originAddress      String   @default("")  // endereço de partida (ex: casa/escritório)
-  destinationAddress String   @default("")  // endereço de destino (ex: empresa)
+  originAddress      String   @default("")  // starting address (e.g. home/office)
+  destinationAddress String   @default("")  // destination address (e.g. company)
   kmGoing            Float    @default(0)   // km ida
   kmReturn           Float    @default(0)   // km volta
   routeGoing         Json?                  // DirectionsResult serializado — rota de ida
@@ -373,7 +373,7 @@ model KmPlace {
   updatedAt          DateTime @updatedAt
 }
 
-// CS-36: Contas OAuth vinculadas ao usuário (Google, Microsoft)
+// CS-36: OAuth accounts linked to the user (Google, Microsoft)
 model OAuthAccount {
   id             String   @id @default(cuid())
   userId         String
@@ -381,11 +381,11 @@ model OAuthAccount {
   providerUserId String   // sub (Google) ou oid (Microsoft)
   createdAt      DateTime @default(now())
 
-  @@unique([provider, providerUserId]) // um provedor+id só pode estar em uma conta
+  @@unique([provider, providerUserId]) // a provider+id pair can only belong to one account
   @@index([userId])
 }
 
-// CS-34: Sessões com estado — permite invalidação server-side e view de sessões ativas
+// CS-34: Stateful sessions — enables server-side invalidation and an active-sessions view
 model Session {
   id          String   @id @default(cuid()) // sessionId armazenado no cookie
   userId      String
@@ -396,21 +396,21 @@ model Session {
   expiresAt   DateTime
 
   @@index([userId])
-  @@index([expiresAt]) // limpeza lazy de sessões expiradas
+  @@index([expiresAt]) // lazy cleanup of expired sessions
 }
 
-// CS-35: Audit log — registro de eventos de segurança
+// CS-35: Audit log — security event tracking
 model AuditLog {
   id        String   @id @default(cuid())
-  userId    String?  // null para eventos anônimos (login falho com email inexistente)
-  sessionId String?  // null quando não há sessão ativa
-  action    String   // ver lib/audit.ts para lista de ações
+  userId    String?  // null for anonymous events (failed login with a non-existent email)
+  sessionId String?  // null when there is no active session
+  action    String   // see lib/audit.ts for the list of actions
   ip        String?
   userAgent String?
   metadata  Json?    // contexto adicional (ex: email tentado, sessionId revogado)
   createdAt DateTime @default(now())
 
-  @@index([userId, createdAt]) // consulta principal: histórico do usuário
+  @@index([userId, createdAt]) // main query: user history
   @@index([createdAt])         // limpeza de registros antigos
   @@index([action, createdAt]) // filtragem por tipo de evento
 }
