@@ -85,5 +85,45 @@ jobs:
           SESSION_SECRET: ci-test-secret
           TEST_DATABASE_URL: postgresql://postgres:ci@localhost:5432/lyfx_test
 
-  # E2E (Playwright) runs locally for now — added to CI when the retrofit
-  # reaches the flows that justify browser time on every PR.
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: lyfx_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:ci@localhost:5432/lyfx_test
+          SESSION_SECRET: e2e-test-secret
+          ADMIN_SECRET: e2e-admin-secret
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: e2e-placeholder
