@@ -1,15 +1,15 @@
 /**
- * alert-engine.ts — Motor de detecção de condições de alerta danger.
- * Lib pura (sem "use server") — pode ser importada por Server Actions.
+ * alert-engine.ts — Detection engine for danger alert conditions.
+ * Pure lib (no "use server") — importable from Server Actions.
  *
- * Centraliza a lógica compartilhada entre getAlerts() (alerts.ts) e
- * syncDangerAlerts() (notifications.ts) para eliminar duplicação. [CS-27]
+ * Centralizes the logic shared between getAlerts() (alerts.ts) and
+ * syncDangerAlerts() (notifications.ts) to eliminate duplication. [CS-27]
  */
 
 import { db } from "@/lib/db";
 
 export interface AlertCondition {
-  /** ID único da condição — usado como fingerprint em notificações */
+  /** Unique condition ID — used as the notification fingerprint */
   fingerprint: string;
   type: "budget" | "goal" | "seasonal" | "liability";
   severity: "warning" | "danger";
@@ -23,14 +23,14 @@ function fmt(v: number): string {
 }
 
 /**
- * Detecta todas as condições de alerta danger para um usuário.
- * Retorna array vazio se nenhuma condição for encontrada.
+ * Detects every danger alert condition for a user.
+ * Returns an empty array when no condition is found.
  *
- * Cobre:
- *  1. Orçamentos ≥ 100% do limite (danger) — partilhado com syncDangerAlerts
- *  2. Metas com cobranças em atraso (danger) — partilhado com syncDangerAlerts
- *  3. Despesas sazonais a ≤ 1 mês (danger) — partilhado com syncDangerAlerts
- *  4. Passivos críticos com saldo > 0 (danger) — partilhado com syncDangerAlerts
+ * Covers:
+ *  1. Budgets ≥ 100% of their limit (danger) — shared with syncDangerAlerts
+ *  2. Goals with overdue payments (danger) — shared with syncDangerAlerts
+ *  3. Seasonal expenses due within 1 month (danger) — shared with syncDangerAlerts
+ *  4. Critical liabilities with balance > 0 (danger) — shared with syncDangerAlerts
  */
 export async function computeDangerConditions(userId: string): Promise<AlertCondition[]> {
   const now = new Date();
@@ -41,7 +41,7 @@ export async function computeDangerConditions(userId: string): Promise<AlertCond
 
   const conditions: AlertCondition[] = [];
 
-  // ── 1. Budget danger (gasto ≥ 100% do limite) ─────────────────────────────
+  // ── 1. Budget danger (spend ≥ 100% of the limit) ──────────────────────────
   const [budgets, monthTx] = await Promise.all([
     db.budget.findMany({ where: { userId } }),
     db.transaction.findMany({
@@ -70,7 +70,7 @@ export async function computeDangerConditions(userId: string): Promise<AlertCond
     }
   }
 
-  // ── 2. Goal overdue (cobrança em atraso) ──────────────────────────────────
+  // ── 2. Goal overdue payments ──────────────────────────────────────────────
   const overduePayments = await db.goalPayment.findMany({
     where: {
       paid: false,
@@ -91,7 +91,7 @@ export async function computeDangerConditions(userId: string): Promise<AlertCond
     });
   }
 
-  // ── 3. Despesas sazonais iminentes (≤ 1 mês) ──────────────────────────────
+  // ── 3. Imminent seasonal expenses (≤ 1 month) ─────────────────────────────
   const yearlyTx = await db.transaction.findMany({
     where: { userId, recurrence: "yearly", type: "debit" },
     select: { id: true, description: true, amount: true, date: true },
@@ -113,7 +113,7 @@ export async function computeDangerConditions(userId: string): Promise<AlertCond
     }
   }
 
-  // ── 4. Passivos críticos (cheque especial / rotativo com saldo > 0) ───────
+  // ── 4. Critical liabilities (overdraft / revolving credit with balance > 0)
   const criticalLiabilities = await db.liability.findMany({
     where: {
       userId,

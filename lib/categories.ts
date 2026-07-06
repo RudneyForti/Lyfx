@@ -9,7 +9,7 @@ export interface CategoryDef {
 }
 
 export const CATEGORIES: CategoryDef[] = [
-  // ── CRÉDITOS
+  // ── CREDITS
   {
     value: "credit_fixed",
     label: "Fixo",
@@ -24,7 +24,7 @@ export const CATEGORIES: CategoryDef[] = [
     groupLabel: "Receitas",
     examples: "Freelas, reembolsos, vendas",
   },
-  // ── DÉBITOS
+  // ── DEBITS
   {
     value: "debit_fixed",
     label: "Fixo",

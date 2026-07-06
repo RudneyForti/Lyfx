@@ -23,7 +23,7 @@ export interface HealthScore {
   profileLabel: string;
   profileColor: string;
   dimensions: HealthDimension[];
-  nextThreshold: number | null;   // pontos até o próximo perfil
+  nextThreshold: number | null;   // points until the next profile
   nextProfileLabel: string | null;
   tip: string;
 }
@@ -79,7 +79,7 @@ export function computeHealthScore(
     status: statusFor(commitScore, 30),
   };
 
-  // ── 2. Poupança (25 pts) ────────────────────────────────────────
+  // ── 2. Savings (25 pts) ─────────────────────────────────────────
   // debit_longterm / receita
   const savingsPct = summary.debits.longterm / income;
   let savingsScore: number;
@@ -100,7 +100,7 @@ export function computeHealthScore(
     status: statusFor(savingsScore, 25),
   };
 
-  // ── 3. Resultado do mês (25 pts) ────────────────────────────────
+  // ── 3. Month result (25 pts) ────────────────────────────────────
   const resultRatio = summary.result / income;
   let resultScore: number;
   if (resultRatio >= 0.10)      resultScore = 25;
@@ -153,7 +153,7 @@ export function computeHealthScore(
   else if (total >= 40) { profile = "estabilizado";     profileLabel = "Estabilizado";    profileColor = "#FBBF24"; }
   else                  { profile = "em-recuperacao";   profileLabel = "Em Recuperação";  profileColor = "#F87171"; }
 
-  // ── Próximo perfil ──────────────────────────────────────────────
+  // ── Next profile ────────────────────────────────────────────────
   const nextThresholds: Record<HealthProfile, { gap: number; label: string } | null> = {
     "em-recuperacao": { gap: 40 - total, label: "Estabilizado" },
     "estabilizado":   { gap: 60 - total, label: "Em Construção" },

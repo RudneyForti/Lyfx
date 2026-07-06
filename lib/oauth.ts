@@ -1,11 +1,11 @@
 /**
- * CS-36 — Configuração dos providers OAuth (Google + Microsoft)
+ * CS-36 — OAuth provider configuration (Google + Microsoft)
  *
  * Usa a biblioteca `arctic` para lidar com o fluxo OAuth 2.0 + PKCE.
- * As redirect URIs são baseadas em APP_URL — trocar de domínio = 1 linha no .env.
+ * Redirect URIs derive from APP_URL — changing domains = 1 line in .env.
  *
- * Variáveis de ambiente necessárias:
- *   APP_URL=http://localhost:3000         (ou https://seu-dominio.com em produção)
+ * Required environment variables:
+ *   APP_URL=http://localhost:3000         (or https://your-domain.com in production)
  *   GOOGLE_CLIENT_ID=...
  *   GOOGLE_CLIENT_SECRET=...
  *   MICROSOFT_CLIENT_ID=...

@@ -20,7 +20,7 @@ export const ASSET_EXPENSE_TYPE_LABELS: Record<AssetExpenseType, string> = {
   other:         "Outro",
 };
 
-// Despesas pré-sugeridas por tipo de bem
+// Pre-suggested expenses per asset type
 export const EXPENSE_SUGGESTIONS: Record<AssetType, AssetExpenseType[]> = {
   real_estate: ["iptu", "seguro", "manutencao", "itr", "other"],
   vehicle:     ["ipva", "dpvat", "licenciamento", "seguro", "manutencao", "other"],

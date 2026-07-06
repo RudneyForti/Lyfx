@@ -1,9 +1,9 @@
 /**
- * holidays.ts — Cache de feriados nacionais via BrasilAPI. [CS-25]
+ * holidays.ts — National holiday cache via BrasilAPI. [CS-25]
  *
- * Cache em memória por ano — feriados são imutáveis dentro do ano.
- * Fallback gracioso: se a API estiver offline, retorna Set vazio
- * (D+5 calculado apenas por sáb/dom, sem feriados).
+ * In-memory cache per year — holidays are immutable within a year.
+ * Graceful fallback: if the API is offline, returns an empty Set
+ * (D+5 computed from weekends only, no holidays).
  */
 
 const cache = new Map<number, Set<string>>();
@@ -22,6 +22,6 @@ export async function getHolidays(year: number): Promise<Set<string>> {
     cache.set(year, set);
     return set;
   } catch {
-    return new Set(); // API offline → fallback para sáb/dom only
+    return new Set(); // API offline → weekend-only fallback
   }
 }

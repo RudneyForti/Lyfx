@@ -1,16 +1,16 @@
 /**
- * CS-34 — Sessões com estado no banco de dados
+ * CS-34 — Stateful sessions backed by the database
  *
  * Cookie: `{sessionId}.{userId}.{HMAC(sessionId.userId)}`
- *   - sessionId: cuid gerado no login, chave primária do model Session
- *   - userId:    cuid do usuário, referência para User
- *   - HMAC:      SHA-256 sobre `{sessionId}.{userId}` com SESSION_SECRET
+ *   - sessionId: cuid generated at login, primary key of the Session model
+ *   - userId:    the user's cuid, references User
+ *   - HMAC:      SHA-256 over `{sessionId}.{userId}` with SESSION_SECRET
  *
- * Camadas de validação:
- *   1. Edge (proxy.ts)  — verifica HMAC via Web Crypto API (sem DB)
- *   2. Node.js (layout) — verifica existência + validade da sessão no DB
+ * Validation layers:
+ *   1. Edge (proxy.ts)  — verifies the HMAC via Web Crypto API (no DB)
+ *   2. Node.js (layout) — verifies the session exists and is valid in the DB
  *
- * Um session revogado passa na camada 1 mas falha na camada 2 → redirect login.
+ * A revoked session passes layer 1 but fails layer 2 → redirect to login.
  */
 
 import { cookies, headers } from "next/headers";
@@ -22,34 +22,34 @@ const MAX_AGE = 60 * 60 * 24 * 30; // 30 dias em segundos
 
 function getSecret(): string {
   const s = process.env.SESSION_SECRET;
-  if (!s) throw new Error("[session] SESSION_SECRET não definida.");
+  if (!s) throw new Error("[session] SESSION_SECRET not set.");
   return s;
 }
 
-/** Payload a ser assinado: `{sessionId}.{userId}` */
+/** Payload to be signed: `{sessionId}.{userId}` */
 function makePayload(sessionId: string, userId: string): string {
   return `${sessionId}.${userId}`;
 }
 
-/** HMAC-SHA256 sobre o payload. */
+/** HMAC-SHA256 over the payload. */
 function sign(payload: string): string {
   return createHmac("sha256", getSecret()).update(payload).digest("hex");
 }
 
-/** Codifica em valor de cookie: `{sessionId}.{userId}.{HMAC}` */
+/** Encodes into a cookie value: `{sessionId}.{userId}.{HMAC}` */
 function encode(sessionId: string, userId: string): string {
   return `${makePayload(sessionId, userId)}.${sign(makePayload(sessionId, userId))}`;
 }
 
 /**
- * Decodifica o cookie.
- * Formato esperado: `{sessionId}.{userId}.{HMAC}`
- * CUIDs nunca contêm pontos, então a separação é não-ambígua.
- * Retorna { sessionId, userId } se HMAC válido; null caso contrário.
+ * Decodes the cookie.
+ * Expected format: `{sessionId}.{userId}.{HMAC}`
+ * CUIDs never contain dots, so the split is unambiguous.
+ * Returns { sessionId, userId } when the HMAC is valid; null otherwise.
  */
 function decode(value: string): { sessionId: string; userId: string } | null {
-  // Cookie tem exatamente 3 partes separadas por ponto
-  // sessionId = partes[0], userId = partes[1], HMAC = partes[2]
+  // The cookie has exactly 3 dot-separated parts
+  // sessionId = parts[0], userId = parts[1], HMAC = parts[2]
   const parts = value.split(".");
   if (parts.length !== 3) return null;
   const [sessionId, userId, receivedSig] = parts;
@@ -69,7 +69,7 @@ function decode(value: string): { sessionId: string; userId: string } | null {
   return { sessionId, userId };
 }
 
-/** Extrai IP e User-Agent dos headers da request (Node.js runtime). */
+/** Extracts IP and User-Agent from the request headers (Node.js runtime). */
 async function getClientInfo(): Promise<{ ip: string | null; userAgent: string | null }> {
   try {
     const hdrs = await headers();
@@ -83,11 +83,11 @@ async function getClientInfo(): Promise<{ ip: string | null; userAgent: string |
   }
 }
 
-// ─── API pública ───────────────────────────────────────────────────────────────
+// ─── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Lê e valida o cookie + verifica se a sessão existe e não está expirada no DB.
- * Retorna { sessionId, userId } ou null.
+ * Reads and validates the cookie + checks the session exists and is not expired in the DB.
+ * Returns { sessionId, userId } or null.
  */
 export async function getSession(): Promise<{ sessionId: string; userId: string } | null> {
   const jar = await cookies();
@@ -97,7 +97,7 @@ export async function getSession(): Promise<{ sessionId: string; userId: string 
   const decoded = decode(raw);
   if (!decoded) return null;
 
-  // Verificação DB — sessão pode ter sido revogada server-side
+  // DB check — the session may have been revoked server-side
   const session = await db.session.findUnique({
     where: { id: decoded.sessionId },
     select: { userId: true, expiresAt: true },
@@ -106,7 +106,7 @@ export async function getSession(): Promise<{ sessionId: string; userId: string 
   if (!session) return null;
   if (session.userId !== decoded.userId) return null;
   if (session.expiresAt < new Date()) {
-    // Sessão expirada — limpar
+    // Expired session — clean up
     db.session.delete({ where: { id: decoded.sessionId } }).catch(() => {});
     return null;
   }
@@ -114,13 +114,13 @@ export async function getSession(): Promise<{ sessionId: string; userId: string 
   return decoded;
 }
 
-/** Atalho compatível com o código existente — retorna apenas userId. */
+/** Backward-compatible shortcut — returns only the userId. */
 export async function getSessionUserId(): Promise<string | null> {
   const s = await getSession();
   return s?.userId ?? null;
 }
 
-/** Atualiza lastSeenAt em background (fire-and-forget, não bloqueia). */
+/** Updates lastSeenAt in the background (fire-and-forget, non-blocking). */
 export function touchSession(sessionId: string): void {
   db.session.update({
     where: { id: sessionId },
@@ -129,8 +129,8 @@ export function touchSession(sessionId: string): void {
 }
 
 /**
- * Cria sessão no DB e define o cookie.
- * options.remember = false → session cookie (sem maxAge)
+ * Creates the session in the DB and sets the cookie.
+ * options.remember = false → session cookie (no maxAge)
  */
 export async function setSession(
   userId: string,
@@ -140,7 +140,7 @@ export async function setSession(
   const expiresAt = new Date(Date.now() + MAX_AGE * 1000);
   const { ip, userAgent } = await getClientInfo();
 
-  // Cria registro de sessão no banco
+  // Create the session record in the database
   const session = await db.session.create({
     data: { userId, ip, userAgent, expiresAt },
   });
@@ -156,7 +156,7 @@ export async function setSession(
 }
 
 /**
- * Encerra a sessão atual: apaga do DB e deleta o cookie.
+ * Ends the current session: removes it from the DB and deletes the cookie.
  */
 export async function clearSession(): Promise<void> {
   const jar = await cookies();
@@ -173,8 +173,8 @@ export async function clearSession(): Promise<void> {
 }
 
 /**
- * Revoga todas as sessões de um usuário, exceto a atual (opcional).
- * Usado após troca de senha para forçar logout nos outros dispositivos.
+ * Revokes all of a user's sessions, optionally except the current one.
+ * Used after a password change to force logout on other devices.
  */
 export async function invalidateOtherSessions(
   userId: string,
@@ -188,7 +188,7 @@ export async function invalidateOtherSessions(
   });
 }
 
-/** Throws se não autenticado. Retorna { userId, sessionId }. */
+/** Throws when unauthenticated. Returns the userId. */
 export async function requireAuth(): Promise<string> {
   const s = await getSession();
   if (!s) throw new Error("Unauthenticated");
@@ -197,7 +197,7 @@ export async function requireAuth(): Promise<string> {
   return s.userId;
 }
 
-/** Igual a requireAuth mas retorna o objeto completo (para actions que precisam do sessionId). */
+/** Same as requireAuth but returns the full object (for actions that need the sessionId). */
 export async function requireSession(): Promise<{ userId: string; sessionId: string }> {
   const s = await getSession();
   if (!s) throw new Error("Unauthenticated");

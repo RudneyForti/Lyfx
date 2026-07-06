@@ -1,9 +1,9 @@
 /**
- * i18n.ts — Constantes de internacionalização para pt-BR. [CS-29]
- * Fonte única de verdade — importar aqui em vez de declarar localmente.
+ * i18n.ts — Internationalization constants for pt-BR. [CS-29]
+ * Single source of truth — import from here instead of declaring locally.
  */
 
-/** Nomes abreviados dos meses em português (índice 0 = Janeiro). */
+/** Abbreviated month names in Portuguese (index 0 = January). */
 export const PT_MONTHS = [
   "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
   "Jul", "Ago", "Set", "Out", "Nov", "Dez",
