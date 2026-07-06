@@ -1,6 +1,6 @@
 # Lyfx — Índice de Documentação
-> Registro central de todos os documentos do projeto · v1.14.0 · Junho 2026
-> **Regra:** atualizar este arquivo em todo merge para `master` (E7 — passo obrigatório).
+> Registro central de todos os documentos do projeto · v1.14.1 · Julho 2026
+> **Regra:** atualizar este arquivo em todo merge para `main` (E7 — passo obrigatório).
 
 ---
 
@@ -10,8 +10,8 @@
 
 | Arquivo | Caminho | Versão | Audiência | Descrição |
 |---|---|---|---|---|
-| `README.md` | `/README.md` | v1.14.0 | Público / GitHub | Visão geral do projeto, badges de stack, lista de módulos e instruções de setup. Porta de entrada para qualquer pessoa que abre o repositório pela primeira vez. |
-| `DOCUMENTATION.md` | `/DOCUMENTATION.md` | v1.14.0 | Desenvolvedores / Agentes | Planta baixa técnica completa da aplicação. Contém: rotas, Server Actions, schema Prisma anotado, fórmulas de cálculo com exemplos numéricos, fluxo de dados ponta a ponta, integrações externas (Google Maps, ViaCEP, Static Maps, OAuth Google/Microsoft), decisões arquiteturais e gotchas técnicos conhecidos. Fonte de verdade técnica. Espelho em inglês: `DOCUMENTATION.en.md`. |
+| `README.md` | `/README.md` | v1.14.1 | Público / GitHub | Visão geral do projeto, badges de stack, lista de módulos e instruções de setup. Porta de entrada para qualquer pessoa que abre o repositório pela primeira vez. |
+| `DOCUMENTATION.md` | `/DOCUMENTATION.md` | v1.14.1 | Desenvolvedores / Agentes | Planta baixa técnica completa da aplicação. Contém: rotas, Server Actions, schema Prisma anotado, fórmulas de cálculo com exemplos numéricos, fluxo de dados ponta a ponta, integrações externas (Google Maps, ViaCEP, Static Maps, OAuth Google/Microsoft), decisões arquiteturais e gotchas técnicos conhecidos. Fonte de verdade técnica. Espelho em inglês: `DOCUMENTATION.en.md`. |
 | `AGENTS.md` | `/AGENTS.md` | — | Agentes (NEO / Smith) | Regras operacionais de git e pipeline carregadas automaticamente pelo Claude. Define branches, pipeline E1→E7, nomenclatura e regras obrigatórias em formato compacto. Referenciado por `CLAUDE.md`. |
 | `CLAUDE.md` | `/CLAUDE.md` | — | Claude Code | Ponto de entrada do contexto Claude. Referencia `AGENTS.md` e `docs/GIT-WORKFLOW.md` via `@import`. Não contém regras — apenas carrega os arquivos certos. |
 | `VERSIONING.md` | `/VERSIONING.md` | — | Desenvolvedores / Agentes | Política de versionamento SemVer do projeto (MAJOR/MINOR/PATCH) e histórico completo de releases com descrição do que entrou em cada versão. |
@@ -22,14 +22,14 @@
 
 | Arquivo | Caminho | Versão | Audiência | Descrição |
 |---|---|---|---|---|
-| `FEATURES.md` | `/docs/FEATURES.md` | v1.14.0 | Analistas / Gestores / Capacitação | Guia completo de funcionalidades em linguagem não-técnica. Responde: o que faz, como usar, onde vai a informação, valor ao usuário e referencial de negócio. Não contém rotas, Prisma ou código. Cobre todos os módulos do sistema (seções 1–4.21). Espelho em inglês: `FEATURES.en.md`. |
-| `GIT-WORKFLOW.md` | `/docs/GIT-WORKFLOW.md` | v1.10.0 | Desenvolvedores / Agentes | Fluxo Git detalhado: branches `master`/`develop`, pipeline de sessão (1–8), checklist E7 de release completo, convenção de portas (3000 dev / 4000 prod), worktree de produção e regras invioláveis. |
+| `FEATURES.md` | `/docs/FEATURES.md` | v1.14.1 | Analistas / Gestores / Capacitação | Guia completo de funcionalidades em linguagem não-técnica. Responde: o que faz, como usar, onde vai a informação, valor ao usuário e referencial de negócio. Não contém rotas, Prisma ou código. Cobre todos os módulos do sistema (seções 1–4.21). Espelho em inglês: `FEATURES.en.md`. |
+| `GIT-WORKFLOW.md` | `/docs/GIT-WORKFLOW.md` | v1.14.1 | Desenvolvedores / Agentes | Fluxo Git detalhado: GitHub Flow com branch única `main`, pipeline de sessão (1–8), checklist E7 de release completo, convenção de portas (3000 dev / 4000 prod), worktree de produção e regras invioláveis. |
 | `QA-TEST-PLAN.md` | `/docs/QA-TEST-PLAN.md` | v1.14.0 | Agent Smith / QA | Plano de testes executável com 400+ casos. Cobre autenticação, todos os módulos, Studio G2, Reembolso Especial (CS-17/CS-25), Central de Notificações (CS-18/CS-19), segurança, isolamento multi-usuário e fluxos E2E. Atualizado em v1.13.0 com casos de sessões com estado (CS-34), Audit Log (CS-35) e OAuth Google/Microsoft (CS-36). |
 | `QA-RESULTS-2026-06-09.md` | `/docs/QA-RESULTS-2026-06-09.md` | v1.14.0 | Agent Smith / QA | Resultado do ciclo de QA completo executado em 09/06/2026 para a v1.14.0. 324 casos, 297 PASS, 5 FAIL, 4 bugs ativos (chips). Cobre todos os 24 módulos + segurança + isolamento + fluxos E2E. |
 | `PEDAGOGY_V2.md` | `/docs/PEDAGOGY_V2.md` | v2.0 | Conteudistas / Desenvolvedores | Metodologia pedagógica do módulo `/education`. Define estrutura das pílulas (concept/why/how/quiz), taxonomia de tópicos, critérios editoriais e modelo de progressão por trilhas. |
 | `CONDUCT-MODEL.md` | `/docs/CONDUCT-MODEL.md` | v1.14.1 | Desenvolvedores / Agentes | Log da padronização do sistema de agentes vs. dev-requirements da Limiar Core: 18 mudanças detalhadas, tabela de cobertura 17/17 requisitos e backlog de pendências de aplicação por projeto. |
 | `WORKFLOW-TEMPLATES.md` | `/docs/WORKFLOW-TEMPLATES.md` | v1.14.1 | Desenvolvedores / Agentes | Biblioteca de 12 templates do pipeline E1→E7: Change Spec, Classification, Plan, Handoff, QA Report, Approval, Commit Block, Release, PR, Test Plan e Feature Doc. |
-| **`DOC-INDEX.md`** | `/docs/DOC-INDEX.md` | v1.10.0 | Todos | **Este arquivo.** Índice central de toda a documentação do projeto. |
+| **`DOC-INDEX.md`** | `/docs/DOC-INDEX.md` | v1.14.1 | Todos | **Este arquivo.** Índice central de toda a documentação do projeto. |
 
 ---
 
@@ -147,4 +147,4 @@ Este índice é **obrigatório** no checklist E7 de release. Atualizar quando:
 
 ---
 
-*Índice gerado em 08/06/2026 · Versão da plataforma: v1.13.0*
+*Índice gerado em 08/06/2026 · Versão da plataforma: v1.14.1*

@@ -1,7 +1,7 @@
 # Lyfx — Complete Features Guide
 > [Ler em português](./FEATURES.md)
 > Reference document for financial analysts, product managers, and training material
-> Version 1.14.0 · June 2026
+> Version 1.14.1 · July 2026
 
 ---
 
@@ -1354,5 +1354,5 @@ A Special Reimbursement period follows this path:
 
 ---
 
-*Version 1.11.0 · June 2026*
+*Version 1.14.1 · July 2026*
 *For the detailed test plan, see `docs/QA-TEST-PLAN.md`. For technical reference (schema, architecture, decisions), see `DOCUMENTATION.md`.*

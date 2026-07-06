@@ -54,10 +54,10 @@ Multi-user architecture with complete isolation by `userId`. Each user sees excl
 
 | Technology | Version | Rationale |
 |---|---|---|
-| **PostgreSQL** | 18 | Containerized database via Docker, production-grade relational engine. Chosen over SQLite once the project moved past single-file local use into isolated dev/prod containers with real concurrency. |
+| **PostgreSQL** | 18 (via Docker) | Robust relational database with native JSON support, concurrency, and referential integrity. Dev and production environments run in isolated containers (`lyfx-db-dev`, `lyfx-db-prod`). |
 | **Prisma** | 7.8.0 | Type-safe ORM that generates a TypeScript client from the schema. Queries with autocomplete and compile-time validation. |
-| **@prisma/adapter-pg** | — | Driver adapter required in Prisma v7 — the datasource no longer accepts `url` directly; the adapter is instantiated in `lib/db.ts` (`new PrismaPg({ connectionString })`) and injected into the client. |
-| **pg** | — | Standard Node.js PostgreSQL driver, used by the adapter. |
+| **@prisma/adapter-pg** | 7.8.0 | Driver adapter required in Prisma v7 for PostgreSQL — the datasource no longer accepts `url` directly; `PrismaPg` is instantiated in `lib/db.ts` with `DATABASE_URL` and injected into the client via `{ adapter }`. |
+| **pg** | 8.21.0 | Node.js PostgreSQL driver, used internally by `@prisma/adapter-pg`. |
 
 ### Styling
 
@@ -114,6 +114,11 @@ Multi-user architecture with complete isolation by `userId`. Each user sees excl
 │ street          │ String?      │ Street (ViaCEP auto-fill)      │
 │ streetNumber    │ String?      │ Number / complement            │
 │ country         │ String?      │ Country                        │
+│ planId          │ String?      │ FK → Plan.id                   │
+│ lastSeenAt      │ DateTime?    │ Last recorded activity          │
+│ twoFactorSecret │ String?      │ Base32 TOTP secret (CS-37a)     │
+│ twoFactorEnabled│ Boolean      │ @default(false)                │
+│ twoFactorBackupCodes│ String?  │ JSON: bcrypt hashes of backup codes │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
@@ -339,12 +344,11 @@ Note: pills are static content (lib/pills-data.json). Only progress is persisted
 ┌─────────────────────────────────────────────────────────────────┐
 │                        PLAN_MODULE (pivot)                      │
 ├─────────────────┬──────────────┬────────────────────────────────┤
-│ id              │ String (PK)  │ cuid()                         │
 │ planId          │ String (FK)  │ → Plan.id (cascade)            │
-│ moduleKey       │ String       │ Module key (lib/modules)        │
-│                 │ Unique       │ @@unique([planId, moduleKey])   │
+│ module          │ String       │ Module key (lib/modules)        │
+│                 │ Composite PK │ @@id([planId, module])          │
 └─────────────────┴──────────────┴────────────────────────────────┘
-Note: modules are static entities defined in lib/modules.ts — only the plan links are persisted.
+Note: modules are static entities defined in lib/modules.ts — only the plan links are persisted. There is no dedicated `id` field — the primary key is composite (`planId` + `module`).
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                         APP_CONFIG                              │
@@ -361,8 +365,9 @@ Known keys: "maintenanceMode" ("true"/"false"), "maintenanceBanner" (message), "
 │ id              │ String (PK)  │ cuid()                         │
 │ userId          │ String       │ Logical FK → User.id           │
 │ title           │ String       │ Notification title             │
-│ message         │ String?      │ Message body                   │
-│ read            │ Boolean      │ false by default                │
+│ body            │ String       │ Message body                   │
+│ type            │ String       │ "info"|"warning"|"danger"|"success" (@default("info")) │
+│ link            │ String?      │ Target URL on click             │
 │ readAt          │ DateTime?    │ Filled when marked read         │
 │ fingerprint     │ String?      │ Unique hash (automatic alerts)  │
 │                 │              │ null = system notification      │
@@ -383,10 +388,9 @@ deleteNotification filters WHERE { id, userId, fingerprint: null } — prevents 
 │ ethanolRate     │ Float        │ @default(0.36) — 36%           │
 │ minFuelPct      │ Float        │ @default(0.15) — 15% minimum     │
 │ paymentDays     │ Int          │ @default(5) — D+5 business days│
-│ vehiclePlate    │ String?      │ Vehicle plate                  │
-│ vehicleMake     │ String?      │ Make (e.g. Toyota)               │
-│ vehicleModel    │ String?      │ Model (e.g. Corolla)             │
-│ vehicleYear     │ Int?         │ Vehicle year                   │
+│ vehiclePlate    │ String       │ @default("") — vehicle plate    │
+│ vehicleType     │ String       │ @default("Carro") — e.g. Carro │
+│ vehicleBrand    │ String       │ @default("") — e.g. Toyota, Honda│
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
@@ -429,8 +433,10 @@ Note: created via upsert on the first visit to settings. userId is unique.
 │ origin          │ String       │ Origin address                 │
 │ destination     │ String       │ Destination address             │
 │ km              │ Float        │ Route mileage                  │
+│ routePolyline   │ String?      │ Encoded overview_polyline — always filled via the map │
 │ notes           │ String?      │ Remarks                        │
-│ polyline        │ String?      │ Encoded route polyline           │
+│ placeId         │ String?      │ ref to KmPlace (null = manual entry) │
+│ direction       │ String?      │ "going"|"return" (when placeId is set) │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 └─────────────────┴──────────────┴────────────────────────────────┘
 
@@ -468,17 +474,68 @@ Note: created via upsert on the first visit to settings. userId is unique.
 ├─────────────────┬──────────────┬────────────────────────────────┤
 │ id              │ String (PK)  │ cuid()                         │
 │ userId          │ String       │ Logical FK → User.id           │
-│ name            │ String       │ Saved place name                │
-│ address         │ String       │ Full address                   │
-│ routeGoing      │ String?      │ JSON: [{lat,lng}] (outbound)    │
-│ routeReturn     │ String?      │ JSON: [{lat,lng}] (return)      │
-│ distanceGoing   │ Float?       │ Outbound route km               │
-│ distanceReturn  │ Float?       │ Return route km                 │
+│ name            │ String       │ Saved place name (e.g. "Company XYZ") │
+│ originAddress   │ String       │ @default("") — starting address (home/office) │
+│ destinationAddress│ String     │ @default("") — destination address (company) │
+│ kmGoing         │ Float        │ @default(0) — outbound km       │
+│ kmReturn        │ Float        │ @default(0) — return km         │
+│ routeGoing      │ Json?        │ Serialized DirectionsResult — outbound route │
+│ routeReturn     │ Json?        │ Serialized DirectionsResult — return route │
+│ notes           │ String?      │ Remarks                        │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
-Note: routeGoing/routeReturn store polylines as a JSON-stringified array of waypoints.
-The polyline is used when generating the PDF (Google Static Maps path parameter).
+Note: routeGoing/routeReturn store the serialized (JSON) `DirectionsResult` returned by the Google Maps Directions API, including the encoded polyline used when generating the PDF (Google Static Maps path parameter).
+
+┌─────────────────────────────────────────────────────────────────┐
+│                       OAUTH_ACCOUNT                             │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ Logical FK → User.id           │
+│ provider        │ String       │ "google" | "microsoft"         │
+│ providerUserId  │ String       │ sub (Google) or oid (Microsoft) │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│                 │ Unique       │ @@unique([provider, providerUserId]) │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Note (CS-36): OAuth accounts linked to the user (Google, Microsoft). A provider+providerUserId pair can only belong to one account.
+
+┌─────────────────────────────────────────────────────────────────┐
+│                          SESSION                                │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid() — sessionId stored in the cookie │
+│ userId          │ String       │ Logical FK → User.id           │
+│ ip              │ String?      │ Session origin IP              │
+│ userAgent       │ String?      │ Browser user-agent             │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ lastSeenAt      │ DateTime     │ Auto: now(), updated on every request │
+│ expiresAt       │ DateTime     │ Session expiration              │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Note (CS-34): stateful sessions in the database — enables server-side invalidation and an active-sessions view. There is no `isValid` field; a session is considered valid while the record exists and `expiresAt` has not passed (deleting the record invalidates the session).
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        AUDIT_LOG                                │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String?      │ null for anonymous events (failed login with a non-existent email) │
+│ sessionId       │ String?      │ null when there is no active session │
+│ action          │ String       │ See catalog in lib/audit.ts    │
+│ ip              │ String?      │ Origin IP                      │
+│ userAgent       │ String?      │ Browser user-agent             │
+│ metadata        │ Json?        │ Additional context (e.g. attempted email, revoked sessionId) │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Note (CS-35): records security events for auditing and the profile/Studio history view.
+
+┌─────────────────────────────────────────────────────────────────┐
+│                       LOGIN_ATTEMPT                              │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ ip              │ String       │ Origin IP of the attempt         │
+│ email           │ String?      │ Auditing only — never used for lookup │
+│ success         │ Boolean      │ @default(false)                │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Note (CS-32): records login attempts per IP for rate limiting (sliding window). Lazy cleanup of old records.
 ```
 
 ### Relationship diagram
@@ -504,7 +561,13 @@ USER
  │
  ├── SETTINGS  (one record per user — userId unique)
  │
- └── PILL_PROGRESS  (educational progress per pill — userId+pillId unique)
+ ├── PILL_PROGRESS  (educational progress per pill — userId+pillId unique)
+ │
+ ├── OAUTH_ACCOUNT  (linked Google/Microsoft accounts — provider+providerUserId unique)
+ │
+ ├── SESSION  (stateful database sessions — CS-34)
+ │
+ └── AUDIT_LOG + LOGIN_ATTEMPT  (security trail — CS-35 / CS-32)
 ```
 
 ---
@@ -1075,7 +1138,7 @@ Admin panel protected by a password separate from the user session.
 
 #### Tabs (order)
 
-`Panel → Users → Plans → Modules → Notes → Data → Schema → Documentation`
+`Panel → Users → Plans → Modules → Notes → Data → Schema → Security → Documentation`
 
 #### Panel Tab
 
@@ -1109,7 +1172,7 @@ Software management dashboard with two sections:
 
 #### Modules Tab
 
-- Lists all 17 system modules with key, label, and beta status
+- Lists all 18 system modules with key, label, and beta status
 - **Beta toggle**: per-module button to mark/unmark as beta in real time. State saved in `AppConfig` as `betaModules` (JSON array of keys). The app sidebar reads this value via `getConfigValue` in `AppLayout` — no server restart
 - Modules marked as beta show the yellow "Beta" chip in the sidebar for every user
 
@@ -1147,6 +1210,32 @@ Two schema views:
 #### Documentation Tab
 
 Markdown rendering of the `DOCUMENTATION.md` file. Clickable side TOC with h2, h3, and h4 (h3 indented 20px, h4 indented 32px, decreasing sizes). Clicking any TOC item smooth-scrolls to the corresponding heading (text slugify).
+
+---
+
+### 6.21 Reports (`/reports`)
+
+Comparative reports with historical monthly series and category totals.
+
+- **Route**: `/reports` — Server Component (`app/(app)/reports/page.tsx`) that reads the `?months=` URL parameter (accepts `3`, `6`, or `12`; defaults to `6` if missing or invalid) and fetches data via `getReports(validMonths)`.
+- **Period selector**: buttons to switch between 3, 6, and 12 months — reflected in the URL to allow bookmarking/sharing the selected period.
+- **`getReports(monthsBack)`** (`app/actions/reports.ts`):
+  - Builds the date range from `today - monthsBack + 1 months` through the end of the current month
+  - Fetches all of the user's transactions in the period (`requireAuth()` + `where: { userId, date: { gte, lte } }`)
+  - Groups by month (`MonthReport[]`: income, expense, result, and per-category totals) and by category consolidated over the period (`CategoryTotal[]`: total, monthly average, how many months had activity)
+  - Also computes `contextBreakdown` — splits income/expense by `context` (`"personal" | "professional" | null`)
+- **`ReportsView`** (`components/reports/ReportsView.tsx`): displays the monthly series (chart/table), the category breakdown with percentage of total period income, and the personal/professional context breakdown.
+- **Difference from Projections**: Reports looks **backward** (real, already-recorded history); Projections looks **forward** (future recurrences and installments).
+
+### 6.22 Monthly Plan (`/planning`)
+
+Monthly calendar with a day-by-day view of income and expenses, including projected transactions (recurring and installments).
+
+- **Route**: `/planning` (Server Component `app/(app)/planning/page.tsx`) — fetches all of the user's transactions (`db.transaction.findMany`) and passes them to the client component; month navigation and filtering happen client-side.
+- **Main component**: `MonthlyCalendar.tsx` (`components/planning/MonthlyCalendar.tsx`) — calendar grid with month navigation (◀ ▶), day cells showing summarized income (green) and expense (red) badges.
+- **Projected transactions**: uses `getProjectedTransactions()` from `lib/projections.ts` to expand recurrences (`monthly`/`yearly`) and fill future calendar days with a "recurring" badge (`IconRepeat`), alongside transactions already recorded in the database.
+- **Day detail**: clicking a date expands the breakdown of that day's transactions (real and projected) with amounts and categories.
+- **isBeta**: module flagged `isBeta: true` in `lib/modules.ts` — may show the "Beta" chip in the Sidebar depending on Studio configuration.
 
 ---
 
@@ -1302,18 +1391,18 @@ User sets name + amount + deadline
    └── User found → renders Sidebar + UserMenu (floating) + children
 
 4. Successful login (email/password):
-   └── createSession(userId, ip, userAgent) → Session in the database + 3-part HMAC cookie
-       format: base64(sessionId).base64(userId).HMAC-SHA256(sessionId|userId|SECRET)
+   └── setSession(userId, { remember? }) → creates a Session in the database + sets the 3-part HMAC cookie
+       format: {sessionId}.{userId}.{HMAC-SHA256(sessionId.userId, SESSION_SECRET)}
 
 4b. OAuth login (Google / Microsoft):
     └── findOrCreateOAuthUser() → find by providerUserId → link by email → create new
-        → createSession() → same 3-part HMAC cookie
+        → setSession() → same 3-part HMAC cookie
 
 5. Every authenticated request:
-   └── touchSession() — updates lastSeenAt (Node.js runtime, not Edge)
+   └── touchSession(sessionId) — updates lastSeenAt in the background, fire-and-forget (called by requireAuth/requireSession)
 
 6. Logout:
-   └── invalidateSession(sessionId) → marks Session.isValid=false in the database → deletes the cookie → redirect /
+   └── clearSession() → deletes the Session record from the database → clears the cookie → redirect /
 ```
 
 ### Stateful database sessions (CS-34)
@@ -1324,25 +1413,31 @@ The `Session` model persists every active session in the database:
 model Session {
   id          String   @id @default(cuid())
   userId      String
-  isValid     Boolean  @default(true)
   ip          String?
   userAgent   String?
   createdAt   DateTime @default(now())
   lastSeenAt  DateTime @default(now())
+  expiresAt   DateTime
   @@index([userId])
+  @@index([expiresAt])
 }
 ```
 
+There is no `isValid` field — a session is valid as long as the record exists and `expiresAt` hasn't passed. `getSession()` lazily deletes the record if it's expired.
+
 **3-part HMAC cookie** (`lyfx_session`):
-- Format: `base64(sessionId).base64(userId).HMAC-SHA256(sessionId|userId|SESSION_SECRET)`
+- Format: `{sessionId}.{userId}.{HMAC-SHA256("{sessionId}.{userId}", SESSION_SECRET)}` — CUIDs never contain dots, so the split is unambiguous
 - Validated in the proxy (Edge Runtime) with no database — rejects a forged cookie immediately
-- `getSession()` in Server Components: decodes the cookie + looks up the Session in the database (isValid=true)
+- `getSession()` in Server Components: decodes and validates the HMAC + looks up the `Session` in the database (checks existence and `expiresAt`)
 
 **Central functions** (`lib/session.ts`):
-- `createSession(userId, ip?, userAgent?)` — creates the Session in the database + sets the cookie
-- `getSession(cookieStore)` — validates the HMAC + queries the database, returns `{ userId, sessionId }` or null
-- `invalidateSession(sessionId)` — `isValid=false` in the database + deletes the cookie
-- `invalidateOtherSessions(userId, sessionId)` — `deleteMany` for every other session of the user
+- `setSession(userId, { remember? })` — creates the `Session` in the database + sets the cookie (`remember: false` = session cookie, no `maxAge`)
+- `getSession()` — validates the HMAC + queries the database, returns `{ userId, sessionId }` or `null`
+- `getSessionUserId()` — backward-compatible shortcut returning only the `userId`
+- `clearSession()` — deletes the `Session` from the database (if the cookie exists) + clears the cookie
+- `invalidateOtherSessions(userId, currentSessionId?)` — `deleteMany` for every other session of the user
+- `touchSession(sessionId)` — updates `lastSeenAt` (fire-and-forget, no `await`)
+- `requireAuth()` / `requireSession()` — throw if unauthenticated; call `touchSession()` internally
 - `touchSession(sessionId)` — updates `lastSeenAt` (no await in the layout, fire-and-forget)
 
 **Sessions view in the profile** (`components/profile/SessionsSection.tsx`):
@@ -1392,7 +1487,7 @@ GET /api/auth/google/callback?code=...&state=...
      ├── OAuthAccount with providerUserId exists → login (same account)
      ├── User with the same email exists → links OAuthAccount + login
      └── None → creates User + OAuthAccount + login
-  5. createSession() → HMAC cookie → redirect /dashboard
+  5. setSession() → HMAC cookie → redirect /dashboard
   6. On error → redirectWithOAuthError() (flash cookie, not a URL param)
 ```
 
@@ -1427,13 +1522,16 @@ The `AuditLog` model records every security event:
 ```prisma
 model AuditLog {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?                           // null for anonymous events
+  sessionId String?                           // null when there is no active session
   action    String                            // AUDIT_META catalog key
   ip        String?
+  userAgent String?
   metadata  Json?
   createdAt DateTime @default(now())
-  @@index([userId])
+  @@index([userId, createdAt])
   @@index([createdAt])
+  @@index([action, createdAt])
 }
 ```
 
@@ -1518,7 +1616,7 @@ POST verifyTwoFactor({ code, isBackupCode })
   → getPendingTwoFactor() → userId (validates HMAC + expiry)
   → if backup: verifyAndConsumeBackupCode() → updates twoFactorBackupCodes
   → if TOTP: verifySync({ token, secret }).valid
-  → clearPendingTwoFactor() + createSession() + redirect /dashboard
+  → clearPendingTwoFactor() + setSession() + redirect /dashboard
 ```
 
 **Server Actions** (`app/actions/two-factor.ts`):
@@ -1587,8 +1685,8 @@ lyfx/
 │   │   ├── fixed-expenses/page.tsx
 │   │   ├── goals/page.tsx
 │   │   ├── projections/page.tsx
-│   │   ├── planning/page.tsx
-│   │   ├── reports/page.tsx      # (pending)
+│   │   ├── planning/page.tsx     # Monthly Plan — calendar with real + projected transactions
+│   │   ├── reports/page.tsx      # Comparative reports by period
 │   │   ├── tags/page.tsx
 │   │   ├── health/page.tsx
 │   │   ├── liabilities/page.tsx
@@ -1597,9 +1695,8 @@ lyfx/
 │   │   ├── institutions/page.tsx # Bank/fintech and account registry
 │   │   ├── alerts/page.tsx       # Proactive alerts center
 │   │   ├── assets/page.tsx       # Assets, real estate, vehicles, and associated expenses
-│   │   ├── education/page.tsx           # Track hub (Server Component)
-│   │   ├── education/[pillId]/page.tsx  # Pill reading (Server Component)
-│   │   └── education/platform/page.tsx # Knowledge base (wrapper)
+│   │   ├── km-reimbursement/     # Corporate KM reimbursement module (5 routes)
+│   │   └── education/            # Track hub, pill reading ([pillId]), and knowledge base (platform)
 │   ├── actions/                  # Server Actions — mutations and queries
 │   │   ├── dashboard.ts          # getDashboardData() — fetches everything in parallel
 │   │   ├── transactions.ts       # getDRESummary() returns margins + saved
@@ -1607,25 +1704,45 @@ lyfx/
 │   │   ├── budgets.ts
 │   │   ├── goals.ts
 │   │   ├── projections.ts
-│   │   ├── reports.ts
+│   │   ├── reports.ts            # getReports() — monthly series + category totals
 │   │   ├── health.ts             # getHealthData() — P&L + reserve + score
 │   │   ├── liabilities.ts        # Liability CRUD
 │   │   ├── settings.ts           # getSettings / updateExpectedIncome
 │   │   ├── institutions.ts       # Institution and account CRUD
-│   │   ├── alerts.ts             # getAlerts() — 5 alert types, on-the-fly
+│   │   ├── alerts.ts             # getAlerts() — on-the-fly alerts
 │   │   ├── assets.ts             # Asset and expense CRUD (AssetExpense)
 │   │   ├── education.ts          # getPillProgress / completePill / getStreakData
+│   │   ├── km-reimbursement.ts   # Full CRUD for the KM reimbursement module
+│   │   ├── notifications.ts      # User notification center
+│   │   ├── plans.ts              # Plan CRUD and Full/Insider seeds
+│   │   ├── sessions.ts           # Active session listing/revocation
+│   │   ├── two-factor.ts         # TOTP 2FA setup, verification, and disable
+│   │   ├── audit.ts              # getAuditLogs() — current user's security history
 │   │   └── user.ts
 │   ├── api/
-│   │   └── clear-session/route.ts  # Route Handler — clears an orphan cookie
+│   │   ├── auth/                 # google/ and microsoft/ — OAuth routes (authorization + callback)
+│   │   ├── clear-session/route.ts  # Route Handler — clears an orphan cookie
+│   │   ├── km-map/route.ts       # Proxy for static map images (Google Static Maps)
+│   │   └── km-pdf/route.ts       # Server-side KM reimbursement PDF generation
 │   ├── login/
 │   │   ├── page.tsx              # Server Component — injects hasUser + monthLabel
 │   │   ├── LoginForm.tsx         # Client Component — auth form
 │   │   └── actions.ts            # setup(), login(), logout()
-│   ├── studio/
+│   ├── studio/                    # Refactored into smaller modules (v1.14.1) — no single god-module
 │   │   ├── page.tsx              # Checks the admin cookie, renders login or panel
 │   │   ├── StudioClient.tsx      # Full Studio UI
-│   │   └── actions.ts            # adminLogin, getStudioData, adminResetPassword
+│   │   ├── StudioLoginForm.tsx   # Studio login form
+│   │   ├── actions.ts            # Re-export barrel for the modules below
+│   │   ├── auth.ts               # adminLogin, adminLogout
+│   │   ├── users.ts              # adminCreateUser, adminResetPassword, adminDeleteUser
+│   │   ├── data.ts               # getStudioData, getStudioDataForUser
+│   │   ├── config.ts             # getAppConfig, setAppConfig, saveAdminNotes
+│   │   ├── notifications.ts      # Sending notifications by plan/user
+│   │   ├── events.ts             # getAdminSecurityLog (multi-user Audit Log)
+│   │   ├── board.ts              # Internal roadmap/backlog
+│   │   └── system-info.ts        # System metrics (RAM, CPU, version, DB)
+│   ├── error.tsx                 # Global error boundary
+│   ├── not-found.tsx             # Custom 404 page
 │   ├── page.tsx                  # Landing page (public route /)
 │   ├── layout.tsx                # Root layout — fonts, globals
 │   └── globals.css               # Design system, tokens, keyframes
@@ -1634,6 +1751,7 @@ lyfx/
 │   ├── landing/LandingPage.tsx
 │   ├── layout/Sidebar.tsx
 │   ├── layout/UserMenu.tsx
+│   ├── auth/PasswordStrengthBar.tsx  # Password strength visual indicator
 │   ├── transactions/
 │   │   ├── TransactionForm.tsx
 │   │   ├── EditTransactionModal.tsx
@@ -1643,62 +1761,74 @@ lyfx/
 │   │   ├── KPICards.tsx          # 4 cards: Balance, Income, Expenses, Saved
 │   │   ├── InsightBanner.tsx     # Lyfx Insight — rule-generated contextual tip
 │   │   ├── GoalsMiniWidget.tsx   # Active goal progress bars
-│   │   └── MonthlyTrendChart.tsx # Chart of the last 6 months' spending
+│   │   ├── MonthlyTrendChart.tsx # Chart of the last 6 months' spending
+│   │   └── AssetsMiniWidget.tsx  # Assets widget for the dashboard
 │   ├── budget/BudgetView.tsx
 │   ├── education/EducationView.tsx
 │   ├── fixed-expenses/FixedExpensesView.tsx
 │   ├── goals/GoalsView.tsx       # + contextual liability alert
 │   ├── health/HealthView.tsx     # SVG gauge + 4 dimensions + profile
-│   ├── liabilities/
-│   │   └── LiabilitiesView.tsx  # CRUD + Recovery Mode (avalanche)
-│   ├── institutions/
-│   │   └── InstitutionsView.tsx # Institution and linked account CRUD
-│   ├── alerts/
-│   │   └── AlertsView.tsx       # Alerts center grouped by severity
-│   ├── assets/
-│   │   └── AssetsView.tsx       # Asset CRUD with expandable expenses/taxes
-│   ├── reimbursements/
-│   │   └── ReimbursementsView.tsx  # reimbursable expense tracking
+│   ├── liabilities/LiabilitiesView.tsx  # CRUD + Recovery Mode (avalanche)
+│   ├── institutions/InstitutionsView.tsx # Institution and linked account CRUD
+│   ├── alerts/AlertsView.tsx     # Alerts center grouped by severity
+│   ├── assets/AssetsView.tsx     # Asset CRUD with expandable expenses/taxes
+│   ├── reimbursements/ReimbursementsView.tsx  # reimbursable expense tracking
+│   ├── km-reimbursement/         # PeriodList, NewPeriodForm, PeriodDetail, PeriodPdf, RouteMap, PlacesPage, PlacesModal, KmSettings, AddressAutocomplete
+│   ├── planning/MonthlyCalendar.tsx  # Monthly calendar with real + projected transactions
 │   ├── projections/ProjectionsView.tsx
 │   ├── reports/ReportsView.tsx
+│   ├── notifications/            # Bell icon, dropdown, and notification list
 │   ├── tags/
 │   │   ├── TagPicker.tsx
 │   │   └── TagsManager.tsx
-│   ├── profile/ProfileForm.tsx
+│   ├── profile/                  # ProfileForm, SessionsSection, AuditSection, TwoFactorSection
+│   ├── studio/                   # Internal Studio components (tabs, tables, ERD)
 │   └── ui/
 │       ├── MonthPicker.tsx       # Custom month selector (replaces input[type=month])
 │       └── CountrySelect.tsx     # Typeable combobox with ~195 countries in Portuguese
 │
-│   (dashboard extras)
-│       └── AssetsMiniWidget.tsx  # Assets widget for the dashboard
-│
 ├── lib/
-│   ├── db.ts                     # Prisma singleton with the SQLite adapter
-│   ├── session.ts                # getSessionUserId, setSession, clearSession
+│   ├── db.ts                     # Prisma singleton with the PostgreSQL adapter (@prisma/adapter-pg)
+│   ├── session.ts                # setSession, getSession, clearSession, requireAuth
+│   ├── oauth.ts                  # Google/Microsoft providers (Arctic) + findOrCreateOAuthUser
+│   ├── oauth-flash.ts            # OAuth error flash cookie (lyfx_error)
+│   ├── totp.ts                   # TOTP generation/verification and backup codes (2FA)
+│   ├── audit.ts                  # logEvent/logEventBg + AUDIT_META catalog
+│   ├── login-attempts.ts         # Per-IP rate limiting (LoginAttempt)
+│   ├── password-strength.ts      # Strong password policy validation
+│   ├── throttle-gate.ts          # Generic throttling helper
 │   ├── types.ts                  # Domain TypeScript interfaces
 │   ├── categories.ts             # Definition of the 9 categories with labels and examples
 │   ├── tag-icons.ts              # TAG_ICONS map + TAG_COLORS palette
 │   ├── utils.ts                  # cn() for className merging
+│   ├── dates.ts                  # Date formatting/manipulation helpers
+│   ├── i18n.ts                   # PT_MONTHS and internationalization utilities
 │   ├── health.ts                 # computeHealthScore() — pure calculation, no DB
 │   ├── liabilities.ts            # monthsToPayoff() — pure amortization utility
 │   ├── institutions.ts           # Institution types and constants (outside "use server")
+│   ├── assets.ts                 # Asset types and constants (outside "use server")
+│   ├── projections.ts            # getProjectedTransactions() — expands recurrences/installments
+│   ├── alert-engine.ts           # Calculation engine for on-the-fly alerts
+│   ├── modules.ts                # ALL_MODULES — source of truth for the 18 modules
+│   ├── config.ts                 # getConfigValue/getConfigBool (AppConfig, no admin auth)
+│   ├── holidays.ts                # getHolidays() — national holidays via BrasilAPI
+│   ├── km-utils.ts               # addBusinessDays() and KM module utilities
+│   ├── km-static-map.ts           # Google Static Maps API integration
+│   ├── pills.ts                   # Helpers for reading the educational pills
+│   ├── pills-data.json            # Static content of the 85 pills
 │   └── generated/prisma/         # Prisma-generated client (do not edit)
 │
 ├── prisma/
-│   ├── schema.prisma             # Source of truth for the database
+│   ├── schema.prisma             # Source of truth for the database (PostgreSQL)
 │   └── prisma.config.ts          # Prisma v7 configuration
 │
+├── docs/
+│   └── GIT-WORKFLOW.md           # GitHub Flow branch workflow (single main branch)
+│
 ├── proxy.ts                      # Route protection (Edge Runtime)
-├── .env                          # DATABASE_URL + ADMIN_SECRET
-├── dev.db                        # SQLite database (do not version)
-└── .claude/
-    ├── CLAUDE.md                 # Global instructions for Claude Code
-    ├── AGENTS.md                 # Agent guidelines (@AGENTS.md referenced by CLAUDE.md)
-    └── agents/
-        └── agent-smith.md        # Specialist QA agent (Agent Smith v8.0)
+├── .env                          # DATABASE_URL (PostgreSQL) + ADMIN_SECRET + SESSION_SECRET
+└── AGENTS.md / CLAUDE.md         # Global instructions for AI agents (Claude Code)
 ```
-
-> **Note (v1.14.1+):** the database layer moved from SQLite to PostgreSQL and `app/studio/actions.ts` was split into 7 responsibility modules with a compatibility barrel. This file tree snapshot reflects the codebase at the time this section was last updated; see section 2 and the changes recorded in `VERSIONING.md` for the current architecture.
 
 ### 9.1 File Descriptions
 
@@ -1731,6 +1861,10 @@ lyfx/
 | `institutions/page.tsx` | Fetches institutions and liabilities in parallel; renders `InstitutionsView`. |
 | `alerts/page.tsx` | Fetches computed alerts and renders `AlertsView`. |
 | `assets/page.tsx` | Fetches every asset of the user (with expenses included) and renders `AssetsView`. |
+| `planning/page.tsx` | Fetches all of the user's transactions and renders `MonthlyCalendar` (Monthly Plan). |
+| `reports/page.tsx` | Reads `?months=` from the URL, fetches data via `getReports()`, and renders `ReportsView`. |
+| `km-reimbursement/*` | 5 routes of the KM reimbursement module: list, new request, detail, saved places, and settings. |
+| `education/*` | Track hub, pill reading (`[pillId]`), and knowledge base (`platform`). |
 
 #### `app/actions/`
 
@@ -1742,14 +1876,20 @@ lyfx/
 | `budgets.ts` | `getBudgets`, `setBudget` (upsert by `[userId, category]`), `deleteBudget`. |
 | `goals.ts` | `getGoals`, `createGoal` (generates automatic GoalPayments), `deleteGoal`, `markPayment`, `getMonthlyBalance` (average surplus of the last 3 months for feasibility calculation). |
 | `projections.ts` | `getProjections()` — reads monthly/yearly recurrences and future installments; distributes each item in the correct month for the next 12 months. |
-| `reports.ts` | `getReportsData(month, year)` — fetches the period's transactions and builds a P&L structure for export/display. |
+| `reports.ts` | `getReports(monthsBack)` — fetches the period's transactions, builds the monthly series (`MonthReport[]`), category totals (`CategoryTotal[]`), and a personal/professional context breakdown. |
 | `health.ts` | `getHealthData(month, year)` — combines `getDRESummary` with a `debit_longterm` aggregate (reserve proxy) and the average expenses of the last 3 months; returns data for `computeHealthScore`. |
 | `liabilities.ts` | `getLiabilities`, `createLiability`, `updateLiability`, `deleteLiability`, `markPaidOff`. A liability can be linked to an institution via `institutionId`. |
 | `settings.ts` | `getSettings()` with a get-or-create default by `userId`; `updateExpectedIncome(amount)`. |
 | `user.ts` | `getProfile()`, `updateProfile()` (name, email, age, gender, 5 address fields, base64 avatar), `changePassword()` (verifies the current password with bcrypt before updating). |
 | `institutions.ts` | `getInstitutions`, `getAccountsForSelect`, `createInstitution`, `updateInstitution`, `deleteInstitution` (manual cascade + FK cleanup), `createAccount`, `updateAccount`, `deleteAccount`. |
-| `alerts.ts` | `getAlerts()` — computes 4 alert types on-the-fly: blown budget, overdue/pending goal payments, negative projection over the next 12 months, and imminent seasonal expenses. |
+| `alerts.ts` | `getAlerts()` — computes budget, goal, negative-projection, seasonal, and critical-liability alerts on-the-fly. |
 | `assets.ts` | `getAssets`, `getAssetsSummary` (for the dashboard widget), `createAsset`, `updateAsset`, `deleteAsset`. For expenses: `createAssetExpense` (checks asset ownership), `updateAssetExpense`, `toggleExpensePaid`, `deleteAssetExpense`. `parseBR()` parsing normalizes values in local number format (`"1.234,56"` → `1234.56`). |
+| `km-reimbursement.ts` | Full CRUD for the KM reimbursement module: config, periods, routes, fuel receipts, extra expenses, saved places, submit/reopen flow (`submitPeriod`, `reopenPeriod`). |
+| `notifications.ts` | `getNotifications`, `markAllRead`, `deleteNotification` (guard `fingerprint: null`), `clearAll`. |
+| `plans.ts` | `getPlans`, `getPlanById`, `getUserModules`, `createPlan`, `updatePlan`, `deletePlan`, `migrateAndDeletePlan`, `assignUserToPlan`, `ensureInsiderPlan`, `ensureDefaultPlan`. |
+| `sessions.ts` | Listing and revocation of the user's active sessions (`revokeSession`, `revokeAllOtherSessions`). |
+| `two-factor.ts` | `initTwoFactorSetup`, `confirmTwoFactorSetup`, `disableTwoFactor`, `regenerateBackupCodes`, `getTwoFactorStatus`. |
+| `audit.ts` | `getAuditLogs()` — current user's security event history (last 50). |
 
 #### `app/login/`
 
@@ -1761,17 +1901,32 @@ lyfx/
 
 #### `app/studio/`
 
+Refactored in v1.14.1 to eliminate the single god-module: `actions.ts` became a re-export barrel, and the real code was split by responsibility.
+
 | File | What it does |
 |---|---|
 | `page.tsx` | Server Component: checks the `lyfx_admin` cookie; renders `StudioLoginForm` or the full `StudioClient` panel passing the fetched data. |
-| `StudioClient.tsx` | Client Component with the full Studio UI: 8 tabs (Panel, Users, Plans, Modules, Notes, Data, Schema, Documentation), login form, user management with inline confirmation, per-module beta toggle, Markdown editor with toolbar + slash commands, metrics dashboard, collapsible ERD with table descriptions. |
-| `actions.ts` | `adminLogin`, `adminLogout` (clears both cookies + redirects), `getStudioData` (includes dev/prod versions), `getStudioDataForUser`, `adminResetPassword`, `adminCreateUser`, `adminDeleteUser` (manual cascade), `getDocumentation`, `getLiveSchema`, `getAppConfig`, `setAppConfig`, `saveAdminNotes`, `ensureInsiderPlan`. |
+| `StudioClient.tsx` | Client Component with the full Studio UI: tabs (Panel, Users, Plans, Modules, Notes, Data, Schema, Security, Documentation), user management with inline confirmation, per-module beta toggle, Markdown editor with toolbar + slash commands, metrics dashboard, collapsible ERD with table descriptions. |
+| `StudioLoginForm.tsx` | Studio login form (`ADMIN_SECRET` password). |
+| `actions.ts` | Barrel — only re-exports the functions from the modules below to keep import compatibility. |
+| `auth.ts` | `adminLogin`, `adminLogout` (clears `lyfx_admin` and `lyfx_session` with the correct `path`s + redirects). |
+| `users.ts` | `adminCreateUser`, `adminResetPassword`, `adminDeleteUser` (manual cascade). |
+| `data.ts` | `getStudioData` (includes dev/prod versions), `getStudioDataForUser`, `getLiveSchema`. |
+| `config.ts` | `getAppConfig`, `setAppConfig`, `saveAdminNotes`. |
+| `notifications.ts` | Sending manual notifications by plan/user with broadcast history. |
+| `events.ts` | `getAdminSecurityLog(filters?)` — multi-user Audit Log for the Security tab. |
+| `board.ts` | Internal Studio roadmap/backlog. |
+| `system-info.ts` | System metrics for the Panel tab (RAM, heap, CPU, disk space, git branch version). |
 
 #### `app/api/`
 
 | File | What it does |
 |---|---|
+| `auth/google/route.ts` and `auth/google/callback/route.ts` | Google OAuth flow: state/PKCE generation and code-for-session exchange. |
+| `auth/microsoft/route.ts` and `auth/microsoft/callback/route.ts` | Equivalent Microsoft Entra ID OAuth flow. |
 | `clear-session/route.ts` | GET Route Handler — deletes the `lyfx_session` cookie and redirects to `/login`. Used as an escape hatch when the cookie's `userId` no longer exists in the database, avoiding an infinite loop in `AppLayout`. |
+| `km-map/route.ts` | Server-side proxy for Google Static Maps images (keeps the API key off the client). |
+| `km-pdf/route.ts` | Generates and returns the KM reimbursement PDF (`@react-pdf/renderer`, server-side). |
 
 #### `components/landing/`
 
@@ -1841,43 +1996,41 @@ lyfx/
 
 | File | What it does |
 |---|---|
-| `db.ts` | `PrismaClient` singleton with `PrismaBetterSqlite3` as the adapter. Reads `DATABASE_URL` from the environment (fallback: `file:./dev.db`). Each environment points to its own database via `.env` (gitignored). |
-| `session.ts` | `getSessionUserId()` reads the `lyfx_session` cookie; `setSession(userId)` writes the httpOnly cookie; `clearSession()` deletes the cookie; `requireAuth()` returns the `userId` or throws if unauthenticated. |
+| `db.ts` | `PrismaClient` singleton with `PrismaPg` (`@prisma/adapter-pg`) as the adapter, reading `DATABASE_URL` (PostgreSQL) from the environment. Each environment points to its own database via `.env` (gitignored). |
+| `session.ts` | `setSession`, `getSession`, `getSessionUserId`, `clearSession`, `invalidateOtherSessions`, `touchSession`, `requireAuth()`/`requireSession()` — stateful database sessions (`Session` model). |
+| `oauth.ts` | Google/Microsoft providers via Arctic, `isOAuthEnabled()`, `findOrCreateOAuthUser()`. |
+| `oauth-flash.ts` | `oauth_error` flash cookie to show OAuth errors without polluting the URL. |
+| `totp.ts` | TOTP generation/verification and backup codes for 2FA (`otplib` + `qrcode`). |
+| `audit.ts` | `logEvent`/`logEventBg` + `AUDIT_META` catalog — security event logging (`AuditLog` model). |
+| `login-attempts.ts` | Per-IP rate limiting over the `LoginAttempt` model (sliding window, thresholds configurable via Studio). |
+| `password-strength.ts` | Strong password policy validation, used in `setup()`, `changePassword()`, and client-side. |
+| `throttle-gate.ts` | Generic throttling helper reused across sensitive flows. |
 | `types.ts` | Domain TypeScript interfaces: `Transaction`, `Tag`, `Goal`, `GoalPayment`, `Liability`, `DRESummary` (with `margins` and `saved`), category, recurrence, and context types. |
 | `categories.ts` | `CATEGORIES` array with the 9 categories (2 credit + 7 debit), each with `value`, `label`, `group`, `groupLabel`, and `examples`. Source of truth for dropdowns and groupings. |
 | `tag-icons.ts` | `TAG_ICONS` object mapping 12 keys to Tabler Icons components; `TAG_COLORS` array with 8 predefined hex colors. |
 | `utils.ts` | `cn(...inputs)` function — combines `clsx` and `tailwind-merge` for safe Tailwind class merging. |
+| `dates.ts` | Date formatting/manipulation helpers used across several modules. |
+| `i18n.ts` | `PT_MONTHS` and internationalization utilities (Portuguese labels). |
 | `health.ts` | Pure function `computeHealthScore(data)` — computes the 0–100 score and financial profile from the P&L, reserve, and averages. No database access. |
 | `liabilities.ts` | Pure function `monthsToPayoff(balance, monthlyRate, payment)` — computes months to pay off a debt via the amortization formula. Separated from the `"use server"` file due to a Turbopack limitation. |
 | `institutions.ts` | Institution types and constants (`InstitutionType`, `AccountType`, `INSTITUTION_TYPE_LABELS`, `ACCOUNT_TYPE_LABELS`, `Institution`, `Account`, `AccountForSelect` interfaces) — separated from the `"use server"` file due to a Turbopack limitation. |
 | `assets.ts` | Asset types and constants (`AssetType`, `AssetExpenseType`, `ASSET_TYPE_LABELS`, `ASSET_EXPENSE_TYPE_LABELS`, `EXPENSE_SUGGESTIONS`, `Asset`, `AssetExpense` interfaces) — separated from the `"use server"` file due to a Turbopack limitation. |
-| `modules.ts` | `ALL_MODULES` array with the system's 17 modules — each entry has `key`, `label`, `summary` (short description), and `isBeta?: boolean`. `ALL_MODULE_KEYS` is the keys-only array. Source of truth for plan seeds and for the Sidebar's "Beta" chip. |
+| `projections.ts` | `getProjectedTransactions()` — expands recurrences and future installments; used both in `/projections` and in the `/planning` calendar. |
+| `alert-engine.ts` | Calculation engine for on-the-fly alerts, consumed by `app/actions/alerts.ts`. |
+| `modules.ts` | `ALL_MODULES` array with the system's 18 modules — each entry has `key`, `label`, `group`, `summary` (short description), and `isBeta?: boolean`. `ALL_MODULE_KEYS` is the keys-only array. Source of truth for plan seeds and for the Sidebar's "Beta" chip. |
 | `config.ts` | `getConfigValue(key, fallback)` and `getConfigBool(key, fallback)` helpers — read `AppConfig` via Prisma with no admin authentication required. Used in Server Components (`AppLayout`, `layout.tsx`) to read `maintenanceMode` and `betaModules` on every request. |
+| `holidays.ts` | `getHolidays(year)` — national holidays via BrasilAPI, with an in-memory cache per year. |
+| `km-utils.ts` | `addBusinessDays()` and other utilities for the Special Reimbursement module (moved from `app/actions/km-reimbursement.ts`). |
+| `km-static-map.ts` | Google Static Maps API integration for the images embedded in the KM PDF. |
+| `pills.ts` / `pills-data.json` | Helpers and static content for the 85 financial education pills. |
+| `generated/prisma/` | Prisma-generated client (do not edit). |
 
 #### `prisma/`
 
 | File | What it does |
 |---|---|
-| `schema.prisma` | Source of truth for the database: defines every model (User, Transaction, Tag, TransactionTag, Budget, Goal, GoalPayment, Settings, Liability, Institution, Account, Asset, AssetExpense, Plan, PlanModule, AppConfig) with fields, types, defaults, composite unique constraints, and relations. |
-
-#### `.claude/`
-
-**Claude Code** (AI CLI) configuration directory. Versioned in the repository so the assistant's context is shared across sessions and collaborators.
-
-| File | What it does |
-|---|---|
-| `CLAUDE.md` | Claude Code's entry point. References `@AGENTS.md` with `@`. |
-| `AGENTS.md` | Global project directives for Claude Code: stack, conventions, Next.js breaking-change warnings. |
-| `agents/agent-smith.md` | **Agent Smith v8.0** — specialist QA agent. Surgical persona grounded in 19 technical works (Myers, Beck, Feathers, Fowler, Nygard, WAHH, and others). Invoked with `@agent-smith` or natural language. Tools: `Read`, `Grep`, `Glob`, `Bash` (read/analysis only — no file editing). Model: `sonnet`. |
-
-**How to invoke Agent Smith:**
-```
-@agent-smith review the PillReader component before committing
-```
-or
-```
-Use Agent Smith to audit the completePill action
-```
+| `schema.prisma` | Source of truth for the database (PostgreSQL): defines every model — Institution, Account, Transaction, Goal, GoalPayment, Tag, TransactionTag, Budget, Asset, AssetExpense, Plan, PlanModule, User, Liability, PillProgress, Settings, AppConfig, Notification, KmConfig, KmPeriod, KmRoute, KmReceipt, KmExpense, KmPlace, OAuthAccount, Session, AuditLog, LoginAttempt — with fields, types, defaults, composite unique constraints, and relations. |
+| `prisma.config.ts` | Prisma v7 configuration (replaces the older options in `schema.prisma`/`package.json`). |
 
 ---
 
@@ -1889,11 +2042,11 @@ Use Agent Smith to audit the completePill action
 
 **Reason**: eliminates the REST API layer, reduces boilerplate, keeps end-to-end type safety. Next.js serializes the arguments automatically. For Lyfx, which has no external clients consuming an API, there's no advantage in exposing REST endpoints.
 
-### Simple cookie instead of JWT or iron-session
+### HMAC cookie with stateful database sessions instead of JWT or iron-session
 
-**Decision**: session stored as `userId` directly in the cookie, with no additional encryption.
+**Decision**: session represented by a 3-part HMAC-SHA256 cookie (`sessionId.userId.hmac`) referencing a `Session` record in the database (CS-34), instead of a self-contained JWT.
 
-**Reason**: a personal local app, with no requirement for a distributed stateless session. The cookie is httpOnly (inaccessible via XSS) and AppLayout validates the userId against the database on every request. Iron-session or JWT would add complexity with no real benefit in this context.
+**Reason**: enables instant server-side invalidation (revoking an individual session, or "sign out of all other devices"), which a stateless JWT cannot offer without an additional denylist. The cookie is httpOnly, validated by HMAC at the Edge (`proxy.ts`) before any database access, and the `Session` record is only queried in the Node.js runtime (`AppLayout`). Plain iron-session or JWT would add complexity without solving the immediate-revocation requirement.
 
 ### Base64 avatar in the database
 
@@ -1921,24 +2074,22 @@ Use Agent Smith to audit the completePill action
 
 **Reason**: the `middleware.ts` convention was deprecated in Next.js 16. The correct convention is `proxy.ts` with a named `proxy` export.
 
-### Prisma v7 with an explicit adapter
+### Prisma v7 with an explicit adapter (PostgreSQL)
 
-**Decision**: `PrismaBetterSqlite3` instantiated in `lib/db.ts` and passed via `{ adapter }` to `PrismaClient`.
+**Decision**: `PrismaPg` (`@prisma/adapter-pg`) instantiated in `lib/db.ts` with `DATABASE_URL` and passed via `{ adapter }` to `PrismaClient`.
 
-**Reason**: Prisma v7 removed native inline SQLite support in the datasource. The new model requires an explicit adapter. This also enables a future switch to PostgreSQL with no change to query code — only the adapter instantiation changes.
-
-> **Note (v1.14.1+):** this decision was later superseded — the project migrated to PostgreSQL with `@prisma/adapter-pg`, exactly along the path this section anticipated. See section 2 for the current adapter.
+**Reason**: Prisma v7 removed inline `url` support in the datasource — the new model requires an explicit per-driver adapter. The project moved from SQLite (single-file local use) to PostgreSQL in Docker containers to support real concurrency and dev/production parity; swapping the adapter (`PrismaBetterSqlite3` → `PrismaPg`) required no changes to query code, only to the instantiation in `lib/db.ts`.
 
 ### Per-environment database isolation
 
-**Decision**: each environment keeps its own `.env` file (gitignored) with `DATABASE_URL` pointing to an exclusive SQLite database:
+**Decision**: each environment keeps its own `.env` file (gitignored) with `DATABASE_URL` pointing to an exclusive PostgreSQL database, running in isolated containers:
 
-| Environment | Database |
-|---|---|
-| `develop` (port 3000) | `lyfx/dev.db` — test data, freely resettable |
-| `master` (port 4000) | `lyfx-production/prod.db` — real user data |
+| Environment | Branch | Port | Database |
+|---|---|---|---|
+| Development (`lyfx/`) | current feature branch | 3000–3009 | `lyfx_dev` (container `lyfx-db-dev`, host port 5433) |
+| Production (`lyfx-production/`) | `main` (pinned) | 4000–4009 | `lyfx_prod` (container `lyfx-db-prod`, host port 5434) |
 
-**Reason**: a database shared between dev and production created a risk of data corruption (schema migrations in `develop` would immediately affect production). Isolation via a gitignored `.env` is automatic — merges never touch either environment's configuration file, preserving each one's database pointer indefinitely.
+**Reason**: a database shared between dev and production created a risk of data corruption (schema migrations in development would immediately affect production). Isolation via a gitignored `.env` is automatic — merges never touch either environment's configuration file, preserving each one's database pointer indefinitely. See `docs/GIT-WORKFLOW.md` for the full branch workflow (GitHub Flow, single `main` branch).
 
 > **Note (v1.14.1+):** the branch model itself later moved to GitHub Flow (single `main` branch); the database isolation principle carries over unchanged to the current `lyfx_dev` / `lyfx_prod` PostgreSQL databases (see section 2).
 
@@ -2085,27 +2236,25 @@ urgency = monthsRemaining <= 2 ? "danger" : monthsRemaining <= 4 ? "warning" : "
 
 This section documents real problems found during development, with root cause and the definitive fix. Consult it before investigating similar issues.
 
-### Prisma v7 — mandatory adapter for SQLite
+### Prisma v7 — mandatory adapter for PostgreSQL
 
-**Symptom**: `db.anyModel.findMany()` fails with `Cannot read properties of undefined`.
+**Symptom**: `db.anyModel.findMany()` fails with `Cannot read properties of undefined`, or a connection error right at startup.
 
-**Cause**: Prisma v7 removed native SQLite support in the datasource. The client needs to be instantiated with `{ adapter: new PrismaBetterSqlite3(new BetterSqlite3(dbUrl)) }`.
+**Cause**: Prisma v7 removed inline `url` support in the datasource. The client needs to be instantiated with an explicit per-driver adapter — for Lyfx, `{ adapter: new PrismaPg({ connectionString: DATABASE_URL }) }`.
 
-**Location**: `lib/db.ts`. Singleton instantiation via `const globalForPrisma = global as any; globalForPrisma.prisma ??= new PrismaClient({ adapter })`.
+**Location**: `lib/db.ts`. Singleton instantiation with the `PrismaPg` adapter (`@prisma/adapter-pg`), stored on `globalForPrisma` to avoid multiple instances under HMR.
 
 **After `db push`**: always run `npx prisma generate` — the client doesn't recognize new models until regenerated. The production worktree has a separate client and needs an independent `generate`.
 
-> **Note (v1.14.1+):** superseded by the PostgreSQL migration with `@prisma/adapter-pg` (see section 2) — the underlying "adapter is mandatory in Prisma v7" lesson still applies, just with a different adapter class.
+### Turbopack — module cache with `"use server"` (historical, resolved by the PostgreSQL migration)
 
-### Turbopack — module cache with `"use server"`
+**Symptom** (observed back when the project used SQLite): a new model added to the schema was recognized by Prisma in queries, but the client component didn't see it / `db.newModel` was `undefined` on the server.
 
-**Symptom**: a new model added to the schema is recognized by Prisma in queries, but the client component doesn't see it / `db.newModel` is undefined on the server.
+**Cause**: Turbopack kept a compiled cache of the client bundle. `"use server"` modules were compiled separately and could have the client generated before `prisma generate`.
 
-**Cause**: Turbopack keeps a compiled cache of the client bundle. `"use server"` modules are compiled separately and may have the client generated before `prisma generate`.
+**Historical solution**: stop the server, run `npx prisma generate`, restart. If it persisted, delete `.next/` and restart.
 
-**Solution**: stop the server, run `npx prisma generate`, restart. If it persists, delete `.next/` and restart.
-
-**Special case `PillProgress`**: the model added in v1.5.0 showed this problem. The `lib/db-pills.ts` workaround was removed in v1.11.0 — PostgreSQL doesn't have the Turbopack cache problem.
+**Special case `PillProgress`**: the model added in v1.5.0 showed this problem under SQLite. The `lib/db-pills.ts` workaround (direct `better-sqlite3` access) was removed in v1.11.0 during the PostgreSQL migration — the new adapter doesn't reproduce the Turbopack cache issue.
 
 ### `NEXT_PUBLIC_*` vars not reloaded at runtime
 

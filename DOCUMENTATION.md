@@ -55,10 +55,10 @@ Arquitetura multi-usuário com isolamento completo por `userId`. Cada usuário v
 
 | Tecnologia | Versão | Justificativa |
 |---|---|---|
-| **SQLite** | — | Banco embarcado, zero configuração de servidor, arquivo único por ambiente. Ideal para uso local/single-user e para futura portabilidade. Migração para PostgreSQL é trivial com Prisma. |
+| **PostgreSQL** | 18 (via Docker) | Banco relacional robusto, com suporte nativo a JSON, concorrência e integridade referencial. Ambientes de dev e produção rodam em containers isolados (`lyfx-db-dev`, `lyfx-db-prod`). |
 | **Prisma** | 7.8.0 | ORM type-safe que gera um client TypeScript a partir do schema. Queries com autocomplete e validação em tempo de compilação. |
-| **@prisma/adapter-better-sqlite3** | — | Adaptador necessário na v7 do Prisma para SQLite — a datasource não recebe mais `url` diretamente; o adapter é instanciado em `lib/db.ts` e injetado no client. |
-| **better-sqlite3** | — | Driver SQLite síncrono de alta performance para Node.js. |
+| **@prisma/adapter-pg** | 7.8.0 | Adaptador obrigatório na v7 do Prisma para PostgreSQL — a datasource não recebe mais `url` diretamente; `PrismaPg` é instanciado em `lib/db.ts` com `DATABASE_URL` e injetado no client via `{ adapter }`. |
+| **pg** | 8.21.0 | Driver PostgreSQL para Node.js, usado internamente pelo `@prisma/adapter-pg`. |
 
 ### Estilização
 
@@ -115,6 +115,11 @@ Arquitetura multi-usuário com isolamento completo por `userId`. Cada usuário v
 │ street          │ String?      │ Logradouro (auto-fill ViaCEP)  │
 │ streetNumber    │ String?      │ Número / complemento           │
 │ country         │ String?      │ País                           │
+│ planId          │ String?      │ FK → Plan.id                   │
+│ lastSeenAt      │ DateTime?    │ Última atividade registrada    │
+│ twoFactorSecret │ String?      │ Secret base32 TOTP (CS-37a)     │
+│ twoFactorEnabled│ Boolean      │ @default(false)                │
+│ twoFactorBackupCodes│ String?  │ JSON: hashes bcrypt dos backups │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
@@ -340,12 +345,11 @@ Nota: pílulas são conteúdo estático (lib/pills-data.json). Apenas o progress
 ┌─────────────────────────────────────────────────────────────────┐
 │                        PLAN_MODULE (pivot)                      │
 ├─────────────────┬──────────────┬────────────────────────────────┤
-│ id              │ String (PK)  │ cuid()                         │
 │ planId          │ String (FK)  │ → Plan.id (cascade)            │
-│ moduleKey       │ String       │ Chave do módulo (lib/modules)  │
-│                 │ Unique       │ @@unique([planId, moduleKey])   │
+│ module          │ String       │ Chave do módulo (lib/modules)  │
+│                 │ PK composta  │ @@id([planId, module])          │
 └─────────────────┴──────────────┴────────────────────────────────┘
-Nota: módulos são entidades estáticas definidas em lib/modules.ts — apenas os vínculos com planos são persistidos.
+Nota: módulos são entidades estáticas definidas em lib/modules.ts — apenas os vínculos com planos são persistidos. Não há campo `id` próprio — a chave primária é composta (`planId` + `module`).
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                         APP_CONFIG                              │
@@ -362,8 +366,9 @@ Chaves conhecidas: "maintenanceMode" ("true"/"false"), "maintenanceBanner" (mens
 │ id              │ String (PK)  │ cuid()                         │
 │ userId          │ String       │ FK lógica → User.id            │
 │ title           │ String       │ Título da notificação          │
-│ message         │ String?      │ Corpo da mensagem              │
-│ read            │ Boolean      │ false por padrão               │
+│ body            │ String       │ Corpo da mensagem              │
+│ type            │ String       │ "info"|"warning"|"danger"|"success" (@default("info")) │
+│ link            │ String?      │ URL de destino ao clicar       │
 │ readAt          │ DateTime?    │ Preenchido ao marcar como lida │
 │ fingerprint     │ String?      │ Hash único (alertas auto)      │
 │                 │              │ null = notificação do sistema  │
@@ -384,10 +389,9 @@ deleteNotification filtra WHERE { id, userId, fingerprint: null } — impede exc
 │ ethanolRate     │ Float        │ @default(0.36) — 36%           │
 │ minFuelPct      │ Float        │ @default(0.15) — 15% mínimo    │
 │ paymentDays     │ Int          │ @default(5) — D+5 dias úteis   │
-│ vehiclePlate    │ String?      │ Placa do veículo               │
-│ vehicleMake     │ String?      │ Marca (ex: Toyota)             │
-│ vehicleModel    │ String?      │ Modelo (ex: Corolla)           │
-│ vehicleYear     │ Int?         │ Ano do veículo                 │
+│ vehiclePlate    │ String       │ @default("") — placa do veículo│
+│ vehicleType     │ String       │ @default("Carro") — ex: Carro  │
+│ vehicleBrand    │ String       │ @default("") — ex: Toyota, Honda│
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
@@ -430,8 +434,10 @@ Nota: criado via upsert na primeira visita às configurações. userId é unique
 │ origin          │ String       │ Endereço de origem             │
 │ destination     │ String       │ Endereço de destino            │
 │ km              │ Float        │ Quilometragem do trajeto        │
+│ routePolyline   │ String?      │ overview_polyline codificado — sempre preenchido via mapa │
 │ notes           │ String?      │ Observações                    │
-│ polyline        │ String?      │ Encoded polyline do trajeto     │
+│ placeId         │ String?      │ ref a KmPlace (null = manual)  │
+│ direction       │ String?      │ "going"|"return" (quando placeId setado) │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 └─────────────────┴──────────────┴────────────────────────────────┘
 
@@ -469,17 +475,68 @@ Nota: criado via upsert na primeira visita às configurações. userId é unique
 ├─────────────────┬──────────────┬────────────────────────────────┤
 │ id              │ String (PK)  │ cuid()                         │
 │ userId          │ String       │ FK lógica → User.id            │
-│ name            │ String       │ Nome do lugar salvo            │
-│ address         │ String       │ Endereço completo              │
-│ routeGoing      │ String?      │ JSON: [{lat,lng}] (ida)        │
-│ routeReturn     │ String?      │ JSON: [{lat,lng}] (volta)      │
-│ distanceGoing   │ Float?       │ Km da rota de ida              │
-│ distanceReturn  │ Float?       │ Km da rota de volta            │
+│ name            │ String       │ Nome do lugar salvo (ex: "Empresa XYZ") │
+│ originAddress   │ String       │ @default("") — endereço de origem (casa/escritório) │
+│ destinationAddress│ String     │ @default("") — endereço de destino (empresa) │
+│ kmGoing         │ Float        │ @default(0) — km ida           │
+│ kmReturn        │ Float        │ @default(0) — km volta         │
+│ routeGoing      │ Json?        │ DirectionsResult serializado — rota de ida │
+│ routeReturn     │ Json?        │ DirectionsResult serializado — rota de volta │
+│ notes           │ String?      │ Observações                    │
 │ createdAt       │ DateTime     │ Auto: now()                    │
 │ updatedAt       │ DateTime     │ Auto: updatedAt                │
 └─────────────────┴──────────────┴────────────────────────────────┘
-Nota: routeGoing/routeReturn armazenam polylines como JSON stringify de array de waypoints.
-A polyline é usada na geração do PDF (Google Static Maps path parameter).
+Nota: routeGoing/routeReturn armazenam o `DirectionsResult` serializado (JSON) retornado pela Google Maps Directions API, incluindo a polyline codificada usada na geração do PDF (Google Static Maps path parameter).
+
+┌─────────────────────────────────────────────────────────────────┐
+│                       OAUTH_ACCOUNT                             │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String       │ FK lógica → User.id            │
+│ provider        │ String       │ "google" | "microsoft"         │
+│ providerUserId  │ String       │ sub (Google) ou oid (Microsoft)│
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│                 │ Unique       │ @@unique([provider, providerUserId]) │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Nota (CS-36): contas OAuth vinculadas ao usuário (Google, Microsoft). Um par provider+providerUserId só pode pertencer a uma conta.
+
+┌─────────────────────────────────────────────────────────────────┐
+│                          SESSION                                │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid() — sessionId no cookie   │
+│ userId          │ String       │ FK lógica → User.id            │
+│ ip              │ String?      │ IP de origem da sessão         │
+│ userAgent       │ String?      │ User-agent do navegador        │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+│ lastSeenAt      │ DateTime     │ Auto: now(), atualizado a cada request │
+│ expiresAt       │ DateTime     │ Expiração da sessão            │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Nota (CS-34): sessões com estado no banco — permite invalidação server-side e visualização de sessões ativas. Não há campo `isValid`; a sessão é considerada válida enquanto o registro existir e `expiresAt` não tiver passado (deletar o registro invalida a sessão).
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        AUDIT_LOG                                │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ userId          │ String?      │ null para eventos anônimos (login com e-mail inexistente) │
+│ sessionId       │ String?      │ null quando não há sessão ativa │
+│ action          │ String       │ Ver catálogo em lib/audit.ts   │
+│ ip              │ String?      │ IP de origem                   │
+│ userAgent       │ String?      │ User-agent do navegador        │
+│ metadata        │ Json?        │ Contexto adicional (ex: e-mail tentado, sessionId revogado) │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Nota (CS-35): registro de eventos de segurança para auditoria e histórico no perfil/Studio.
+
+┌─────────────────────────────────────────────────────────────────┐
+│                       LOGIN_ATTEMPT                              │
+├─────────────────┬──────────────┬────────────────────────────────┤
+│ id              │ String (PK)  │ cuid()                         │
+│ ip              │ String       │ IP de origem da tentativa      │
+│ email           │ String?      │ Apenas para auditoria — nunca usado para lookup │
+│ success         │ Boolean      │ @default(false)                │
+│ createdAt       │ DateTime     │ Auto: now()                    │
+└─────────────────┴──────────────┴────────────────────────────────┘
+Nota (CS-32): registro de tentativas de login por IP para rate limiting (janela deslizante). Limpeza lazy de registros antigos.
 ```
 
 ### Diagrama de relações
@@ -505,7 +562,13 @@ USER
  │
  ├── SETTINGS  (um registro por usuário — userId unique)
  │
- └── PILL_PROGRESS  (progresso educacional por pílula — userId+pillId unique)
+ ├── PILL_PROGRESS  (progresso educacional por pílula — userId+pillId unique)
+ │
+ ├── OAUTH_ACCOUNT  (contas Google/Microsoft vinculadas — provider+providerUserId unique)
+ │
+ ├── SESSION  (sessões com estado no banco — CS-34)
+ │
+ └── AUDIT_LOG + LOGIN_ATTEMPT  (trilha de segurança — CS-35 / CS-32)
 ```
 
 ---
@@ -1076,7 +1139,7 @@ Painel administrativo protegido por senha separada da sessão do usuário.
 
 #### Abas (ordem)
 
-`Painel → Usuários → Planos → Módulos → Notas → Dados → Schema → Documentação`
+`Painel → Usuários → Planos → Módulos → Notas → Dados → Schema → Segurança → Documentação`
 
 #### Aba Painel
 
@@ -1110,7 +1173,7 @@ Dashboard de gestão do software com duas seções:
 
 #### Aba Módulos
 
-- Lista todos os 17 módulos do sistema com chave, rótulo e status beta
+- Lista todos os 18 módulos do sistema com chave, rótulo e status beta
 - **Toggle Beta**: botão por módulo para marcar/desmarcar como beta em tempo real. Estado salvo no `AppConfig` como `betaModules` (JSON array de chaves). A sidebar do app lê esse valor via `getConfigValue` no `AppLayout` — sem reiniciar o servidor
 - Módulos marcados como beta exibem o chip amarelo "Beta" na sidebar para todos os usuários
 
@@ -1148,6 +1211,32 @@ Duas visualizações do schema:
 #### Aba Documentação
 
 Renderização em Markdown do arquivo `DOCUMENTATION.md`. TOC lateral clicável com h2, h3 e h4 (h3 indentado 20px, h4 indentado 32px, tamanhos decrescentes). Clique em qualquer item do TOC faz scroll suave até o heading correspondente (slugify do texto).
+
+---
+
+### 6.21 Relatórios (`/reports`)
+
+Relatórios comparativos com séries históricas de meses e totais por categoria.
+
+- **Rota**: `/reports` — Server Component (`app/(app)/reports/page.tsx`) que lê o parâmetro `?months=` da URL (aceita `3`, `6` ou `12`; padrão `6` se ausente ou inválido) e busca os dados via `getReports(validMonths)`.
+- **Seletor de período**: botões para alternar entre 3, 6 e 12 meses — refletido na URL para permitir bookmarking/compartilhamento do período.
+- **`getReports(monthsBack)`** (`app/actions/reports.ts`):
+  - Monta o intervalo de datas de `hoje - monthsBack + 1 meses` até o fim do mês atual
+  - Busca todas as transações do usuário no período (`requireAuth()` + `where: { userId, date: { gte, lte } }`)
+  - Agrupa por mês (`MonthReport[]`: receita, despesa, resultado e totais por categoria) e por categoria consolidada no período (`CategoryTotal[]`: total, média mensal, quantos meses teve movimento)
+  - Calcula também `contextBreakdown` — separa receita/despesa por `context` (`"personal" | "professional" | null`)
+- **`ReportsView`** (`components/reports/ReportsView.tsx`): exibe a série mensal (gráfico/tabela), o breakdown por categoria com percentual sobre a receita total do período, e o breakdown por contexto pessoal/profissional.
+- **Diferença em relação a Projeções**: Relatórios olha para **trás** (histórico real já lançado); Projeções olha para **frente** (recorrências e parcelas futuras).
+
+### 6.22 Plano Mensal (`/planning`)
+
+Calendário mensal com visão dia a dia de créditos e débitos, incluindo transações projetadas (recorrentes e parceladas).
+
+- **Rota**: `/planning` (Server Component `app/(app)/planning/page.tsx`) — busca todas as transações do usuário (`db.transaction.findMany`) e repassa para o componente cliente; a navegação entre meses e a filtragem acontecem no client.
+- **Componente principal**: `MonthlyCalendar.tsx` (`components/planning/MonthlyCalendar.tsx`) — grade de calendário com navegação de mês (◀ ▶), células por dia mostrando badges de entrada (verde) e saída (vermelho) resumidos.
+- **Transações projetadas**: usa `getProjectedTransactions()` de `lib/projections.ts` para expandir recorrências (`monthly`/`yearly`) e preencher dias futuros do calendário com um badge de "recorrente" (`IconRepeat`), além das transações já lançadas no banco.
+- **Detalhe do dia**: clicar em uma data expande o detalhamento das transações daquele dia (reais e projetadas) com valores e categorias.
+- **isBeta**: módulo marcado como `isBeta: true` em `lib/modules.ts` — pode exibir chip "Beta" na Sidebar conforme configuração do Studio.
 
 ---
 
@@ -1304,18 +1393,18 @@ Usuário define nome + valor + prazo
    └── Usuário encontrado → renderiza Sidebar + UserMenu (flutuante) + children
 
 4. Login bem-sucedido (email/senha):
-   └── createSession(userId, ip, userAgent) → Session no banco + cookie HMAC 3-part
-       formato: base64(sessionId).base64(userId).HMAC-SHA256(sessionId|userId|SECRET)
+   └── setSession(userId, { remember? }) → cria Session no banco + seta cookie HMAC 3-part
+       formato: {sessionId}.{userId}.{HMAC-SHA256(sessionId.userId, SESSION_SECRET)}
 
 4b. Login via OAuth (Google / Microsoft):
     └── findOrCreateOAuthUser() → find by providerUserId → link by email → create new
-        → createSession() → mesmo cookie HMAC 3-part
+        → setSession() → mesmo cookie HMAC 3-part
 
 5. Cada requisição autenticada:
-   └── touchSession() — atualiza lastSeenAt (Node.js runtime, não Edge)
+   └── touchSession(sessionId) — atualiza lastSeenAt em background, fire-and-forget (chamado por requireAuth/requireSession)
 
 6. Logout:
-   └── invalidateSession(sessionId) → marca Session.isValid=false no banco → deleta cookie → redirect /
+   └── clearSession() → deleta o registro Session do banco → apaga o cookie → redirect /
 ```
 
 ### Sessões com estado no banco (CS-34)
@@ -1326,26 +1415,31 @@ O modelo `Session` persiste todas as sessões ativas no banco:
 model Session {
   id          String   @id @default(cuid())
   userId      String
-  isValid     Boolean  @default(true)
   ip          String?
   userAgent   String?
   createdAt   DateTime @default(now())
   lastSeenAt  DateTime @default(now())
+  expiresAt   DateTime
   @@index([userId])
+  @@index([expiresAt])
 }
 ```
 
+Não há campo `isValid` — a sessão é válida enquanto o registro existir e `expiresAt` não tiver passado. `getSession()` deleta lazily o registro se estiver expirado.
+
 **Cookie HMAC 3-part** (`lyfx_session`):
-- Formato: `base64(sessionId).base64(userId).HMAC-SHA256(sessionId|userId|SESSION_SECRET)`
+- Formato: `{sessionId}.{userId}.{HMAC-SHA256("{sessionId}.{userId}", SESSION_SECRET)}` — CUIDs nunca contêm pontos, então o split é inambíguo
 - Validação no proxy (Edge Runtime) sem banco — rejeita cookie forjado imediatamente
-- `getSession()` em Server Components: decodifica cookie + busca Session no banco (isValid=true)
+- `getSession()` em Server Components: decodifica e valida o HMAC + busca `Session` no banco (verifica existência e `expiresAt`)
 
 **Funções centrais** (`lib/session.ts`):
-- `createSession(userId, ip?, userAgent?)` — cria Session no banco + seta cookie
-- `getSession(cookieStore)` — valida HMAC + busca banco, retorna `{ userId, sessionId }` ou null
-- `invalidateSession(sessionId)` — `isValid=false` no banco + deleta cookie
-- `invalidateOtherSessions(userId, sessionId)` — `deleteMany` de todas as outras sessões do usuário
-- `touchSession(sessionId)` — atualiza `lastSeenAt` (sem await no layout, fire-and-forget)
+- `setSession(userId, { remember? })` — cria `Session` no banco + seta o cookie (`remember: false` = cookie de sessão, sem `maxAge`)
+- `getSession()` — valida HMAC + busca no banco, retorna `{ userId, sessionId }` ou `null`
+- `getSessionUserId()` — atalho retrocompatível que retorna só o `userId`
+- `clearSession()` — deleta a `Session` do banco (se o cookie existir) + apaga o cookie
+- `invalidateOtherSessions(userId, currentSessionId?)` — `deleteMany` de todas as outras sessões do usuário
+- `touchSession(sessionId)` — atualiza `lastSeenAt` (fire-and-forget, sem `await`)
+- `requireAuth()` / `requireSession()` — lançam erro se não autenticado; chamam `touchSession()` internamente
 
 **View de sessões no perfil** (`components/profile/SessionsSection.tsx`):
 - Lista todas as sessões ativas do usuário (IP, user-agent, lastSeenAt relativo)
@@ -1394,7 +1488,7 @@ GET /api/auth/google/callback?code=...&state=...
      ├── OAuthAccount com providerUserId existe → login (isso: mesmo account)
      ├── User com mesmo email existe → vincula OAuthAccount + login
      └── Nenhum → cria User + OAuthAccount + login
-  5. createSession() → cookie HMAC → redirect /dashboard
+  5. setSession() → cookie HMAC → redirect /dashboard
   6. Em caso de erro → redirectWithOAuthError() (flash cookie, não URL param)
 ```
 
@@ -1429,13 +1523,16 @@ Modelo `AuditLog` registra todos os eventos de segurança:
 ```prisma
 model AuditLog {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?                           // null para eventos anônimos
+  sessionId String?                           // null quando não há sessão ativa
   action    String                            // chave do catálogo AUDIT_META
   ip        String?
+  userAgent String?
   metadata  Json?
   createdAt DateTime @default(now())
-  @@index([userId])
+  @@index([userId, createdAt])
   @@index([createdAt])
+  @@index([action, createdAt])
 }
 ```
 
@@ -1520,7 +1617,7 @@ POST verifyTwoFactor({ code, isBackupCode })
   → getPendingTwoFactor() → userId (valida HMAC + expiry)
   → se backup: verifyAndConsumeBackupCode() → atualiza twoFactorBackupCodes
   → se TOTP: verifySync({ token, secret }).valid
-  → clearPendingTwoFactor() + createSession() + redirect /dashboard
+  → clearPendingTwoFactor() + setSession() + redirect /dashboard
 ```
 
 **Server Actions** (`app/actions/two-factor.ts`):
@@ -1589,8 +1686,8 @@ lyfx/
 │   │   ├── fixed-expenses/page.tsx
 │   │   ├── goals/page.tsx
 │   │   ├── projections/page.tsx
-│   │   ├── planning/page.tsx
-│   │   ├── reports/page.tsx      # (pendente)
+│   │   ├── planning/page.tsx     # Plano Mensal — calendário com transações reais + projetadas
+│   │   ├── reports/page.tsx      # Relatórios comparativos por período
 │   │   ├── tags/page.tsx
 │   │   ├── health/page.tsx
 │   │   ├── liabilities/page.tsx
@@ -1599,9 +1696,8 @@ lyfx/
 │   │   ├── institutions/page.tsx # Cadastro de bancos/fintechs e contas
 │   │   ├── alerts/page.tsx       # Central de alertas proativos
 │   │   ├── assets/page.tsx       # Bens, imóveis, veículos e despesas associadas
-│   │   ├── education/page.tsx           # Hub da trilha (Server Component)
-│   │   ├── education/[pillId]/page.tsx  # Leitura da pílula (Server Component)
-│   │   └── education/platform/page.tsx # Base de conhecimento (wrapper)
+│   │   ├── km-reimbursement/     # Módulo corporativo de reembolso de KM (5 rotas)
+│   │   └── education/            # Hub, leitura de pílula ([pillId]) e base de conhecimento (platform)
 │   ├── actions/                  # Server Actions — mutações e queries
 │   │   ├── dashboard.ts          # getDashboardData() — busca tudo em paralelo
 │   │   ├── transactions.ts       # getDRESummary() retorna margins + saved
@@ -1609,25 +1705,45 @@ lyfx/
 │   │   ├── budgets.ts
 │   │   ├── goals.ts
 │   │   ├── projections.ts
-│   │   ├── reports.ts
+│   │   ├── reports.ts            # getReports() — série mensal + totais por categoria
 │   │   ├── health.ts             # getHealthData() — DRE + reserva + score
 │   │   ├── liabilities.ts        # CRUD de passivos
 │   │   ├── settings.ts           # getSettings / updateExpectedIncome
 │   │   ├── institutions.ts       # CRUD de instituições e contas
-│   │   ├── alerts.ts             # getAlerts() —  5 tipos de alertas on-the-fly
+│   │   ├── alerts.ts             # getAlerts() — alertas on-the-fly
 │   │   ├── assets.ts             # CRUD de bens e despesas (AssetExpense)
 │   │   ├── education.ts          # getPillProgress / completePill / getStreakData
+│   │   ├── km-reimbursement.ts   # CRUD completo do módulo de reembolso de KM
+│   │   ├── notifications.ts      # Central de notificações do usuário
+│   │   ├── plans.ts              # CRUD de planos e seeds Full/Insider
+│   │   ├── sessions.ts           # Listagem/revogação de sessões ativas
+│   │   ├── two-factor.ts         # Setup, verificação e desativação de 2FA TOTP
+│   │   ├── audit.ts              # getAuditLogs() — histórico de segurança do usuário
 │   │   └── user.ts
 │   ├── api/
-│   │   └── clear-session/route.ts  # Route Handler — limpa cookie órfão
+│   │   ├── auth/                 # google/ e microsoft/ — rotas OAuth (autorização + callback)
+│   │   ├── clear-session/route.ts  # Route Handler — limpa cookie órfão
+│   │   ├── km-map/route.ts       # Proxy para imagens de mapa estático (Google Static Maps)
+│   │   └── km-pdf/route.ts       # Geração do PDF de reembolso de KM (server-side)
 │   ├── login/
 │   │   ├── page.tsx              # Server Component — injeta hasUser + monthLabel
 │   │   ├── LoginForm.tsx         # Client Component — formulário de auth
 │   │   └── actions.ts            # setup(), login(), logout()
-│   ├── studio/
+│   ├── studio/                    # Refatorado em módulos menores (v1.14.1) — sem god-module único
 │   │   ├── page.tsx              # Verifica cookie admin, renderiza login ou painel
 │   │   ├── StudioClient.tsx      # UI completa do Studio
-│   │   └── actions.ts            # adminLogin, getStudioData, adminResetPassword
+│   │   ├── StudioLoginForm.tsx   # Formulário de login do Studio
+│   │   ├── actions.ts            # Barrel de re-export dos módulos abaixo
+│   │   ├── auth.ts               # adminLogin, adminLogout
+│   │   ├── users.ts              # adminCreateUser, adminResetPassword, adminDeleteUser
+│   │   ├── data.ts               # getStudioData, getStudioDataForUser
+│   │   ├── config.ts             # getAppConfig, setAppConfig, saveAdminNotes
+│   │   ├── notifications.ts      # Envio de notificações por plano/usuário
+│   │   ├── events.ts             # getAdminSecurityLog (Audit Log multi-usuário)
+│   │   ├── board.ts              # Roadmap/backlog interno
+│   │   └── system-info.ts        # Métricas de sistema (RAM, CPU, versão, DB)
+│   ├── error.tsx                 # Error boundary global
+│   ├── not-found.tsx             # Página 404 customizada
 │   ├── page.tsx                  # Landing page (rota pública /)
 │   ├── layout.tsx                # Root layout — fontes, globals
 │   └── globals.css               # Design system, tokens, keyframes
@@ -1636,6 +1752,7 @@ lyfx/
 │   ├── landing/LandingPage.tsx
 │   ├── layout/Sidebar.tsx
 │   ├── layout/UserMenu.tsx
+│   ├── auth/PasswordStrengthBar.tsx  # Indicador visual de força de senha
 │   ├── transactions/
 │   │   ├── TransactionForm.tsx
 │   │   ├── EditTransactionModal.tsx
@@ -1645,59 +1762,73 @@ lyfx/
 │   │   ├── KPICards.tsx          # 4 cards: Saldo, Receita, Gastos, Poupado
 │   │   ├── InsightBanner.tsx     # Lyfx Insight — dica contextual gerada por regras
 │   │   ├── GoalsMiniWidget.tsx   # Barras de progresso das metas ativas
-│   │   └── MonthlyTrendChart.tsx # Gráfico de gastos dos últimos 6 meses
+│   │   ├── MonthlyTrendChart.tsx # Gráfico de gastos dos últimos 6 meses
+│   │   └── AssetsMiniWidget.tsx  # Widget de bens para o dashboard
 │   ├── budget/BudgetView.tsx
 │   ├── education/EducationView.tsx
 │   ├── fixed-expenses/FixedExpensesView.tsx
 │   ├── goals/GoalsView.tsx       # + alerta contextual de passivos
 │   ├── health/HealthView.tsx     # gauge SVG + 4 dimensões + perfil
-│   ├── liabilities/
-│   │   └── LiabilitiesView.tsx  # CRUD + Modo Recuperação (avalanche)
-│   ├── institutions/
-│   │   └── InstitutionsView.tsx # CRUD de instituições e contas vinculadas
-│   ├── alerts/
-│   │   └── AlertsView.tsx       # Central de alertas agrupados por severidade
-│   ├── assets/
-│   │   └── AssetsView.tsx       # CRUD de bens com despesas/impostos expansíveis
-│   ├── reimbursements/
-│   │   └── ReimbursementsView.tsx  # tracking de despesas reembolsáveis
+│   ├── liabilities/LiabilitiesView.tsx  # CRUD + Modo Recuperação (avalanche)
+│   ├── institutions/InstitutionsView.tsx # CRUD de instituições e contas vinculadas
+│   ├── alerts/AlertsView.tsx     # Central de alertas agrupados por severidade
+│   ├── assets/AssetsView.tsx     # CRUD de bens com despesas/impostos expansíveis
+│   ├── reimbursements/ReimbursementsView.tsx  # tracking de despesas reembolsáveis
+│   ├── km-reimbursement/         # PeriodList, NewPeriodForm, PeriodDetail, PeriodPdf, RouteMap, PlacesPage, PlacesModal, KmSettings, AddressAutocomplete
+│   ├── planning/MonthlyCalendar.tsx  # Calendário mensal com transações reais + projetadas
 │   ├── projections/ProjectionsView.tsx
 │   ├── reports/ReportsView.tsx
+│   ├── notifications/            # Sino, dropdown e lista de notificações
 │   ├── tags/
 │   │   ├── TagPicker.tsx
 │   │   └── TagsManager.tsx
-│   ├── profile/ProfileForm.tsx
+│   ├── profile/                  # ProfileForm, SessionsSection, AuditSection, TwoFactorSection
+│   ├── studio/                   # Componentes internos do Studio (abas, tabelas, ERD)
 │   └── ui/
 │       ├── MonthPicker.tsx       # Seletor de mês custom (substitui input[type=month])
 │       └── CountrySelect.tsx     # Combobox digitável com ~195 países em português
 │
-│   (dashboard extras)
-│       └── AssetsMiniWidget.tsx  # Widget de bens para o dashboard
-│
 ├── lib/
-│   ├── db.ts                     # Singleton Prisma com adapter SQLite
-│   ├── session.ts                # getSessionUserId, setSession, clearSession
+│   ├── db.ts                     # Singleton Prisma com adapter PostgreSQL (@prisma/adapter-pg)
+│   ├── session.ts                # setSession, getSession, clearSession, requireAuth
+│   ├── oauth.ts                  # Providers Google/Microsoft (Arctic) + findOrCreateOAuthUser
+│   ├── oauth-flash.ts            # Cookie flash de erro OAuth (lyfx_error)
+│   ├── totp.ts                   # Geração/verificação de TOTP e backup codes (2FA)
+│   ├── audit.ts                  # logEvent/logEventBg + catálogo AUDIT_META
+│   ├── login-attempts.ts         # Rate limiting por IP (LoginAttempt)
+│   ├── password-strength.ts      # Validação de política de senha forte
+│   ├── throttle-gate.ts          # Helper de throttling genérico
 │   ├── types.ts                  # Interfaces TypeScript do domínio
 │   ├── categories.ts             # Definição das 9 categorias com labels e exemplos
 │   ├── tag-icons.ts              # Mapa TAG_ICONS + paleta TAG_COLORS
 │   ├── utils.ts                  # cn() para merge de classNames
+│   ├── dates.ts                  # Helpers de datas/formatação
+│   ├── i18n.ts                   # PT_MONTHS e utilitários de internacionalização
 │   ├── health.ts                 # computeHealthScore() — cálculo puro, sem DB
 │   ├── liabilities.ts            # monthsToPayoff() — utilitário puro de amortização
 │   ├── institutions.ts           # Tipos e constantes de instituições (fora do "use server")
+│   ├── assets.ts                 # Tipos e constantes de bens (fora do "use server")
+│   ├── projections.ts            # getProjectedTransactions() — expande recorrências/parcelas
+│   ├── alert-engine.ts           # Motor de cálculo dos alertas on-the-fly
+│   ├── modules.ts                # ALL_MODULES — fonte de verdade dos 18 módulos
+│   ├── config.ts                 # getConfigValue/getConfigBool (AppConfig sem auth admin)
+│   ├── holidays.ts               # getHolidays() — feriados nacionais via BrasilAPI
+│   ├── km-utils.ts               # addBusinessDays() e utilitários do módulo de KM
+│   ├── km-static-map.ts          # Integração com Google Static Maps API
+│   ├── pills.ts                  # Helpers de leitura das pílulas educacionais
+│   ├── pills-data.json           # Conteúdo estático das 85 pílulas
 │   └── generated/prisma/         # Client gerado pelo Prisma (não editar)
 │
 ├── prisma/
-│   ├── schema.prisma             # Fonte da verdade do banco
+│   ├── schema.prisma             # Fonte da verdade do banco (PostgreSQL)
 │   └── prisma.config.ts          # Configuração do Prisma v7
 │
+├── docs/
+│   └── GIT-WORKFLOW.md           # Fluxo de branches GitHub Flow (main única)
+│
 ├── proxy.ts                      # Proteção de rotas (Edge Runtime)
-├── .env                          # DATABASE_URL + ADMIN_SECRET
-├── dev.db                        # Banco SQLite (não versionar)
-└── .claude/
-    ├── CLAUDE.md                 # Instruções globais para o Claude Code
-    ├── AGENTS.md                 # Diretrizes de agentes (@AGENTS.md referenciado por CLAUDE.md)
-    └── agents/
-        └── agent-smith.md        # Agente QA especialista (Agent Smith v8.0)
+├── .env                          # DATABASE_URL (PostgreSQL) + ADMIN_SECRET + SESSION_SECRET
+└── AGENTS.md / CLAUDE.md         # Instruções globais para agentes de IA (Claude Code)
 ```
 
 ### 9.1 Descrição dos arquivos
@@ -1731,6 +1862,10 @@ lyfx/
 | `institutions/page.tsx` | Busca instituições e passivos em paralelo; renderiza `InstitutionsView`. |
 | `alerts/page.tsx` | Busca alertas calculados e renderiza `AlertsView`. |
 | `assets/page.tsx` | Busca todos os bens do usuário (com despesas incluídas) e renderiza `AssetsView`. |
+| `planning/page.tsx` | Busca todas as transações do usuário e renderiza `MonthlyCalendar` (Plano Mensal). |
+| `reports/page.tsx` | Lê `?months=` da URL, busca dados via `getReports()` e renderiza `ReportsView`. |
+| `km-reimbursement/*` | 5 rotas do módulo de reembolso de KM: lista, nova solicitação, detalhe, lugares salvos e configurações. |
+| `education/*` | Hub da trilha, leitura de pílula (`[pillId]`) e base de conhecimento (`platform`). |
 
 #### `app/actions/`
 
@@ -1742,14 +1877,20 @@ lyfx/
 | `budgets.ts` | `getBudgets`, `setBudget` (upsert por `[userId, category]`), `deleteBudget`. |
 | `goals.ts` | `getGoals`, `createGoal` (gera GoalPayments automáticos), `deleteGoal`, `markPayment`, `getMonthlyBalance` (média de sobra dos últimos 3 meses para cálculo de viabilidade). |
 | `projections.ts` | `getProjections()` — lê recorrências mensais/anuais e parcelas futuras; distribui cada item no mês correto para os próximos 12 meses. |
-| `reports.ts` | `getReportsData(month, year)` — busca transações do período e monta estrutura de DRE para exportação/exibição. |
+| `reports.ts` | `getReports(monthsBack)` — busca transações do período, monta série mensal (`MonthReport[]`), totais por categoria (`CategoryTotal[]`) e breakdown por contexto pessoal/profissional. |
 | `health.ts` | `getHealthData(month, year)` — combina `getDRESummary` com aggregate de `debit_longterm` (proxy de reserva) e média de despesas dos últimos 3 meses; retorna dados para `computeHealthScore`. |
 | `liabilities.ts` | `getLiabilities`, `createLiability`, `updateLiability`, `deleteLiability`, `markPaidOff`. Passivo pode ser vinculado a uma instituição via `institutionId`. |
 | `settings.ts` | `getSettings()` com padrão get-or-create por `userId`; `updateExpectedIncome(amount)`. |
 | `user.ts` | `getProfile()`, `updateProfile()` (nome, email, idade, gênero, 5 campos de endereço, avatar base64), `changePassword()` (verifica senha atual com bcrypt antes de atualizar). |
 | `institutions.ts` | `getInstitutions`, `getAccountsForSelect`, `createInstitution`, `updateInstitution`, `deleteInstitution` (cascade manual + limpeza de FKs), `createAccount`, `updateAccount`, `deleteAccount`. |
-| `alerts.ts` | `getAlerts()` — calcula on-the-fly 4 tipos de alerta: estouro de orçamento, pagamentos de metas vencidos/pendentes, projeção negativa nos próximos 12 meses e despesas sazonais iminentes. |
+| `alerts.ts` | `getAlerts()` — calcula on-the-fly os alertas de orçamento, metas, projeção negativa, sazonal e passivos críticos. |
 | `assets.ts` | `getAssets`, `getAssetsSummary` (para widget do dashboard), `createAsset`, `updateAsset`, `deleteAsset`. Para despesas: `createAssetExpense` (verifica ownership do asset), `updateAssetExpense`, `toggleExpensePaid`, `deleteAssetExpense`. Parsing `parseBR()` normaliza valores no formato brasileiro (`"1.234,56"` → `1234.56`). |
+| `km-reimbursement.ts` | CRUD completo do módulo de reembolso de KM: config, períodos, trajetos, notas de combustível, despesas extras, lugares salvos, fluxo de envio/reabertura (`submitPeriod`, `reopenPeriod`). |
+| `notifications.ts` | `getNotifications`, `markAllRead`, `deleteNotification` (guard `fingerprint: null`), `clearAll`. |
+| `plans.ts` | `getPlans`, `getPlanById`, `getUserModules`, `createPlan`, `updatePlan`, `deletePlan`, `migrateAndDeletePlan`, `assignUserToPlan`, `ensureInsiderPlan`, `ensureDefaultPlan`. |
+| `sessions.ts` | Listagem e revogação de sessões ativas do usuário (`revokeSession`, `revokeAllOtherSessions`). |
+| `two-factor.ts` | `initTwoFactorSetup`, `confirmTwoFactorSetup`, `disableTwoFactor`, `regenerateBackupCodes`, `getTwoFactorStatus`. |
+| `audit.ts` | `getAuditLogs()` — histórico de eventos de segurança do usuário atual (últimos 50). |
 
 #### `app/login/`
 
@@ -1761,17 +1902,32 @@ lyfx/
 
 #### `app/studio/`
 
+Refatorado em v1.14.1 para eliminar o "god-module" único: `actions.ts` virou um barrel de re-export, e o código real foi dividido por responsabilidade.
+
 | Arquivo | O que faz |
 |---|---|
 | `page.tsx` | Server Component: verifica cookie `lyfx_admin`; renderiza `StudioLoginForm` ou o painel completo `StudioClient` passando os dados buscados. |
-| `StudioClient.tsx` | Client Component com toda a UI do Studio: 8 abas (Painel, Usuários, Planos, Módulos, Notas, Dados, Schema, Documentação), formulário de login, gerenciamento de usuários com confirmação inline, toggle de beta por módulo, editor Markdown com toolbar + slash commands, dashboard de métricas, ERD colapsável com descrições de tabelas. |
-| `actions.ts` | `adminLogin`, `adminLogout` (limpa ambos os cookies + redireciona), `getStudioData` (inclui versões dev/prod), `getStudioDataForUser`, `adminResetPassword`, `adminCreateUser`, `adminDeleteUser` (cascade manual), `getDocumentation`, `getLiveSchema`, `getAppConfig`, `setAppConfig`, `saveAdminNotes`, `ensureInsiderPlan`. |
+| `StudioClient.tsx` | Client Component com toda a UI do Studio: abas (Painel, Usuários, Planos, Módulos, Notas, Dados, Schema, Segurança, Documentação), gerenciamento de usuários com confirmação inline, toggle de beta por módulo, editor Markdown com toolbar + slash commands, dashboard de métricas, ERD colapsável com descrições de tabelas. |
+| `StudioLoginForm.tsx` | Formulário de login do Studio (senha `ADMIN_SECRET`). |
+| `actions.ts` | Barrel — apenas re-exporta as funções dos módulos abaixo para manter compatibilidade de imports. |
+| `auth.ts` | `adminLogin`, `adminLogout` (limpa `lyfx_admin` e `lyfx_session` com os `path` corretos + redireciona). |
+| `users.ts` | `adminCreateUser`, `adminResetPassword`, `adminDeleteUser` (cascade manual). |
+| `data.ts` | `getStudioData` (inclui versões dev/prod), `getStudioDataForUser`, `getLiveSchema`. |
+| `config.ts` | `getAppConfig`, `setAppConfig`, `saveAdminNotes`. |
+| `notifications.ts` | Envio de notificações manuais por plano/usuário com histórico de broadcasts. |
+| `events.ts` | `getAdminSecurityLog(filters?)` — Audit Log multi-usuário para a aba Segurança. |
+| `board.ts` | Roadmap/backlog interno do Studio. |
+| `system-info.ts` | Métricas de sistema para a aba Painel (RAM, heap, CPU, espaço em disco, versão de branch git). |
 
 #### `app/api/`
 
 | Arquivo | O que faz |
 |---|---|
+| `auth/google/route.ts` e `auth/google/callback/route.ts` | Fluxo OAuth Google: geração de state/PKCE e troca de code por sessão. |
+| `auth/microsoft/route.ts` e `auth/microsoft/callback/route.ts` | Fluxo OAuth Microsoft Entra ID equivalente. |
 | `clear-session/route.ts` | Route Handler GET — deleta o cookie `lyfx_session` e redireciona para `/login`. Usado como escape hatch quando o `userId` do cookie não existe mais no banco, evitando loop infinito no `AppLayout`. |
+| `km-map/route.ts` | Proxy server-side para imagens do Google Static Maps (evita expor a API key ao client). |
+| `km-pdf/route.ts` | Gera e retorna o PDF de reembolso de KM (`@react-pdf/renderer`, server-side). |
 
 #### `components/landing/`
 
@@ -1841,43 +1997,41 @@ lyfx/
 
 | Arquivo | O que faz |
 |---|---|
-| `db.ts` | Singleton do `PrismaClient` com `PrismaBetterSqlite3` como adapter. Lê `DATABASE_URL` do ambiente (fallback: `file:./dev.db`). Cada ambiente aponta para seu próprio banco via `.env` (gitignored). |
-| `session.ts` | `getSessionUserId()` lê o cookie `lyfx_session`; `setSession(userId)` grava o cookie httpOnly; `clearSession()` apaga o cookie; `requireAuth()` retorna o `userId` ou lança erro se não autenticado. |
+| `db.ts` | Singleton do `PrismaClient` com `PrismaPg` (`@prisma/adapter-pg`) como adapter, lendo `DATABASE_URL` (PostgreSQL) do ambiente. Cada ambiente aponta para seu próprio banco via `.env` (gitignored). |
+| `session.ts` | `setSession`, `getSession`, `getSessionUserId`, `clearSession`, `invalidateOtherSessions`, `touchSession`, `requireAuth()`/`requireSession()` — sessões com estado no banco (model `Session`). |
+| `oauth.ts` | Providers Google/Microsoft via Arctic, `isOAuthEnabled()`, `findOrCreateOAuthUser()`. |
+| `oauth-flash.ts` | Cookie flash `oauth_error` para exibir erros de OAuth sem poluir a URL. |
+| `totp.ts` | Geração/verificação de TOTP e backup codes para 2FA (`otplib` + `qrcode`). |
+| `audit.ts` | `logEvent`/`logEventBg` + catálogo `AUDIT_META` — registro de eventos de segurança (model `AuditLog`). |
+| `login-attempts.ts` | Rate limiting por IP sobre o model `LoginAttempt` (janela deslizante, thresholds configuráveis via Studio). |
+| `password-strength.ts` | Validação de política de senha forte, usada em `setup()`, `changePassword()` e client-side. |
+| `throttle-gate.ts` | Helper genérico de throttling reutilizado em fluxos sensíveis. |
 | `types.ts` | Interfaces TypeScript do domínio: `Transaction`, `Tag`, `Goal`, `GoalPayment`, `Liability`, `DRESummary` (com `margins` e `saved`), tipos de categoria, recorrência e contexto. |
 | `categories.ts` | Array `CATEGORIES` com as 9 categorias (2 de crédito + 7 de débito), cada uma com `value`, `label`, `group`, `groupLabel` e `examples`. Fonte de verdade para dropdowns e agrupamentos. |
 | `tag-icons.ts` | Objeto `TAG_ICONS` mapeando 12 chaves para componentes Tabler Icons; array `TAG_COLORS` com 8 cores predefinidas em hex. |
 | `utils.ts` | Função `cn(...inputs)` — combina `clsx` e `tailwind-merge` para merge seguro de classes Tailwind. |
+| `dates.ts` | Helpers de formatação e manipulação de datas usados em vários módulos. |
+| `i18n.ts` | `PT_MONTHS` e utilitários de internacionalização (rótulos em português). |
 | `health.ts` | Função pura `computeHealthScore(data)` — calcula o score 0–100 e o perfil financeiro a partir de DRE, reserva e médias. Sem acesso ao banco. |
 | `liabilities.ts` | Função pura `monthsToPayoff(balance, monthlyRate, payment)` — calcula meses até quitação de uma dívida pela fórmula de amortização. Separada do arquivo `"use server"` por limitação do Turbopack. |
 | `institutions.ts` | Tipos e constantes de instituições (`InstitutionType`, `AccountType`, `INSTITUTION_TYPE_LABELS`, `ACCOUNT_TYPE_LABELS`, interfaces `Institution`, `Account`, `AccountForSelect`) — separados do arquivo `"use server"` por limitação do Turbopack. |
 | `assets.ts` | Tipos e constantes de bens (`AssetType`, `AssetExpenseType`, `ASSET_TYPE_LABELS`, `ASSET_EXPENSE_TYPE_LABELS`, `EXPENSE_SUGGESTIONS`, interfaces `Asset`, `AssetExpense`) — separados do arquivo `"use server"` por limitação do Turbopack. |
-| `modules.ts` | Array `ALL_MODULES` com os 17 módulos do sistema — cada entrada tem `key`, `label`, `summary` (descrição curta) e `isBeta?: boolean`. `ALL_MODULE_KEYS` é o array só de chaves. Fonte de verdade para seeds de planos e para a Sidebar exibir o chip "Beta". |
+| `projections.ts` | `getProjectedTransactions()` — expande recorrências e parcelas futuras; usado tanto em `/projections` quanto no calendário de `/planning`. |
+| `alert-engine.ts` | Motor de cálculo dos alertas on-the-fly consumido por `app/actions/alerts.ts`. |
+| `modules.ts` | Array `ALL_MODULES` com os 18 módulos do sistema — cada entrada tem `key`, `label`, `group`, `summary` (descrição curta) e `isBeta?: boolean`. `ALL_MODULE_KEYS` é o array só de chaves. Fonte de verdade para seeds de planos e para a Sidebar exibir o chip "Beta". |
 | `config.ts` | Helpers `getConfigValue(key, fallback)` e `getConfigBool(key, fallback)` — leem `AppConfig` via Prisma sem exigir autenticação de admin. Usados em Server Components (`AppLayout`, `layout.tsx`) para ler `maintenanceMode` e `betaModules` em cada request. |
+| `holidays.ts` | `getHolidays(year)` — feriados nacionais via BrasilAPI, com cache em memória por ano. |
+| `km-utils.ts` | `addBusinessDays()` e demais utilitários do módulo de Reembolso Especial (movidos de `app/actions/km-reimbursement.ts`). |
+| `km-static-map.ts` | Integração com a Google Static Maps API para gerar as imagens embutidas no PDF de KM. |
+| `pills.ts` / `pills-data.json` | Helpers e conteúdo estático das 85 pílulas de educação financeira. |
+| `generated/prisma/` | Client gerado pelo Prisma (não editar). |
 
 #### `prisma/`
 
 | Arquivo | O que faz |
 |---|---|
-| `schema.prisma` | Fonte de verdade do banco: define todos os modelos (User, Transaction, Tag, TransactionTag, Budget, Goal, GoalPayment, Settings, Liability, Institution, Account, Asset, AssetExpense, Plan, PlanModule, AppConfig) com campos, tipos, defaults, constraints únicas compostas e relações. |
-
-#### `.claude/`
-
-Diretório de configuração do **Claude Code** (CLI de IA). Versionado no repositório para que o contexto do assistente seja compartilhado entre sessões e colaboradores.
-
-| Arquivo | O que faz |
-|---|---|
-| `CLAUDE.md` | Ponto de entrada do Claude Code. Referencia `@AGENTS.md` com `@`. |
-| `AGENTS.md` | Diretivas globais do projeto para o Claude Code: stack, convenções, avisos de breaking changes do Next.js. |
-| `agents/agent-smith.md` | **Agent Smith v8.0** — agente QA especialista. Persona cirúrgica baseada em 19 obras técnicas (Myers, Beck, Feathers, Fowler, Nygard, WAHH e outros). Invocado com `@agent-smith` ou linguagem natural. Ferramentas: `Read`, `Grep`, `Glob`, `Bash` (somente leitura/análise — sem edição de arquivos). Modelo: `sonnet`. |
-
-**Como invocar o Agent Smith:**
-```
-@agent-smith revisa o componente PillReader antes de commitar
-```
-ou
-```
-Usa o Agent Smith para auditar a action completePill
-```
+| `schema.prisma` | Fonte de verdade do banco (PostgreSQL): define todos os modelos — Institution, Account, Transaction, Goal, GoalPayment, Tag, TransactionTag, Budget, Asset, AssetExpense, Plan, PlanModule, User, Liability, PillProgress, Settings, AppConfig, Notification, KmConfig, KmPeriod, KmRoute, KmReceipt, KmExpense, KmPlace, OAuthAccount, Session, AuditLog, LoginAttempt — com campos, tipos, defaults, constraints únicas compostas e relações. |
+| `prisma.config.ts` | Configuração do Prisma v7 (substitui as opções antigas no `schema.prisma`/`package.json`). |
 
 ---
 
@@ -1889,11 +2043,11 @@ Usa o Agent Smith para auditar a action completePill
 
 **Motivo**: elimina a camada de API REST, reduz boilerplate, mantém type safety end-to-end. O Next.js serializa os argumentos automaticamente. Para o Lyfx, que não tem clientes externos consumindo uma API, não há vantagem em expor endpoints REST.
 
-### Cookie simples em vez de JWT ou iron-session
+### Cookie HMAC com sessão stateful no banco em vez de JWT ou iron-session
 
-**Decisão**: sessão armazenada como `userId` diretamente no cookie, sem criptografia adicional.
+**Decisão**: sessão representada por um cookie HMAC-SHA256 de 3 partes (`sessionId.userId.hmac`) que referencia um registro `Session` no banco (CS-34), em vez de um JWT autocontido.
 
-**Motivo**: app pessoal local, sem requisito de sessão stateless distribuída. O cookie é httpOnly (não acessível por XSS) e o AppLayout valida o userId contra o banco em cada request. Iron-session ou JWT adicionariam complexidade sem benefício real neste contexto.
+**Motivo**: permite invalidação server-side instantânea (revogar sessão individual ou "sair de todos os dispositivos"), o que um JWT stateless não oferece sem uma denylist adicional. O cookie é httpOnly, validado por HMAC no Edge (`proxy.ts`) antes de qualquer acesso ao banco, e o registro `Session` é consultado apenas no Node.js runtime (`AppLayout`). Iron-session ou JWT puro adicionariam complexidade sem resolver o requisito de revogação imediata.
 
 ### Avatar em Base64 no banco
 
@@ -1921,22 +2075,22 @@ Usa o Agent Smith para auditar a action completePill
 
 **Motivo**: convenção `middleware.ts` foi depreciada no Next.js 16. A convenção correta é `proxy.ts` com export nomeado `proxy`.
 
-### Prisma v7 com adapter explícito
+### Prisma v7 com adapter explícito (PostgreSQL)
 
-**Decisão**: `PrismaBetterSqlite3` instanciado em `lib/db.ts` e passado via `{ adapter }` ao `PrismaClient`.
+**Decisão**: `PrismaPg` (`@prisma/adapter-pg`) instanciado em `lib/db.ts` com `DATABASE_URL` e passado via `{ adapter }` ao `PrismaClient`.
 
-**Motivo**: Prisma v7 removeu o suporte nativo ao SQLite inline na datasource. O novo modelo requer um adapter explícito. Isso também habilita futura troca para PostgreSQL sem mudança no código de queries — apenas a instanciação do adapter muda.
+**Motivo**: Prisma v7 removeu o suporte a `url` inline na datasource — o novo modelo exige um adapter explícito por driver. O projeto migrou de SQLite (uso local single-file) para PostgreSQL em containers Docker para suportar concorrência real e paridade entre dev/produção; a troca de adapter (`PrismaBetterSqlite3` → `PrismaPg`) não exigiu mudanças no código de queries, apenas na instanciação em `lib/db.ts`.
 
 ### Isolamento de bancos por ambiente
 
-**Decisão**: cada ambiente mantém seu próprio arquivo `.env` (gitignored) com `DATABASE_URL` apontando para um banco SQLite exclusivo:
+**Decisão**: cada ambiente mantém seu próprio arquivo `.env` (gitignored) com `DATABASE_URL` apontando para um banco PostgreSQL exclusivo, rodando em containers isolados:
 
-| Ambiente | Banco |
-|---|---|
-| `develop` (porta 3000) | `lyfx/dev.db` — dados de teste, resetável livremente |
-| `master` (porta 4000) | `lyfx-production/prod.db` — dados reais do usuário |
+| Ambiente | Branch | Porta | Banco |
+|---|---|---|---|
+| Desenvolvimento (`lyfx/`) | branch de feature atual | 3000–3009 | `lyfx_dev` (container `lyfx-db-dev`, porta host 5433) |
+| Produção (`lyfx-production/`) | `main` (fixo) | 4000–4009 | `lyfx_prod` (container `lyfx-db-prod`, porta host 5434) |
 
-**Motivo**: banco compartilhado entre dev e produção criava risco de corrupção de dados (migrações de schema em `develop` afetariam produção imediatamente). O isolamento via `.env` gitignored é automático — merges nunca tocam o arquivo de configuração de nenhum ambiente, preservando o apontamento de banco de cada um indefinidamente.
+**Motivo**: banco compartilhado entre dev e produção criava risco de corrupção de dados (migrações de schema em desenvolvimento afetariam produção imediatamente). O isolamento via `.env` gitignored é automático — merges nunca tocam o arquivo de configuração de nenhum ambiente, preservando o apontamento de banco de cada um indefinidamente. Ver `docs/GIT-WORKFLOW.md` para o fluxo completo de branches (GitHub Flow, branch única `main`).
 
 ---
 
@@ -2081,25 +2235,25 @@ urgency = monthsRemaining <= 2 ? "danger" : monthsRemaining <= 4 ? "warning" : "
 
 Esta seção documenta problemas reais encontrados em desenvolvimento, com causa-raiz e solução definitiva. Consultar aqui antes de investigar problemas similares.
 
-### Prisma v7 — adapter obrigatório para SQLite
+### Prisma v7 — adapter obrigatório para PostgreSQL
 
-**Sintoma**: `db.qualquerModelo.findMany()` falha com `Cannot read properties of undefined`.
+**Sintoma**: `db.qualquerModelo.findMany()` falha com `Cannot read properties of undefined`, ou erro de conexão logo na inicialização.
 
-**Causa**: Prisma v7 removeu suporte nativo ao SQLite na datasource. O client precisa ser instanciado com `{ adapter: new PrismaBetterSqlite3(new BetterSqlite3(dbUrl)) }`.
+**Causa**: Prisma v7 removeu o suporte a `url` inline na datasource. O client precisa ser instanciado com um adapter explícito por driver — no caso do Lyfx, `{ adapter: new PrismaPg({ connectionString: DATABASE_URL }) }`.
 
-**Onde está**: `lib/db.ts`. Instanciação singleton via `const globalForPrisma = global as any; globalForPrisma.prisma ??= new PrismaClient({ adapter })`.
+**Onde está**: `lib/db.ts`. Instanciação singleton com o adapter `PrismaPg` (`@prisma/adapter-pg`), armazenado em `globalForPrisma` para evitar múltiplas instâncias sob HMR.
 
 **Após `db push`**: sempre rodar `npx prisma generate` — o client não reconhece modelos novos até ser regerado. O worktree de produção tem client separado e precisa de `generate` independente.
 
-### Turbopack — cache de módulos com `"use server"`
+### Turbopack — cache de módulos com `"use server"` (histórico, resolvido com a migração para PostgreSQL)
 
-**Sintoma**: novo modelo adicionado ao schema é reconhecido pelo Prisma em queries, mas componente cliente não o vê / `db.novoModelo` é undefined no servidor.
+**Sintoma** (observado na época do SQLite): novo modelo adicionado ao schema era reconhecido pelo Prisma em queries, mas o componente cliente não o via / `db.novoModelo` ficava `undefined` no servidor.
 
-**Causa**: Turbopack mantém cache compilado do bundle do client. `"use server"` modules são compilados separadamente e podem ter o client gerado antes do `prisma generate`.
+**Causa**: Turbopack mantinha cache compilado do bundle do client. Módulos `"use server"` eram compilados separadamente e podiam ter o client gerado antes do `prisma generate`.
 
-**Solução**: parar o servidor, rodar `npx prisma generate`, reiniciar. Se persistir, deletar `.next/` e reiniciar.
+**Solução histórica**: parar o servidor, rodar `npx prisma generate`, reiniciar. Se persistisse, deletar `.next/` e reiniciar.
 
-**Caso especial `PillProgress`**: modelo adicionado em v1.5.0 exibiu esse problema. Workaround `lib/db-pills.ts` removido em v1.11.0 — PostgreSQL não apresenta o problema de cache do Turbopack.
+**Caso especial `PillProgress`**: modelo adicionado em v1.5.0 exibiu esse problema com SQLite. O workaround `lib/db-pills.ts` (acesso direto via `better-sqlite3`) foi removido em v1.11.0 na migração para PostgreSQL — o novo adapter não reproduz o problema de cache do Turbopack.
 
 ### `NEXT_PUBLIC_*` vars não recarregadas em runtime
 
