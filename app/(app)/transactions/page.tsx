@@ -13,7 +13,7 @@ export default async function TransactionsPage({ searchParams }: Props) {
   const params = await searchParams;
   const now = new Date();
 
-  // CS-06: lê o parâmetro ?month=YYYY-MM da URL; fallback para mês atual
+  // CS-06: reads the ?month=YYYY-MM URL param; falls back to the current month
   let year  = now.getFullYear();
   let month = now.getMonth() + 1;
 

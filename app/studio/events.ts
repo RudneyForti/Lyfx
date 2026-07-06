@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import { requireAdmin } from "./auth";
 
-// ── CS-18: Log de eventos para a aba Dados do Studio ─────────────────────────
+// ── CS-18: Event log for the Studio Data tab ─────────────────────────────────
 
 export interface AuditEvent {
   id: string;

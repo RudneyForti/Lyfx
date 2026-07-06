@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * StudioLoginForm — extraído do StudioClient.tsx (item #5 da auditoria de
- * desempenho): quem abre /studio sem autenticar baixa apenas este chunk,
- * não o painel inteiro (react-markdown, KanbanBoard, ~3.700 linhas).
+ * StudioLoginForm — extracted from StudioClient.tsx (performance audit
+ * item #5): whoever opens /studio without authenticating only downloads
+ * this chunk, not the whole panel (react-markdown, KanbanBoard, ~3,700 lines).
  */
 
 import { useState, useTransition } from "react";

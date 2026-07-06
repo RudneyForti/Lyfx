@@ -264,7 +264,7 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
   const [mode, setMode] = useState<"login" | "setup">(hasUser ? "login" : "setup");
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(true);
-  // CS-13: ler rota original para redirecionar após login
+  // CS-13: read the original route to redirect to after login
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? undefined;
   // CS-36: ler erro OAuth do cookie flash (URL permanece limpa)
@@ -338,7 +338,7 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
     if (mode === "setup") {
       if (!name.trim()) { setError(t.errName); shake(); return; }
       if (!email.trim()) { setError(t.errEmail); shake(); return; }
-      // CS-33: validação de política de senha forte
+      // CS-33: strong password policy validation
       const pwError = validatePasswordStrict(password);
       if (pwError) { setError(pwError); shake(); return; }
       if (password !== confirm) { setError(t.errPasswordMatch); shake(); return; }
@@ -349,15 +349,15 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
     } else {
       if (!email.trim()) { setError(t.errEmail); shake(); return; }
       if (!password) { setError(t.errPassword); shake(); return; }
-      // CS-32: se CAPTCHA obrigatório mas token ainda não obtido, aguardar
+      // CS-32: if CAPTCHA is required but the token has not been obtained yet, wait
       if (captchaRequired && !captchaToken) {
         setError("Complete o desafio de segurança para continuar.");
         shake();
         return;
       }
       startTransition(async () => {
-        // CS-13: passa remember e redirectTo para a action
-        // CS-32: passa captchaToken quando disponível
+        // CS-13: pass remember and redirectTo to the action
+        // CS-32: pass captchaToken when available
         const result = await login({
           email,
           password,
@@ -380,7 +380,7 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
           }
           return;
         }
-        // CS-37a: 2FA obrigatório
+        // CS-37a: 2FA required
         if ("requires2FA" in result && result.requires2FA) {
           setStep("2fa");
           setError("");
@@ -392,7 +392,7 @@ export function LoginForm({ hasUser, monthIndex, year, oauthEnabled }: Props) {
     }
   }
 
-  // CS-37a: submit do código TOTP/backup
+  // CS-37a: submit the TOTP/backup code
   function handleTotpSubmit(e: React.FormEvent) {
     e.preventDefault();
     const code = totpCode.trim();

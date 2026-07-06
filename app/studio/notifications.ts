@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireAdmin } from "./auth";
 
-// ── CS-18: Notificações manuais via Studio ───────────────────────────────────
+// ── CS-18: Manual notifications via Studio ───────────────────────────────────
 
 export interface AdminSendNotificationInput {
   recipientType: "all" | "plan" | "user";
@@ -69,18 +69,18 @@ export async function adminSendNotification(
   return { ok: true, count: userIds.length };
 }
 
-/** Lista notificações manuais agrupadas por broadcastId para o painel do Studio. */
+/** Lists manual notifications grouped by broadcastId for the Studio panel. */
 export async function adminGetManualNotifications(): Promise<NotifBroadcast[]> {
   await requireAdmin();
 
-  // Busca todas as notificações sem fingerprint (= manuais)
+  // Fetch all notifications without a fingerprint (= manual)
   const rows = await db.notification.findMany({
     where: { fingerprint: null },
     orderBy: { createdAt: "desc" },
     select: { id: true, broadcastId: true, title: true, body: true, type: true, link: true, createdAt: true, readAt: true },
   });
 
-  // Agrupa por broadcastId (null = legado sem broadcastId, cada um é seu próprio grupo)
+  // Group by broadcastId (null = legacy without broadcastId, each is its own group)
   const groups = new Map<string, typeof rows>();
   for (const row of rows) {
     const key = row.broadcastId ?? `__solo__${row.id}`;

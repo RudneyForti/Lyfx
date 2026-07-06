@@ -60,7 +60,7 @@ export async function getStudioData() {
     userCount: p._count.users,
   }));
 
-  // Versões e git — dependências de ambiente isoladas em system-info.ts
+  // Versions and git — environment dependencies isolated in system-info.ts
   const { appVersion, prodVersion } = await getVersionInfo();
   const { devBranch, devCommit, prodBranch, prodCommit } = getGitInfo();
 
@@ -176,10 +176,10 @@ export async function getDocumentation(): Promise<string> {
   }
 }
 
-// ── Métricas do servidor ──────────────────────────────────────────────────────
+// ── Server metrics ────────────────────────────────────────────────────────────
 
 export interface ServerMetrics {
-  // Memória do sistema
+  // System memory
   memUsedBytes:  number;
   memTotalBytes: number;
   // Heap do processo Node.js
@@ -191,9 +191,9 @@ export interface ServerMetrics {
   cpuCount:   number;
   // Processo
   uptimeSeconds: number;
-  // Usuários online (lastSeenAt nos últimos 5 minutos)
+  // Users online (lastSeenAt in the last 5 minutes)
   onlineNow:   number;
-  // Usuários ativos hoje
+  // Users active today
   activeToday: number;
 }
 

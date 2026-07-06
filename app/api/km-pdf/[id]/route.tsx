@@ -1,14 +1,14 @@
 /**
  * GET /api/km-pdf/[id]
  *
- * Gera o PDF de reembolso KM server-side com @react-pdf/renderer.
- * As imagens dos mapas são pré-buscadas diretamente da Google Static Maps API
- * (sem proxy HTTP self-referencial) e embeddadas como data URLs no PDF.
+ * Generates the km reimbursement PDF server-side with @react-pdf/renderer.
+ * Map images are pre-fetched directly from the Google Static Maps API
+ * (no self-referencing HTTP proxy) and embedded as data URLs in the PDF.
  *
- * Prioridade do polyline para cada trajeto:
- *   1. KmRoute.routePolyline (salvo pelo frontend ao arrastar o mapa)
- *   2. KmPlace.routeGoing / routeReturn (trajeto configurado no lugar salvo)
- *   3. Fallback: Directions API do Google (rota padrão)
+ * Polyline priority for each route:
+ *   1. KmRoute.routePolyline (saved by the frontend when dragging the map)
+ *   2. KmPlace.routeGoing / routeReturn (route configured on the saved Place)
+ *   3. Fallback: Google's Directions API (default route)
  */
 import { NextRequest, NextResponse } from "next/server";
 import React from "react";
@@ -18,7 +18,7 @@ import { db } from "@/lib/db";
 import { getKmPeriod, getKmConfig, getCurrentUserName } from "@/app/actions/km-reimbursement";
 import { PeriodPdfDocument } from "@/components/km-reimbursement/PeriodPdf";
 
-// ── Extrai polyline de um DirectionsResult serializado (JSON do banco) ─────────
+// ── Extracts the polyline from a serialized DirectionsResult (DB JSON) ────────
 function extractPolylineFromJson(json: unknown): string | null {
   if (!json) return null;
   const poly = (json as { routes?: { overview_polyline?: unknown }[] })
@@ -28,7 +28,7 @@ function extractPolylineFromJson(json: unknown): string | null {
   return (poly as { points?: string })?.points ?? null;
 }
 
-// ── Busca polyline: KmPlace > Directions API ───────────────────────────────────
+// ── Resolves the polyline: KmPlace > Directions API ───────────────────────────
 async function resolvePolyline(
   routePolyline: string | null,
   placeId: string | null,
@@ -37,9 +37,9 @@ async function resolvePolyline(
   destination: string,
   apiKey: string,
 ): Promise<string | null> {
-  // 1. Polyline do Lugar salvo — fonte da verdade quando o trajeto vem de um Lugar
-  //    (o Lugar é configurado cuidadosamente no modal; edições inline no período
-  //     podem gerar polylines incorretos a partir da rota padrão do Google)
+  // 1. Polyline from the saved Place — source of truth when the route comes from a Place
+  //    (the Place is carefully configured in the modal; inline edits on the
+  //     period can produce incorrect polylines from Google's default route)
   if (placeId) {
     const place = await db.kmPlace.findUnique({ where: { id: placeId } });
     if (place) {
@@ -49,10 +49,10 @@ async function resolvePolyline(
     }
   }
 
-  // 2. Polyline salvo diretamente no trajeto (rotas manuais sem placeId)
+  // 2. Polyline saved directly on the route (manual routes without placeId)
   if (routePolyline) return routePolyline;
 
-  // 3. Fallback: Directions API do Google
+  // 3. Fallback: Google's Directions API
   try {
     const params = new URLSearchParams({ origin, destination, key: apiKey });
     const res = await fetch(
@@ -68,12 +68,12 @@ async function resolvePolyline(
         return data?.routes?.[0]?.overview_polyline?.points ?? null;
       }
     }
-  } catch { /* fallback silencioso */ }
+  } catch { /* silent fallback */ }
 
   return null;
 }
 
-// ── Busca imagem do mapa como base64 ──────────────────────────────────────────
+// ── Fetches the map image as base64 ───────────────────────────────────────────
 async function fetchMapDataUrl(
   polyline: string | null,
   origin: string,
@@ -104,7 +104,7 @@ async function fetchMapDataUrl(
   }
 }
 
-// ── Handler ───────────────────────────────────────────────────────────────────
+// ── Handler ─────────────────────────────────────────────────────────────────
 
 export async function GET(
   req: NextRequest,
@@ -129,7 +129,7 @@ export async function GET(
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
-  // Resolve polylines e busca imagens em paralelo
+  // Resolve polylines and fetch images in parallel
   const mapImages = await Promise.all(
     period.routes.map(async r => {
       const poly = await resolvePolyline(

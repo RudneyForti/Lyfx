@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { parseLocalDate } from "@/lib/dates";
 import { addBusinessDays } from "@/lib/km-utils";
 
-// ── Helper: busca polyline padrão via Directions API ──────────────────────────
+// ── Helper: fetches the default polyline via the Directions API ─────────────
 async function fetchDefaultPolyline(origin: string, destination: string): Promise<string | null> {
   try {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -125,7 +125,7 @@ export type KmPlaceData = {
   destinationAddress: string;
   kmGoing: number;
   kmReturn: number;
-  routeGoing: unknown;   // DirectionsResult serializado (Json? do Prisma)
+  routeGoing: unknown;   // serialized DirectionsResult (Prisma's Json? field)
   routeReturn: unknown;
   notes: string | null;
   createdAt: Date;
@@ -133,7 +133,7 @@ export type KmPlaceData = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// [CS-25] addBusinessDays movido para lib/km-utils.ts (agora async com feriados nacionais)
+// [CS-25] addBusinessDays moved to lib/km-utils.ts (now async, with national holidays)
 
 async function recalcPeriodInternal(periodId: string, userId: string) {
   const [routes, receipts, expenses, config] = await Promise.all([
@@ -211,7 +211,7 @@ export async function saveKmConfig(data: {
   revalidatePath("/km-reimbursement");
 }
 
-// ── Períodos ──────────────────────────────────────────────────────────────────
+// ── Periods ───────────────────────────────────────────────────────────────────
 
 export async function getKmPeriods(): Promise<KmPeriodSummary[]> {
   const userId = await requireAuth();
@@ -304,7 +304,7 @@ export async function createKmRoute(data: {
   direction?: string;
 }): Promise<void> {
   const userId = await requireAuth();
-  // Se nenhum polyline foi capturado no frontend, busca o padrão do Google
+  // If no polyline was captured on the frontend, fetch the default from Google
   const poly = data.routePolyline
     ?? await fetchDefaultPolyline(data.origin, data.destination);
   await db.kmRoute.create({
@@ -339,7 +339,7 @@ export async function createKmRoutesBulk(routes: Array<{
   if (routes.length === 0) return;
   const userId = await requireAuth();
   const periodId = routes[0].periodId;
-  // Busca polylines em paralelo para os trajetos sem polyline
+  // Fetch polylines in parallel for routes without one
   const polys = await Promise.all(
     routes.map(r =>
       r.routePolyline
@@ -376,8 +376,8 @@ export async function updateKmRoute(id: string, data: {
   const userId = await requireAuth();
   const route = await db.kmRoute.findFirst({ where: { id, userId } });
   if (!route) return;
-  // Usa o polyline capturado pelo frontend; se veio null (mapa não aberto),
-  // preserva o que já está no banco; se o banco também é null, busca o padrão.
+  // Uses the polyline captured by the frontend; if it came in null (map never opened),
+  // preserves what is already in the DB; if the DB is also null, fetches the default.
   const poly = data.routePolyline
     ?? route.routePolyline
     ?? await fetchDefaultPolyline(data.origin, data.destination);
@@ -406,7 +406,7 @@ export async function deleteKmRoute(id: string): Promise<void> {
   revalidatePath(`/km-reimbursement/${route.periodId}`);
 }
 
-// ── Notas de combustível ──────────────────────────────────────────────────────
+// ── Fuel receipts ─────────────────────────────────────────────────────────────
 
 export async function createKmReceipt(data: {
   periodId: string;
@@ -564,7 +564,7 @@ export async function reopenPeriod(id: string): Promise<void> {
   revalidatePath("/transactions");
 }
 
-// ── Usuário atual ─────────────────────────────────────────────────────────────
+// ── Current user ──────────────────────────────────────────────────────────────
 
 export async function getCurrentUserName(): Promise<string> {
   const userId = await requireAuth();

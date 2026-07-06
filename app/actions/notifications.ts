@@ -15,12 +15,12 @@ export interface NotificationItem {
   createdAt: Date;
 }
 
-/* ── Leitura ──────────────────────────────────────────────────────── */
+/* ── Read ─────────────────────────────────────────────────────────── */
 
-/** Badge count — chamado pelo layout.
- *  Usa requireAuth() internamente — ignora userId externo para garantir isolamento.
- *  Conta apenas notificações manuais/sistema (fingerprint=null).
- *  Alertas financeiros são computados em real-time por getAlerts() e não inflam o badge.
+/** Badge count — called by the layout.
+ *  Uses requireAuth() internally — ignores any external userId to guarantee isolation.
+ *  Counts only manual/system notifications (fingerprint=null).
+ *  Financial alerts are computed in real-time by getAlerts() and do not inflate the badge.
  */
 export async function getUnreadCount(): Promise<number> {
   const userId = await requireAuth();
@@ -28,15 +28,15 @@ export async function getUnreadCount(): Promise<number> {
   return db.notification.count({
     where: {
       userId,
-      fingerprint: null,   // ← apenas notificações (não alertas automáticos)
+      fingerprint: null,   // ← notifications only (not automatic alerts)
       readAt: null,
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
   });
 }
 
-/** Lista completa de notificações (manual + Studio).
- *  Exclui alertas automáticos (fingerprint != null) — esses são gerenciados por getAlerts().
+/** Full list of notifications (manual + Studio).
+ *  Excludes automatic alerts (fingerprint != null) — those are managed by getAlerts().
  */
 export async function getNotifications(): Promise<NotificationItem[]> {
   const userId = await requireAuth();
@@ -44,7 +44,7 @@ export async function getNotifications(): Promise<NotificationItem[]> {
   const rows = await db.notification.findMany({
     where: {
       userId,
-      fingerprint: null,   // ← apenas notificações
+      fingerprint: null,   // ← notifications only
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
     orderBy: { createdAt: "desc" },
@@ -61,7 +61,7 @@ export async function getNotifications(): Promise<NotificationItem[]> {
   }));
 }
 
-/* ── Escrita ──────────────────────────────────────────────────────── */
+/* ── Write ────────────────────────────────────────────────────────── */
 
 export async function markAsRead(id: string): Promise<void> {
   const userId = await requireAuth();
@@ -81,16 +81,16 @@ export async function markAllAsRead(): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-/** Remove uma notificação lida. Só remove se pertencer ao usuário autenticado. */
+/** Removes a read notification. Only removes if it belongs to the authenticated user. */
 export async function deleteNotification(id: string): Promise<void> {
   const userId = await requireAuth();
   await db.notification.deleteMany({
-    where: { id, userId, fingerprint: null }, // nunca apaga alertas automáticos
+    where: { id, userId, fingerprint: null }, // never deletes automatic alerts
   });
   revalidatePath("/", "layout");
 }
 
-/** Remove todas as notificações do usuário (apenas manuais/sistema — fingerprint=null). */
+/** Removes all of the user's notifications (manual/system only — fingerprint=null). */
 export async function deleteAllNotifications(): Promise<void> {
   const userId = await requireAuth();
   await db.notification.deleteMany({
@@ -99,7 +99,7 @@ export async function deleteAllNotifications(): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-/* ── Criação interna ─────────────────────────────────────────────── */
+/* ── Internal creation ──────────────────────────────────────────────── */
 
 interface CreateNotificationInput {
   userId: string;
@@ -125,19 +125,19 @@ export async function createNotification(data: CreateNotificationInput): Promise
   });
 }
 
-/* ── Sync de alertas danger ──────────────────────────────────────── */
+/* ── Danger alert sync ───────────────────────────────────────────── */
 
 /**
- * Converte alertas críticos (danger) em notificações persistidas.
- * Usa fingerprint + TTL 7d para evitar duplicatas.
- * Chamado pelo layout a cada render — leveza garantida pelo dedup.
- * [CS-27] Lógica de detecção extraída para lib/alert-engine.ts.
+ * Converts critical (danger) alerts into persisted notifications.
+ * Uses fingerprint + 7-day TTL to avoid duplicates.
+ * Called by the layout on every render — lightweight thanks to the dedup.
+ * [CS-27] Detection logic extracted to lib/alert-engine.ts.
  */
 export async function syncDangerAlerts(userId: string): Promise<void> {
   const now = new Date();
   const ttl = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  // Fingerprints já existentes e não expirados
+  // Fingerprints that already exist and are not expired
   const existing = await db.notification.findMany({
     where: {
       userId,
@@ -148,7 +148,7 @@ export async function syncDangerAlerts(userId: string): Promise<void> {
   });
   const seen = new Set(existing.map((n) => n.fingerprint!));
 
-  // Detectar condições via motor centralizado
+  // Detect conditions via the centralized engine
   const conditions = await computeDangerConditions(userId);
 
   const toCreate: CreateNotificationInput[] = conditions
@@ -163,7 +163,7 @@ export async function syncDangerAlerts(userId: string): Promise<void> {
       expiresAt: ttl,
     }));
 
-  // Inserir em lote
+  // Batch insert
   if (toCreate.length > 0) {
     await db.notification.createMany({
       data: toCreate.map((n) => ({

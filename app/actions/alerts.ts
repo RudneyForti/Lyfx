@@ -32,12 +32,12 @@ export async function getAlerts(): Promise<Alert[]> {
   const startOfMonth = new Date(yr, mo - 1, 1);
   const endOfMonth = new Date(yr, mo, 0, 23, 59, 59);
 
-  // ── 1–2, 4–5: Condições danger via motor centralizado [CS-27] ────────────
+  // ── 1–2, 4–5: danger conditions via the centralized engine [CS-27] ───────
   // computeDangerConditions cobre: budget ≥100%, goals em atraso,
-  // seasonal ≤1m, passivos críticos.
+  // seasonal ≤1m, critical liabilities.
   const dangerConditions = await computeDangerConditions(userId);
 
-  // Precisamos de dados locais para enriquecer labels e detectar warnings
+  // We need local data to enrich labels and detect warnings
   const [budgets, monthTx] = await Promise.all([
     db.budget.findMany({ where: { userId } }),
     db.transaction.findMany({
@@ -51,12 +51,12 @@ export async function getAlerts(): Promise<Alert[]> {
     spentByCategory[tx.category] = (spentByCategory[tx.category] ?? 0) + tx.amount;
   }
 
-  // IDs dos budgets já cobertos como danger (para não duplicar como warning)
+  // IDs of budgets already covered as danger (avoid duplicating as warning)
   const dangerBudgetIds = new Set(
     dangerConditions.filter((c) => c.type === "budget").map((c) => c.fingerprint)
   );
 
-  // Budget danger: enriquecer com label de categoria e detalhes de valor
+  // Budget danger: enrich with category label and amount details
   for (const budget of budgets) {
     const spent = spentByCategory[budget.category] ?? 0;
     const pct = budget.amount > 0 ? spent / budget.amount : 0;
@@ -73,7 +73,7 @@ export async function getAlerts(): Promise<Alert[]> {
         link: "/budget",
       });
     } else if (pct >= 0.8 && !dangerBudgetIds.has(`budget-${budget.id}`)) {
-      // warning: exclusivo do getAlerts — não existe em syncDangerAlerts
+      // warning: exclusive to getAlerts — does not exist in syncDangerAlerts
       alerts.push({
         id: `budget-${budget.id}`,
         type: "budget",
@@ -170,7 +170,7 @@ export async function getAlerts(): Promise<Alert[]> {
     select: { id: true, description: true, amount: true, date: true },
   });
 
-  // IDs dos sazonais já cobertos como danger pelo motor central
+  // IDs of seasonal items already covered as danger by the central engine
   const dangerSeasonalIds = new Set(
     dangerConditions.filter((c) => c.type === "seasonal").map((c) => c.fingerprint)
   );
@@ -179,8 +179,8 @@ export async function getAlerts(): Promise<Alert[]> {
     let next = new Date(now.getFullYear(), tx.date.getMonth(), tx.date.getDate());
     if (next <= now) next = new Date(now.getFullYear() + 1, tx.date.getMonth(), tx.date.getDate());
 
-    // CS-48: usar diferença em meses calendário (inteiro) para evitar off-by-one
-    // causado por diffDays/30 com fração de horas (ex: 60.4/30 = 2.01 > 2 falso negativo)
+    // CS-48: use integer calendar-month difference to avoid off-by-one
+    // caused by diffDays/30 with hour fractions (e.g. 60.4/30 = 2.01 > 2 false negative)
     const calMonthDiff = (next.getFullYear() - now.getFullYear()) * 12 + (next.getMonth() - now.getMonth());
     const diffDays = (next.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     const monthsLeft = Math.max(1, calMonthDiff);
@@ -199,8 +199,8 @@ export async function getAlerts(): Promise<Alert[]> {
     }
   }
 
-  // ── 5. Passivos críticos — label enriquecido com taxa anual ─────────────
-  // CS-08: apenas passivos com saldo > 0 geram alerta crítico
+  // ── 5. Critical liabilities — label enriched with annual rate ──────────
+  // CS-08: only liabilities with balance > 0 generate a critical alert
   const criticalLiabilities = await db.liability.findMany({
     where: {
       userId,

@@ -11,7 +11,7 @@ const INCLUDE_TAGS = {
   tags: { include: { tag: true } },
 } as const;
 
-// [CS-29] Tipo inferido do resultado do findMany com INCLUDE_TAGS — elimina any
+// [CS-29] Type inferred from the findMany result with INCLUDE_TAGS — eliminates any
 type TxWithTags = Awaited<ReturnType<typeof db.transaction.findMany<{ include: typeof INCLUDE_TAGS }>>>[number];
 
 function mapTx(tx: TxWithTags): Transaction {
@@ -209,8 +209,8 @@ export async function createInstallments(data: {
 }) {
   const userId = await requireAuth();
   const groupId = randomUUID();
-  // CS-03: Math.floor nas n-1 parcelas; última parcela absorve o resíduo
-  // (garante que a soma exata seja sempre igual a totalAmount)
+  // CS-03: Math.floor on the n-1 installments; the last one absorbs the residual
+  // (guarantees the exact sum always equals totalAmount)
   const baseAmount = Math.floor((data.totalAmount / data.count) * 100) / 100;
   const lastAmount = Math.round((data.totalAmount - baseAmount * (data.count - 1)) * 100) / 100;
 

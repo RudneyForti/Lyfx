@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const pathname = hdrs.get("x-pathname") ?? "/dashboard";
 
   if (!userId) {
-    // CS-13: preservar rota original como ?redirect= para restaurar após login
+    // CS-13: preserve the original route as ?redirect= to restore it after login
     redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
   }
 
@@ -32,8 +32,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getConfigBool("maintenanceMode"),
     getConfigValue("maintenanceBanner", "O sistema está temporariamente indisponível para manutenção."),
     getConfigValue("betaModules", ""),
-    // Badge de não lidas — inline com o userId já validado acima, evitando a
-    // segunda consulta de sessão que getUnreadCount() faria via requireAuth()
+    // Unread badge — inline with the userId already validated above, avoiding
+    // the second session lookup that getUnreadCount() would do via requireAuth()
     db.notification.count({
       where: {
         userId,
@@ -44,14 +44,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }),
   ]);
 
-  // CS-18: converter alertas danger em notificações (fingerprint dedup, TTL 7d).
-  // Throttled (1×/5min por usuário) e fire-and-forget — alertas de orçamento não
-  // mudam a cada clique; recalculá-los por navegação custava ~7 queries por página.
+  // CS-18: convert danger alerts into notifications (fingerprint dedup, TTL 7d).
+  // Throttled (1x/5min per user) and fire-and-forget — budget alerts don't
+  // change on every click; recomputing them per navigation cost ~7 queries/page.
   if (shouldRun(`danger-alerts:${userId}`, 5 * 60_000)) {
     syncDangerAlerts(userId).catch(() => {});
   }
 
-  // Presença para métricas do Studio — throttled a 1 write/min por usuário
+  // Presence for Studio metrics — throttled to 1 write/min per user
   if (shouldRun(`last-seen:${userId}`, 60_000)) {
     db.user.update({ where: { id: userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
   }

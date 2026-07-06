@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
 
     const providerUserId = claims.oid;
     const name           = claims.name ?? claims.preferred_username ?? "Usuário Microsoft";
-    // Linking por email usa APENAS o claim `email` — `preferred_username` pode ser
-    // um UPN arbitrário definido pelo tenant, não um email verificado. Usá-lo para
-    // linking permitiria vincular a conta de outro usuário via email forjado.
+    // Linking by email uses ONLY the `email` claim — `preferred_username` may be
+    // an arbitrary UPN defined by the tenant, not a verified email. Using it for
+    // linking would allow linking another user's account via a forged email.
     const linkEmail      = claims.email ?? "";
     const displayEmail   = claims.email ?? claims.preferred_username ?? "";
 

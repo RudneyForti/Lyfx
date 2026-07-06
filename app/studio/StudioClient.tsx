@@ -19,7 +19,7 @@ import {
   IconLayoutKanban,
 } from "@tabler/icons-react";
 
-/* ── Login gate: movido para ./StudioLoginForm.tsx (chunk separado) ── */
+/* ── Login gate: moved to ./StudioLoginForm.tsx (separate chunk) ── */
 
 /* ── Logout button ── */
 function LogoutButton() {
@@ -3008,7 +3008,7 @@ function DataTab({ data }: { data: StudioData }) {
   );
 }
 
-/* ── CS-18: Custom select com identidade Lyfx ── */
+/* ── CS-18: Custom select with Lyfx identity ── */
 interface SelectOption { value: string; label: string }
 
 function StudioSelect({ value, onChange, options, placeholder }: {
@@ -3484,7 +3484,7 @@ function SecurityEventIcon({ variant }: { variant: AdminSecurityEvent["variant"]
 }
 
 function formatSecDate(date: Date): string {
-  // CS-41: timeZone:"UTC" garante consistência server/client
+  // CS-41: timeZone:"UTC" keeps server/client consistent
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit", second: "2-digit",

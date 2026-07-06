@@ -12,7 +12,7 @@ export async function getTags() {
 
 export async function createTag(data: { name: string; color: string; icon: string }) {
   const userId = await requireAuth();
-  // CS-07: capturar violação de unique constraint (userId, name) e retornar erro amigável
+  // CS-07: catch the unique constraint violation (userId, name) and return a friendly error
   try {
     const tag = await db.tag.create({ data: { ...data, userId } });
     revalidatePath("/tags");
@@ -28,7 +28,7 @@ export async function createTag(data: { name: string; color: string; icon: strin
 
 export async function updateTag(id: string, data: { name?: string; color?: string; icon?: string }) {
   const userId = await requireAuth();
-  // CS-07: capturar P2002 em updateTag também (rename para nome já existente)
+  // CS-07: catch P2002 in updateTag too (rename to an already-existing name)
   try {
     const tag = await db.tag.update({ where: { id, userId }, data });
     revalidatePath("/tags");
@@ -44,7 +44,7 @@ export async function updateTag(id: string, data: { name?: string; color?: strin
 
 export async function deleteTag(id: string) {
   const userId = await requireAuth();
-  // CS-07: deleteMany evita P2025 HTTP 500 em tentativas IDOR (retorna 0 rows silenciosamente)
+  // CS-07: deleteMany avoids a P2025 HTTP 500 on IDOR attempts (silently returns 0 rows)
   await db.tag.deleteMany({ where: { id, userId } });
   revalidatePath("/tags");
   revalidatePath("/transactions");

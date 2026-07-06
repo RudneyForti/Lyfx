@@ -1,16 +1,16 @@
 /**
- * system-info.ts — informações de ambiente do Studio (versões + git).
+ * system-info.ts — Studio environment information (versions + git).
  *
- * DEPENDÊNCIA DE AMBIENTE (isolada aqui de propósito):
- *   - `git` precisa estar no PATH do processo Node
- *   - o worktree de produção precisa existir em `../lyfx-production`
+ * ENVIRONMENT DEPENDENCY (isolated here on purpose):
+ *   - `git` must be on the Node process's PATH
+ *   - the production worktree must exist at `../lyfx-production`
  *
- * Todo acesso é envolto em try/catch com fallback "—". Se o deploy for para
- * um container sem git ou sem o worktree, o Studio degrada graciosamente —
- * nada quebra além destes campos informativos.
+ * Every access is wrapped in try/catch with a "—" fallback. If the deploy
+ * target is a container without git or without the worktree, the Studio
+ * degrades gracefully — nothing breaks besides these informational fields.
  *
- * Este módulo NÃO é "use server" — são helpers síncronos consumidos apenas
- * por server actions (app/studio/data.ts).
+ * This module is NOT "use server" — these are sync helpers consumed only
+ * by server actions (app/studio/data.ts).
  */
 
 import { readFile } from "fs/promises";
