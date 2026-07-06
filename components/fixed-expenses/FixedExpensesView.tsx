@@ -307,7 +307,7 @@ export function FixedExpensesView({ allTransactions }: Props) {
   );
 }
 
-/* ── Provisão sazonal ── */
+/* ── Seasonal provision ── */
 function ProvisaoSazonal({ annuals, today }: { annuals: Transaction[]; today: Date }) {
   const totalMonthlyProvision = annuals.reduce((s, t) => s + t.amount / 12, 0);
 

@@ -643,7 +643,7 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
           ? new Date(b.completedAt).getTime()
           : b.order;
         if (aKey !== bKey) return dir === "asc" ? aKey - bKey : bKey - aKey;
-        // tiebreaker: order mais alto = adicionado depois = mais recente
+        // tiebreaker: higher order = added later = more recent
         return dir === "asc" ? a.order - b.order : b.order - a.order;
       });
   }

@@ -51,7 +51,7 @@ function StreakCalendar({
         {streak.weekHistory.map((week, idx) => {
           const isCurrent = idx === streak.weekHistory.length - 1;
           const date = new Date(week.weekKey + "T00:00:00Z");
-          // CS-41: timeZone:"UTC" garante consistência server/client
+          // CS-41: timeZone:"UTC" keeps server/client consistent
           const label = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" });
           return (
             <div key={week.weekKey} className="flex flex-col items-center gap-1">

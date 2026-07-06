@@ -172,7 +172,7 @@ export function NotificationPanel({ unreadCount }: Props) {
               <IconLoader2 size={20} className="animate-spin text-[var(--color-f4)]" />
             </div>
           ) : alerts.length === 0 && notifs.length === 0 ? (
-            /* ── Empty state único ── */
+            /* ── Single empty state ── */
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-[var(--color-f4)]">
               <IconBellOff size={26} />
               <span className="text-[12px]">Nada por aqui</span>

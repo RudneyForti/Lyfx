@@ -173,7 +173,7 @@ export function PillReader({ pill, initialRecord }: Props) {
 
   async function handleContinueFromCorrection() {
     if (isAlreadyCompleted) {
-      // Releitura: não registra de novo, volta à lista
+      // Re-reading: does not record again, goes back to the list
       router.push("/education");
       return;
     }

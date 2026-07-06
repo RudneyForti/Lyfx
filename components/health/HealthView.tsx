@@ -12,7 +12,7 @@ interface Props {
   reserveBalance: number;
 }
 
-// ── Gauge SVG (semicírculo) ─────────────────────────────────────────────────
+// ── Gauge SVG (semicircle) ────────────────────────────────────────────────────
 function ScoreGauge({ score, color }: { score: number; color: string }) {
   const r = 56;
   const cx = 70;
@@ -65,7 +65,7 @@ function ScoreGauge({ score, color }: { score: number; color: string }) {
   );
 }
 
-// ── Barra de status por dimensão ────────────────────────────────────────────
+// ── Status bar per dimension ──────────────────────────────────────────────────
 const statusColors: Record<HealthDimension["status"], string> = {
   great:    "#4ADE80",
   good:     "#22D3EE",

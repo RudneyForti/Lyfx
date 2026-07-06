@@ -23,7 +23,7 @@ function formatCurrency(value: number) {
 }
 
 function formatDate(date: Date) {
-  // CS-41: timeZone:"UTC" garante consistência entre server (Docker UTC+0) e client (browser local)
+  // CS-41: timeZone:"UTC" keeps server (Docker UTC+0) and client (local browser) consistent
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" }).format(new Date(date));
 }
 
@@ -37,7 +37,7 @@ function ActionBar({
   onClose: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
-  // CS-14: confirmação antes de excluir — "single" | "group" | null
+  // CS-14: confirmation before deleting — "single" | "group" | null
   const [confirmMode, setConfirmMode] = useState<"single" | "group" | null>(null);
   const isInstallment = !!tx.installmentGroupId;
 
@@ -127,7 +127,7 @@ export function TransactionList({ transactions, allTags }: Props) {
   const [editing, setEditing]   = useState<Transaction | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [ctxFilter, setCtxFilter] = useState<ContextFilter>("all");
-  // CS-14: ref para o container do item expandido (click-outside fecha o ActionBar)
+  // CS-14: ref for the expanded item's container (click-outside closes the ActionBar)
   const expandedRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

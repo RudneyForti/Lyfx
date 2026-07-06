@@ -35,14 +35,14 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 function fmtDate(d: Date | string) {
-  // CS-41: timeZone:"UTC" garante consistência entre server e client
+  // CS-41: timeZone:"UTC" keeps server and client consistent
   return new Date(d).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 function fmtDateInput(d: Date | string) {
   return new Date(d).toISOString().split("T")[0];
 }
 function fmtDateSAP(d: Date | string) {
-  // CS-41: usar getUTC* para consistência com timeZone:"UTC"
+  // CS-41: use getUTC* for consistency with timeZone:"UTC"
   const dt = new Date(d);
   return `${String(dt.getUTCDate()).padStart(2,"0")}.${String(dt.getUTCMonth()+1).padStart(2,"0")}.${dt.getUTCFullYear()}`;
 }
@@ -133,13 +133,13 @@ function RouteForm({ periodId, route, places, onDone, prefill }: {
   route?: KmRouteData;
   places: KmPlaceData[];
   onDone: () => void;
-  /** Pre-fill de endereços (botão "+ Volta") */
+  /** Address pre-fill (the "+ Return" button) */
   prefill?: { origin: string; destination: string; date: string };
 }) {
   const [isPending, start] = useTransition();
   const [showMap, setShowMap] = useState(false);
   const [mapDirections, setMapDirections] = useState<google.maps.DirectionsResult | null>(null);
-  // Se veio de prefill, força modo manual
+  // If it came from a prefill, force manual mode
   const [mode, setMode] = useState<"place" | "manual">(
     prefill ? "manual" : (places.length > 0 && !route ? "place" : "manual")
   );
@@ -159,9 +159,9 @@ function RouteForm({ periodId, route, places, onDone, prefill }: {
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  // Callback do mapa: extrai km e (opcionalmente) polyline do resultado.
-  // `isUserChange = true` apenas quando o usuário arrastou a rota manualmente;
-  // no cálculo automático inicial o polyline salvo é preservado.
+  // Map callback: extracts km and (optionally) polyline from the result.
+  // `isUserChange = true` only when the user manually dragged the route;
+  // on the initial automatic calculation, the saved polyline is preserved.
   function handleMapDirections(result: google.maps.DirectionsResult, isUserChange: boolean) {
     setMapDirections(result);
     const leg = result.routes?.[0]?.legs?.[0];
@@ -170,9 +170,9 @@ function RouteForm({ periodId, route, places, onDone, prefill }: {
       setForm(f => ({
         ...f,
         km: String(km),
-        // Atualiza o polyline somente se:
-        //   a) o usuário arrastou a rota (isUserChange), OU
-        //   b) ainda não há polyline (rota nova ou endereço trocado → routePolyline = null)
+        // Updates the polyline only if:
+        //   a) the user dragged the route (isUserChange), OR
+        //   b) there is no polyline yet (new route or changed address → routePolyline = null)
         routePolyline: isUserChange || !f.routePolyline
           ? (extractPolyline(result) ?? f.routePolyline)
           : f.routePolyline,
@@ -211,7 +211,7 @@ function RouteForm({ periodId, route, places, onDone, prefill }: {
           notes: form.notes.trim() || undefined,
         });
       } else if (mode === "place" && selectedPlace) {
-        // Place mode — create one or two routes; extrai polyline do lugar salvo
+        // Place mode — create one or two routes; extracts the polyline from the saved place
         const routesToCreate = [];
         if (dirGoing) {
           routesToCreate.push({
@@ -1049,7 +1049,7 @@ function SummaryTab({ period, config }: { period: KmPeriodDetail; config: KmConf
     setPdfLoading(true);
     try {
       // PDF gerado server-side em /api/km-pdf/[id] — evita bundlar
-      // @react-pdf/renderer no cliente (incompatível com Turbopack)
+      // @react-pdf/renderer on the client (incompatible with Turbopack)
       const res = await fetch(`/api/km-pdf/${period.id}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();

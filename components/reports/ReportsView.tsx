@@ -26,7 +26,7 @@ function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
-// CS-10: guard de divisão por zero — retorna null quando denominator === 0
+// CS-10: division-by-zero guard — returns null when denominator === 0
 // (exibir "—" em vez de Infinity ou NaN)
 function safePercent(numerator: number, denominator: number): number | null {
   if (!denominator || denominator === 0) return null;

@@ -146,7 +146,7 @@ function MapTypeToggle({
             className="h-7 px-2.5 text-[9px] font-semibold cursor-pointer border-0 transition-colors select-none tracking-wide"
             style={{
               borderRadius: 0,
-              // Apenas background e cor — sem border shorthand para não conflitar com borderRight
+              // Only background and color — no border shorthand to avoid conflicting with borderRight
               background: active
                 ? "rgba(34,211,238,0.2)"
                 : hovering
@@ -245,7 +245,7 @@ function MapWithDirections({
   }, [origin, destination]);
 
   // Extrai o encoded polyline do resultado — tenta overview_polyline primeiro,
-  // depois codifica overview_path (array de LatLng) como fallback.
+  // then encodes overview_path (array of LatLng) as a fallback.
   const extractEncodedPolyline = useCallback((result: google.maps.DirectionsResult): string | null => {
     const route = result.routes?.[0];
     if (!route) return null;
@@ -254,7 +254,7 @@ function MapWithDirections({
     if (raw && typeof (raw as { points?: string }).points === "string") {
       return (raw as { points: string }).points;
     }
-    // Fallback: codifica overview_path com o SDK do Maps
+    // Fallback: encodes overview_path with the Maps SDK
     if (route.overview_path?.length) {
       try {
         return google.maps.geometry.encoding.encodePath(route.overview_path);
@@ -266,7 +266,7 @@ function MapWithDirections({
   }, []);
 
   const updateRouteInfo = useCallback((result: google.maps.DirectionsResult, isUserChange = false) => {
-    // Garante que o resultado passado ao form sempre tem overview_polyline como string
+    // Ensures the result passed to the form always has overview_polyline as a string
     const encoded = extractEncodedPolyline(result);
     const enriched = encoded
       ? {
@@ -290,7 +290,7 @@ function MapWithDirections({
     status: google.maps.DirectionsStatus,
   ) => {
     if (status === "OK" && result) {
-      // Enriquece o resultado com o polyline codificado antes de armazenar no estado
+      // Enriches the result with the encoded polyline before storing it in state
       const encoded = extractEncodedPolyline(result);
       const enriched = encoded
         ? {
@@ -302,7 +302,7 @@ function MapWithDirections({
         : result;
       skipNextChange.current = true;
       setDirections(enriched);
-      // isUserChange = false — este cálculo é automático (origin/destination do form)
+      // isUserChange = false — this calculation is automatic (origin/destination from the form)
       updateRouteInfo(enriched, false);
     }
   }, [updateRouteInfo, extractEncodedPolyline]);
@@ -356,7 +356,7 @@ function MapWithDirections({
             onDirectionsChanged={() => {
               if (skipNextChange.current) { skipNextChange.current = false; return; }
               const updated = rendererRef.current?.getDirections();
-              // isUserChange = true — o usuário arrastou a rota
+              // isUserChange = true — the user dragged the route
               if (updated) updateRouteInfo(updated, true);
             }}
           />

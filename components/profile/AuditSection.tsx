@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * CS-35 — Histórico de eventos de segurança no Perfil
- * Exibe os últimos eventos de segurança do usuário (login, logout, trocas de senha, etc.).
+ * CS-35 — Security event history in the Profile
+ * Shows the user's latest security events (login, logout, password changes, etc.).
  */
 
 import { useState, useEffect } from "react";
@@ -20,7 +20,7 @@ import type { AuditLogEntry } from "@/app/actions/audit";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(date: Date): string {
-  // CS-41: timeZone:"UTC" garante consistência server/client
+  // CS-41: timeZone:"UTC" keeps server/client consistent
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
@@ -42,7 +42,7 @@ function relativeTime(date: Date): string {
   return formatDate(date);
 }
 
-// ── Ícone por variante ────────────────────────────────────────────────────────
+// ── Icon per variant ──────────────────────────────────────────────────────────
 
 const variantStyles = {
   success: { color: "var(--color-green)",  bg: "rgba(34,197,94,0.08)",   border: "rgba(34,197,94,0.2)" },

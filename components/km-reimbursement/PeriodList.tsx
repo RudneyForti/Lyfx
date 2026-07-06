@@ -15,7 +15,7 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 function fmtDate(d: Date | string) {
-  // CS-41: timeZone:"UTC" garante consistência entre server e client
+  // CS-41: timeZone:"UTC" keeps server and client consistent
   return new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 }
 

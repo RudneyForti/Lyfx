@@ -421,13 +421,13 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
   const monthlyInterest = liability.currentBalance * (liability.interestRate / 100);
 
   function handleDelete() {
-    // CS-45b: window.confirm() removido — confirmação inline
+    // CS-45b: window.confirm() removed — inline confirmation
     setConfirmingDelete(false);
     startTransition(() => deleteLiability(liability.id));
   }
 
   function handleMarkPaid() {
-    // CS-45b: window.confirm() removido — confirmação já feita pelo inline ActionBar (setMarkingPaid)
+    // CS-45b: window.confirm() removed — confirmation already done by the inline ActionBar (setMarkingPaid)
     setMarkingPaid(false);
     startTransition(async () => {
       await updateLiability(liability.id, { status: "paid_off" });
@@ -435,7 +435,7 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
   }
 
   function handleReactivate() {
-    // CS-46: reativar passivo quitado — confirmação inline
+    // CS-46: reactivate a paid-off liability — inline confirmation
     setReactivating(false);
     startTransition(async () => {
       await updateLiability(liability.id, { status: "active" });
@@ -905,7 +905,7 @@ function LiabilityCard({ liability, institutions }: { liability: Liability; inst
   );
 }
 
-/* ── Modo Recuperação — avalanche payoff plan + extra payment calculator ── */
+/* ── Recovery Mode — avalanche payoff plan + extra payment calculator ── */
 function ModoRecuperacao({ liabilities }: { liabilities: Liability[] }) {
   const [extra, setExtra] = useState("");
   const [expanded, setExpanded] = useState(true);

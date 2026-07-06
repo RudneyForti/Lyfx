@@ -1,4 +1,4 @@
-// @react-pdf/renderer — usado server-side via /api/km-pdf/[id]
+// @react-pdf/renderer — used server-side via /api/km-pdf/[id]
 import {
   Document, Page, Text, View, Image, StyleSheet, Svg, Circle,
 } from "@react-pdf/renderer";
@@ -22,7 +22,7 @@ const C = {
   dot:       "#DDE1EA",   // cor dos pontinhos do pattern
 };
 
-// ── Pattern de bolinhas (gerado uma vez) ──────────────────────────────────────
+// ── Dot pattern (generated once) ──────────────────────────────────────────────
 
 const DOT_SPACING = 30;
 const DOT_POSITIONS: { x: number; y: number }[] = [];
@@ -35,7 +35,7 @@ for (let row = 0; row * DOT_SPACING <= 842 + DOT_SPACING; row++) {
 // ── Estilos ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  // Página — paddingTop 56 para dar espaço ao mini-header nas pág. 2+
+  // Page — paddingTop 56 to leave room for the mini-header on pages 2+
   page: {
     fontFamily: "Helvetica",
     fontSize: 9,
@@ -46,7 +46,7 @@ const s = StyleSheet.create({
     paddingBottom: 44,
   },
 
-  // ── Header completo (1ª página, no fluxo)
+  // ── Full header (1st page, in flow)
   headerBox: {
     backgroundColor: C.dark,
     borderRadius: 8,
@@ -60,7 +60,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  // logo tipográfico: "Ly" branco + "fx" cyan, Times-BoldItalic
+  // typographic logo: "Ly" white + "fx" cyan, Times-BoldItalic
   logoMark: {
     flexDirection: "row",
     alignItems: "baseline",
@@ -76,7 +76,7 @@ const s = StyleSheet.create({
     fontSize: 18,
     color: "#22D3EE",
   },
-  // mini versão do logo (páginas 2+)
+  // mini version of the logo (pages 2+)
   miniLogoLy: {
     fontFamily: "Times-BoldItalic",
     fontSize: 12,
@@ -162,7 +162,7 @@ const s = StyleSheet.create({
     textAlign: "right",
   },
 
-  // ── Mini-header (páginas 2+ — fixed)
+  // ── Mini-header (pages 2+ — fixed)
   // Posicionado dentro do paddingTop (56pt) — a linha fica em top≈42
   miniHeader: {
     position: "absolute",
@@ -194,7 +194,7 @@ const s = StyleSheet.create({
     color: C.light,
   },
 
-  // ── Seção
+  // ── Section
   sectionLabel: {
     fontSize: 7,
     fontFamily: "Helvetica-Bold",

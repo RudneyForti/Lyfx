@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * CS-34 — Seção de sessões ativas no Perfil
- * Exibe todas as sessões do usuário com opção de revogar individualmente ou todas.
+ * CS-34 — Active sessions section in the Profile
+ * Shows all of the user's sessions with the option to revoke individually or all at once.
  */
 
 import { useState, useTransition, useEffect } from "react";
@@ -11,7 +11,7 @@ import { getSessions, revokeSession, revokeAllOtherSessions } from "@/app/action
 import type { SessionInfo } from "@/app/actions/sessions";
 
 function formatDate(date: Date): string {
-  // CS-41: timeZone:"UTC" garante consistência server/client
+  // CS-41: timeZone:"UTC" keeps server/client consistent
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
