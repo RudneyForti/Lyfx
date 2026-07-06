@@ -5,13 +5,13 @@ import { redirect } from "next/navigation";
 import { createHmac, timingSafeEqual } from "crypto";
 
 /**
- * Sessão admin do Studio — cookie HMAC-assinado com expiração embutida.
+ * Studio admin session — HMAC-signed cookie with embedded expiry.
  *
  * Formato: `{expiresAtMs}.{HMAC_SHA256("lyfx_admin.{expiresAtMs}", SESSION_SECRET)}`
  *
- * Diferente do antigo valor estático "1", o cookie agora é infalsificável e
- * expira server-side (não apenas via maxAge do navegador). Revogação global:
- * trocar SESSION_SECRET invalida todas as sessões admin imediatamente.
+ * Unlike the old static value "1", the cookie is now unforgeable and
+ * expires server-side (not just via the browser maxAge). Global revocation:
+ * rotating SESSION_SECRET immediately invalidates all admin sessions.
  */
 
 const COOKIE = "lyfx_admin";

@@ -26,7 +26,7 @@ export async function createGoal(data: {
   const deadline = parseLocalDate(data.deadline);
   const now = new Date();
 
-  // CS-05: rejeitar prazo no passado (comparar com início do mês atual)
+  // CS-05: reject a deadline in the past (compare with the start of the current month)
   const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   if (deadline < startOfCurrentMonth) {
     return { error: "O prazo deve ser uma data futura." };

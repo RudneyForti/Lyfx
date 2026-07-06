@@ -18,8 +18,8 @@ const CONFIG_DEFAULTS: Record<string, string> = {
   betaModules:       JSON.stringify(ALL_MODULES.filter(m => m.isBeta).map(m => m.key)),
 };
 
-// [PERF] Seed dos defaults roda 1× por processo — antes eram 5 upserts
-// sequenciais em toda abertura do Studio
+// [PERF] Default seeding runs once per process — used to be 5 sequential
+// upserts on every Studio load
 let defaultsSeeded = false;
 
 export async function getAppConfig(): Promise<AppConfigEntry[]> {

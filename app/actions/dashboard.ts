@@ -37,11 +37,11 @@ export async function getDashboardData(month: number, year: number) {
 }
 
 async function getMonthlyTrend(userId: string, currentMonth: number, currentYear: number) {
-  // [CS-28] Paralelizado com Promise.all — era sequencial (6 awaits em loop)
-  // [PERF] Agregação no banco via groupBy — antes baixava todas as linhas de
-  // 6 meses para somar em JS; agora cada mês retorna no máximo 2 linhas (credit/debit)
+  // [CS-28] Parallelized with Promise.all — used to be sequential (6 awaits in a loop)
+  // [PERF] Aggregation in the DB via groupBy — used to download all rows of
+  // 6 months to sum in JS; now each month returns at most 2 rows (credit/debit)
   const slots = Array.from({ length: 6 }, (_, idx) => {
-    const i = 5 - idx; // i de 5 até 0
+    const i = 5 - idx; // i from 5 down to 0
     const d = new Date(currentYear, currentMonth - 1 - i, 1);
     const y = d.getFullYear();
     const m = d.getMonth();

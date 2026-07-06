@@ -36,11 +36,11 @@ export async function setup(data: { name: string; email: string; password: strin
   if (!data.name.trim()) return { error: "Nome obrigatório." };
   if (!data.email.trim()) return { error: "E-mail obrigatório." };
 
-  // CS-09: validação de formato de e-mail server-side
+  // CS-09: server-side email format validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(data.email.trim())) return { error: "E-mail inválido." };
 
-  // CS-33: política de senha forte — mínimo 8 chars + upper + lower + número + especial
+  // CS-33: strong password policy — min. 8 chars + upper + lower + number + special
   const pwError = validatePasswordStrict(data.password);
   if (pwError) return { error: pwError };
 
@@ -63,7 +63,7 @@ export async function login(data: {
   const ip = await getClientIp();
   const userAgent = await getUserAgent();
 
-  // CS-32: verificar status do rate limiting antes de qualquer processamento
+  // CS-32: check the rate limiting status before any processing
   const gate = await checkLoginGate(ip);
 
   if (gate.status === "blocked") {
@@ -92,7 +92,7 @@ export async function login(data: {
     }
   }
 
-  // Timing side-channel defense: bcrypt roda sempre, mesmo quando o usuário não existe
+  // Timing side-channel defense: bcrypt always runs, even when the user does not exist
   const user = await db.user.findFirst({ where: { email: data.email.trim().toLowerCase() } });
   const dummyHash = "$2a$10$X7lMWzBw0JxWxYzNq7fVOeK8Vz6v9pQZtR3sM1kL5nH2dE4gIuJwC";
   const passwordToCheck = user?.password ?? dummyHash;
@@ -100,7 +100,7 @@ export async function login(data: {
 
   if (!user || !valid) {
     await recordAttempt(ip, data.email || undefined, false);
-    // CS-35: log de falha (sem revelar se o email existe — metadata omite userId)
+    // CS-35: log the failure (without revealing whether the email exists — metadata omits userId)
     logEventBg({
       action:    "auth.login.failed",
       ip,
@@ -110,20 +110,20 @@ export async function login(data: {
     return { error: "E-mail ou senha inválidos." };
   }
 
-  // Login bem-sucedido — verificar se 2FA está ativo
+  // Successful login — check whether 2FA is active
   await recordAttempt(ip, data.email || undefined, true);
 
-  // CS-37a: checar 2FA
+  // CS-37a: check 2FA
   const has2FA = user.twoFactorEnabled;
   if (has2FA) {
     await setPendingTwoFactor(user.id);
     return { requires2FA: true as const };
   }
 
-  // Sem 2FA — criar sessão normalmente
+  // No 2FA — create the session normally
   await setSession(user.id, { remember: data.remember ?? true });
 
-  // CS-35: log de sucesso
+  // CS-35: log success
   const session = await getSession();
   logEventBg({
     action:    "auth.login.success",
@@ -137,7 +137,7 @@ export async function login(data: {
   redirect(target);
 }
 
-/* ── CS-37a: verificar código TOTP após password validada ── */
+/* ── CS-37a: verify the TOTP code after the password is validated ── */
 export async function verifyTwoFactor(data: {
   code:         string;
   isBackupCode: boolean;
@@ -147,7 +147,7 @@ export async function verifyTwoFactor(data: {
   const ip        = await getClientIp();
   const userAgent = await getUserAgent();
 
-  // Validar pending cookie
+  // Validate the pending cookie
   const userId = await getPendingTwoFactor();
   if (!userId) return { error: "Sessão expirada. Faça login novamente." };
 
@@ -160,14 +160,14 @@ export async function verifyTwoFactor(data: {
   }
 
   if (data.isBackupCode) {
-    // Verificar código de backup
+    // Verify the backup code
     if (!user.twoFactorBackupCodes) return { error: "Sem códigos de backup disponíveis." };
     const { valid, remainingHashes } = await verifyAndConsumeBackupCode(data.code, user.twoFactorBackupCodes);
     if (!valid) {
       logEventBg({ action: "auth.2fa.failed", userId, ip, userAgent: userAgent ?? undefined });
       return { error: "Código de backup inválido." };
     }
-    // Consumir o código usado
+    // Consume the used code
     await db.user.update({
       where: { id: userId },
       data:  { twoFactorBackupCodes: JSON.stringify(remainingHashes) },
@@ -180,7 +180,7 @@ export async function verifyTwoFactor(data: {
       metadata: { remaining: remainingHashes.length },
     });
   } else {
-    // Verificar código TOTP
+    // Verify the TOTP code
     const valid = verifyTotpCode(user.twoFactorSecret, data.code);
     if (!valid) {
       logEventBg({ action: "auth.2fa.failed", userId, ip, userAgent: userAgent ?? undefined });
@@ -188,7 +188,7 @@ export async function verifyTwoFactor(data: {
     }
   }
 
-  // Tudo ok — criar sessão
+  // All good — create the session
   await clearPendingTwoFactor();
   await setSession(userId, { remember: data.remember ?? true });
 
@@ -206,7 +206,7 @@ export async function verifyTwoFactor(data: {
 }
 
 export async function logout() {
-  // CS-35: log antes de limpar a sessão (ainda temos o cookie)
+  // CS-35: log before clearing the session (we still have the cookie)
   try {
     const session = await getSession();
     if (session) {

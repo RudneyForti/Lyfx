@@ -19,7 +19,7 @@ async function getIp() {
   catch { return null; }
 }
 
-/* ── Iniciar setup (gera secret, persiste provisoriamente, retorna QR) ── */
+/* ── Start setup (generates the secret, persists it provisionally, returns the QR) ── */
 export async function initTwoFactorSetup(): Promise<{
   qrCodeUrl: string;
   secret:    string;
@@ -34,13 +34,13 @@ export async function initTwoFactorSetup(): Promise<{
   const secret     = generateTotpSecret();
   const qrCodeUrl  = await generateQrCodeUrl(user.email ?? "lyfx", secret);
 
-  // Persiste o secret provisoriamente (enabled permanece false até confirmação)
+  // Persist the secret provisionally (enabled stays false until confirmation)
   await db.user.update({ where: { id: userId }, data: { twoFactorSecret: secret } });
 
   return { qrCodeUrl, secret };
 }
 
-/* ── Confirmar setup (verifica primeiro código, ativa 2FA, gera backups) ── */
+/* ── Confirm setup (verifies the first code, enables 2FA, generates backups) ── */
 export async function confirmTwoFactorSetup(code: string): Promise<{
   backupCodes: string[];
   error?:      never;
@@ -74,7 +74,7 @@ export async function confirmTwoFactorSetup(code: string): Promise<{
   return { backupCodes };
 }
 
-/* ── Desativar 2FA (exige código TOTP atual) ── */
+/* ── Disable 2FA (requires the current TOTP code) ── */
 export async function disableTwoFactor(code: string): Promise<{ error?: string }> {
   const userId = await requireAuth();
   const ip = await getIp();
@@ -97,7 +97,7 @@ export async function disableTwoFactor(code: string): Promise<{ error?: string }
   return {};
 }
 
-/* ── Regenerar códigos de backup (exige código TOTP) ── */
+/* ── Regenerate backup codes (requires a TOTP code) ── */
 export async function regenerateBackupCodes(code: string): Promise<{
   backupCodes: string[];
   error?:      never;
@@ -124,7 +124,7 @@ export async function regenerateBackupCodes(code: string): Promise<{
   return { backupCodes };
 }
 
-/* ── Checar status 2FA do usuário autenticado ── */
+/* ── Check the authenticated user's 2FA status ── */
 export async function getTwoFactorStatus(): Promise<{
   enabled:      boolean;
   backupCount:  number;

@@ -1,17 +1,17 @@
 /**
- * actions.ts — barrel de compatibilidade do Studio.
+ * actions.ts — Studio compatibility barrel.
  *
- * O antigo god module (~900 linhas) foi fatiado por responsabilidade:
- *   auth.ts          → sessão admin (HMAC-assinada), login/logout, requireAdmin
- *   users.ts         → CRUD de usuários pelo admin
- *   data.ts          → visão geral, live schema, documentação, métricas
- *   config.ts        → AppConfig key-value global
- *   notifications.ts → broadcasts manuais (CS-18)
+ * The old god module (~900 lines) was split by responsibility:
+ *   auth.ts          → admin session (HMAC-signed), login/logout, requireAdmin
+ *   users.ts         → user CRUD by the admin
+ *   data.ts          → overview, live schema, documentation, metrics
+ *   config.ts        → global AppConfig key-value
+ *   notifications.ts → manual broadcasts (CS-18)
  *   events.ts        → event log + security audit log (CS-18/CS-35)
  *   board.ts         → Kanban board (CS-20)
- *   system-info.ts   → versões + git (execSync isolado, não é server action)
+ *   system-info.ts   → versions + git (isolated execSync, not a server action)
  *
- * Importadores existentes continuam funcionando via re-export.
+ * Existing importers keep working via re-export.
  */
 
 export { adminLogin, adminLogout, getAdminSession, requireAdmin } from "./auth";

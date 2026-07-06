@@ -224,7 +224,7 @@ export async function ensureInsiderPlan(): Promise<{ ok: boolean; created: boole
     const existing = await db.plan.findFirst({ where: { name: "Insider" } });
     if (existing) return { ok: true, created: false };
 
-    // Insider = todos os módulos, inclusive os betas
+    // Insider = every module, including betas
     await db.plan.create({
       data: {
         name: "Insider",
@@ -250,7 +250,7 @@ export async function ensureDefaultPlan(): Promise<{ ok: boolean; created: boole
     const existing = await db.plan.findFirst({ where: { isDefault: true } });
     if (existing) return { ok: true, created: false };
 
-    // Full = todos os módulos estáveis (sem beta)
+    // Full = every stable module (no beta)
     const stableKeys = ALL_MODULES.filter(m => !m.isBeta).map(m => m.key);
 
     await db.plan.create({

@@ -1,6 +1,6 @@
 /**
- * CS-36 — Inicia o fluxo OAuth com Google
- * GET /api/auth/google → redireciona para o consent screen do Google
+ * CS-36 — Starts the OAuth flow with Google
+ * GET /api/auth/google → redirects to Google's consent screen
  */
 
 import { NextResponse } from "next/server";

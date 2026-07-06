@@ -2,7 +2,7 @@
 
 /**
  * CS-35 — Actions de Audit Log
- * Retorna os eventos de segurança do usuário autenticado.
+ * Returns the security events of the authenticated user.
  */
 
 import { db } from "@/lib/db";
@@ -20,7 +20,7 @@ export interface AuditLogEntry {
   createdAt:   Date;
 }
 
-/** Retorna os últimos 50 eventos de segurança do usuário autenticado. */
+/** Returns the last 50 security events of the authenticated user. */
 export async function getAuditLogs(): Promise<AuditLogEntry[]> {
   const userId = await requireAuth();
 

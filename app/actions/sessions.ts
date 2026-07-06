@@ -1,21 +1,21 @@
 "use server";
 
 /**
- * CS-34 — Gerenciamento de sessões ativas
- * Permite ao usuário ver e revogar suas sessões em outros dispositivos.
+ * CS-34 — Active session management
+ * Lets the user view and revoke their sessions on other devices.
  */
 
 import { db } from "@/lib/db";
 import { requireSession, invalidateOtherSessions } from "@/lib/session";
 import { logEventBg } from "@/lib/audit"; // CS-35
 
-// ── UA parser mínimo ──────────────────────────────────────────────────────────
+// ── Minimal UA parser ─────────────────────────────────────────────────────────
 // Sem biblioteca externa — detecta os casos mais comuns por regex.
 
 export interface SessionInfo {
   id:          string;
   ip:          string | null;
-  device:      string;   // nome legível derivado do user-agent
+  device:      string;   // human-readable name derived from the user-agent
   createdAt:   Date;
   lastSeenAt:  Date;
   isCurrent:   boolean;
@@ -47,7 +47,7 @@ function parseDevice(ua: string | null): string {
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
-/** Retorna todas as sessões ativas do usuário, marcando a sessão atual. */
+/** Returns all of the user's active sessions, flagging the current one. */
 export async function getSessions(): Promise<SessionInfo[]> {
   const { userId, sessionId } = await requireSession();
 
@@ -67,34 +67,34 @@ export async function getSessions(): Promise<SessionInfo[]> {
   }));
 }
 
-/** Revoga uma sessão específica (somente sessões do próprio usuário). */
+/** Revokes a specific session (only the user's own sessions). */
 export async function revokeSession(targetSessionId: string): Promise<void> {
   const { userId } = await requireSession();
 
-  // deleteMany com userId garante que o usuário só pode revogar sessões próprias
+  // deleteMany with userId guarantees the user can only revoke their own sessions
   await db.session.deleteMany({
     where: { id: targetSessionId, userId },
   });
 
-  // CS-35: log de revogação de sessão
+  // CS-35: log the session revocation
   logEventBg({ action: "session.revoked", userId, sessionId: targetSessionId });
 }
 
-/** Revoga todas as sessões exceto a atual. */
+/** Revokes all sessions except the current one. */
 export async function revokeAllOtherSessions(): Promise<{ count: number }> {
   const { userId, sessionId } = await requireSession();
 
-  // Conta quantas sessões serão revogadas antes de deletar
+  // Count how many sessions will be revoked before deleting
   const toRevoke = await db.session.count({
     where: { userId, id: { not: sessionId } },
   });
 
   await invalidateOtherSessions(userId, sessionId);
 
-  // CS-35: log com total de sessões revogadas
+  // CS-35: log with the total number of revoked sessions
   logEventBg({ action: "session.revoked_all", userId, sessionId, metadata: { count: toRevoke } });
 
-  // Retorna a sessão atual para confirmar que ainda está ativa
+  // Return the current session to confirm it is still active
   const remaining = await db.session.count({ where: { userId } });
   return { count: remaining };
 }

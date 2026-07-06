@@ -1,6 +1,6 @@
 /**
- * CS-36 — Inicia o fluxo OAuth com Microsoft
- * GET /api/auth/microsoft → redireciona para o consent screen da Microsoft
+ * CS-36 — Starts the OAuth flow with Microsoft
+ * GET /api/auth/microsoft → redirects to Microsoft's consent screen
  */
 
 import { NextResponse } from "next/server";

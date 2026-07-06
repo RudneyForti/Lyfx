@@ -73,7 +73,7 @@ export async function adminCreateUser(data: { name: string; email: string; passw
     },
   });
 
-  // Notificação de boas-vindas padrão para todo novo usuário
+  // Default welcome notification for every new user
   await db.notification.create({
     data: {
       userId: newUser.id,

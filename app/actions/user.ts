@@ -7,7 +7,7 @@ import { requireAuth, requireSession, invalidateOtherSessions } from "@/lib/sess
 import { validatePasswordStrict } from "@/lib/password-strength"; // CS-33
 import { logEventBg } from "@/lib/audit";                         // CS-35
 
-// [CS-29] requireUser local busca o objeto User completo (necessário para changePassword).
+// [CS-29] local requireUser fetches the full User object (needed for changePassword).
 async function requireUser() {
   const userId = await requireAuth();
   const user = await db.user.findUnique({ where: { id: userId } });
@@ -48,14 +48,14 @@ export async function changePassword(data: {
 
   const valid = await bcrypt.compare(data.current, user.password);
   if (!valid) return { error: "Senha atual incorreta." };
-  // CS-33: política de senha forte
+  // CS-33: strong password policy
   const pwError = validatePasswordStrict(data.next);
   if (pwError) return { error: pwError };
 
   const hashed = await bcrypt.hash(data.next, 10);
   await db.user.update({ where: { id: user.id }, data: { password: hashed } });
 
-  // CS-34: revogar todas as outras sessões após troca de senha (segurança)
+  // CS-34: revoke all other sessions after a password change (security)
   await invalidateOtherSessions(userId, sessionId);
 
   // CS-35: log de troca de senha (fire-and-forget)

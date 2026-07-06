@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Proxy server-side para a Google Static Maps API.
- * Evita CORS ao gerar PDFs no browser com @react-pdf/renderer.
+ * Server-side proxy for the Google Static Maps API.
+ * Avoids CORS when generating PDFs in the browser with @react-pdf/renderer.
  *
  * GET /api/km-map?polyline=...&origin=...&destination=...&w=560&h=180
  */
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const w    = sp.get("w") ?? "560";
   const h    = sp.get("h") ?? "180";
 
-  // Se não veio polyline mas temos origin+destination, busca traçado real via Directions API
+  // If no polyline was given but we have origin+destination, fetch the real route via the Directions API
   let resolvedPoly = poly;
   if (!resolvedPoly && orig && dest) {
     try {
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
           ?.routes?.[0]?.overview_polyline?.points ?? null;
       }
     } catch {
-      // fallback silencioso — exibe só os marcadores A e B
+      // silent fallback — shows only markers A and B
     }
   }
 

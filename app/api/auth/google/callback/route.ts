@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   jar.delete("oauth_state");
   jar.delete("oauth_code_verifier");
 
-  // Validações de segurança
+  // Security validations
   if (!code || !state || !storedState || !codeVerifier) {
     return redirectWithOAuthError(request.url, "missing_params");
   }
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const google = getGoogleProvider();
     const tokens = await google.validateAuthorizationCode(code, codeVerifier);
 
-    // Busca dados do usuário na Google UserInfo API
+    // Fetch the user's data from the Google UserInfo API
     const userInfoRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
       headers: { Authorization: `Bearer ${tokens.accessToken()}` },
       signal: AbortSignal.timeout(5000),
@@ -52,8 +52,8 @@ export async function GET(request: NextRequest) {
 
     const { sub, name, email } = userInfo;
 
-    // Account linking por email exige email verificado pelo provider —
-    // sem isso, um email forjado vincularia a sessão à conta de outro usuário.
+    // Account linking by email requires an email verified by the provider —
+    // without this, a forged email would link the session to another user's account.
     if (userInfo.email_verified !== true) {
       return redirectWithOAuthError(request.url, "email_not_verified");
     }
