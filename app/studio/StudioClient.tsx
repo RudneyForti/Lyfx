@@ -245,9 +245,12 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
     return m;
   });
 
-  // Add positions for tables that appear after init (schema migration, etc.)
+  // Add positions for tables that appear after init (schema migration, etc.).
+  // Legitimate sync to an external dimension (the live schema table set); the
+  // updater returns prev unchanged when nothing is added, so no render loop.
   useEffect(() => {
     const { positions: auto } = computeErdLayout(liveSchema.tables, effectiveHeights);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPositions(prev => {
       let changed = false;
       const next = new Map(prev);
@@ -261,6 +264,9 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
   // Drag state
   const dragRef = useRef<{ name: string; offsetX: number; offsetY: number; hasMoved: boolean } | null>(null);
   const [liveXY, setLiveXY] = useState<{ x: number; y: number } | null>(null);
+  // Mirror of the dragged table name for render-time reads (a ref must not be
+  // read during render — this state stays in sync with dragRef.current?.name)
+  const [draggingName, setDraggingName] = useState<string | null>(null);
 
   // Track container width — canvas fills full vw and tables never go beyond the right edge
   const containerRef = useRef<HTMLDivElement>(null);
@@ -299,7 +305,7 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
   }
   if (liveXY) {
     // X is clamped to container — only expand Y during drag
-    const dragH = effectiveHeights.get(dragRef.current?.name ?? "") ?? ERD_HEADER_H;
+    const dragH = effectiveHeights.get(draggingName ?? "") ?? ERD_HEADER_H;
     if (liveXY.y + dragH + ERD_PAD > maxY) maxY = liveXY.y + dragH + ERD_PAD;
   }
   const CANVAS_W = Math.max(maxX, containerWidth);
@@ -340,6 +346,7 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
         });
       }
       dragRef.current = null;
+      setDraggingName(null);
       setLiveXY(null);
     }
     document.addEventListener("mousemove", onMouseMove);
@@ -350,8 +357,10 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
     };
   }, [effectiveHeights]);
 
-  // Re-resolve collisions when collapse state changes (table height changes)
+  // Re-resolve collisions when collapse state changes (table height changes).
+  // Legitimate sync to an external dimension (effectiveHeights).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPositions(prev => resolveCollisions(new Map(prev), effectiveHeights));
   }, [effectiveHeights]);
 
@@ -361,6 +370,7 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
     if (!pos || !svgRef.current) return;
     const { x: svgX, y: svgY } = toSvgCoords(e);
     dragRef.current = { name, offsetX: svgX - pos.x, offsetY: svgY - pos.y, hasMoved: false };
+    setDraggingName(name);
   }
 
   function restoreLayout() {
@@ -528,7 +538,7 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
           {arrows}
 
           {liveSchema.tables.map(t => {
-            const isDragged = isDragging && dragRef.current?.name === t.name;
+            const isDragged = isDragging && draggingName === t.name;
             const pos = isDragged ? liveXY! : positions.get(t.name);
             if (!pos) return null;
             const color = tableColor(t.name);
@@ -2548,6 +2558,7 @@ function NotesTab({ appConfig }: { appConfig: AppConfigEntry[] }) {
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 101px)" }}>
       {/* Toolbar */}
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2, padding: "5px 12px", borderBottom: "1px solid var(--color-border)", background: "var(--color-bg2)", flexShrink: 0 }}>
+        {/* eslint-disable-next-line react-hooks/refs -- btn.fn closures read textareaRef only when invoked in onMouseDown, never during render */}
         {toolbarGroups.map((grp, gi) => (
           <div key={gi} style={{ display: "flex", alignItems: "center", gap: 1 }}>
             {gi > 0 && <div style={{ width: 1, height: 14, background: "var(--color-border2)", margin: "0 4px" }} />}
@@ -3265,13 +3276,13 @@ function NotificationsTab({ users, plans }: { users: UserItem[]; plans: PlanItem
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // loading starts true — no sync setState needed inside the mount effect
   async function load() {
-    setLoading(true);
     try { setBroadcasts(await adminGetManualNotifications()); }
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   function handleSave() {
     setModal(null);
@@ -3501,8 +3512,9 @@ function SecurityTab({ users }: { users: UserFilterOption[] }) {
     { key: "session.revoked_all", label: "Todas sessões revogadas" },
   ];
 
+  // loading starts true; on filter change the fetch is fast (admin-only) so
+  // the sync spinner toggle is dropped to keep the effect setState-free
   async function load() {
-    setLoading(true);
     try {
       const data = await getAdminSecurityLog({
         userId: filterUser  || undefined,
@@ -3516,7 +3528,7 @@ function SecurityTab({ users }: { users: UserFilterOption[] }) {
   }
 
   // load on mount + filter changes
-  useEffect(() => { load(); }, [filterUser, filterAction]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [filterUser, filterAction]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectStyle: React.CSSProperties = {
     height: 34, padding: "0 10px", fontSize: 12,

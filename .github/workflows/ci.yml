@@ -29,11 +29,8 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Lint
-        # TEMPORARY non-blocking: the legacy codebase carries 51 pre-existing
-        # lint errors (React effect/ref rules, unescaped entities). Registered
-        # as lint-debt — becomes a blocking gate again once the dedicated
-        # lint-debt CS lands. New code must still lint clean (checked in review).
-        continue-on-error: true
+        # Blocking gate: the lint-debt (51 legacy errors) was fully paid down.
+        # Zero errors is now enforced on every PR. Warnings remain informational.
         run: npm run lint
 
       - name: Build
