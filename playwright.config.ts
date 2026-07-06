@@ -1,24 +1,23 @@
 import { defineConfig, devices } from "@playwright/test";
 import "dotenv/config";
-
-// The Playwright webServer runs on the HOST, but .env points DATABASE_URL at
-// `db-dev:5432` — a hostname that only resolves inside the Docker network.
-// Translate to the host-mapped port (5433) so the dev server reaches the DB.
-const hostDatabaseUrl = (process.env.DATABASE_URL ?? "").replace(
-  "db-dev:5432",
-  "localhost:5433",
-);
+import { testDatabaseUrl } from "./tests/integration/db-url";
 
 /**
  * Playwright — E2E/frontend tests (LC standard, dev-requirements #5/#6).
  *
  * Backend mock rule: no test may hit a live external API. Google Maps,
  * BrasilAPI and Turnstile are blocked/mocked globally in tests/e2e/fixtures.ts.
- * The app itself runs against the local test stack (port 3005, lyfx_dev DB).
+ *
+ * Database: the webServer points DATABASE_URL at the dedicated lyfx_test
+ * database (schema pushed + user seeded in tests/e2e/global-setup.ts).
+ * E2E never touches lyfx_dev data. In CI, TEST_DATABASE_URL comes from the
+ * postgres service container.
  */
 export default defineConfig({
   testDir: "./tests/e2e",
-  fullyParallel: true,
+  globalSetup: "./tests/e2e/global-setup.ts",
+  fullyParallel: false, // login flows share the seeded user + DB state
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
@@ -37,7 +36,9 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       ...process.env,
-      DATABASE_URL: hostDatabaseUrl,
+      DATABASE_URL: testDatabaseUrl(),
+      SESSION_SECRET: process.env.SESSION_SECRET ?? "e2e-test-secret",
+      ADMIN_SECRET: process.env.ADMIN_SECRET ?? "e2e-admin-secret",
     },
   },
 });
