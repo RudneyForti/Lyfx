@@ -10,6 +10,7 @@ import { KanbanBoard as KanbanBoardComponent } from "@/components/studio/KanbanB
 import { createPlan, updatePlan, deletePlan, assignUserToPlan, ensureDefaultPlan, ensureInsiderPlan, migrateAndDeletePlan } from "@/app/actions/plans";
 import { ALL_MODULES } from "@/lib/modules";
 import { validatePasswordStrict } from "@/lib/password-strength";
+import { routeEdge, simplifyCollinear, roundedOrthPath, type Rect as ErdRect, type Side as ErdSide } from "@/lib/erd-router";
 import {
   IconLock, IconLoader2, IconX, IconLogout, IconDatabase,
   IconUsers, IconTable, IconKey, IconTrash, IconChevronDown, IconChevronRight,
@@ -380,108 +381,99 @@ function ErdDiagram({ liveSchema }: { liveSchema: LiveSchema }) {
     setPositions(m);
   }
 
-  // Build FK arrows
-  const drawnKeys = new Set<string>();
+  // Effective positions include the live drag position, so relationship lines
+  // follow the dragged box and re-route around it in real time.
+  const effectivePositions = useMemo(() => {
+    const m = new Map(positions);
+    if (draggingName && liveXY) m.set(draggingName, liveXY);
+    return m;
+  }, [positions, draggingName, liveXY]);
+
+  // Build FK arrows — orthogonal A* routing (lib/erd-router) so lines never
+  // cross table boxes and never leave the canvas bounds (Power BI behavior).
+  // Memoized on geometry only: hover changes styling, not routes.
+  const STUB = 8; // exit stub length — matches the router's max clearance
+  const routedEdges = useMemo(() => {
+    const drawn = new Set<string>();
+    const edges: {
+      key: string; d: string; ax: number; ay: number; bx: number; by: number;
+      color: string; isOptional: boolean; srcName: string; dstName: string;
+    }[] = [];
+    const bounds: ErdRect = { x: 2, y: 2, w: CANVAS_W - 4, h: CANVAS_H - 4 };
+    const allObstacles: ErdRect[] = [];
+    for (const [name, p] of effectivePositions) {
+      allObstacles.push({
+        x: p.x, y: p.y,
+        w: ERD_BOX_W, h: effectiveHeights.get(name) ?? ERD_HEADER_H,
+      });
+    }
+    for (const fk of liveSchema.foreignKeys) {
+      const key = `${fk.table_name}.${fk.column_name}→${fk.foreign_table_name}.${fk.foreign_column_name}`;
+      if (drawn.has(key) || fk.table_name === fk.foreign_table_name) continue;
+      drawn.add(key);
+      const src = effectivePositions.get(fk.table_name);
+      const dst = effectivePositions.get(fk.foreign_table_name);
+      if (!src || !dst) continue;
+      const srcTable = liveSchema.tables.find(t => t.name === fk.table_name);
+      const dstTable = liveSchema.tables.find(t => t.name === fk.foreign_table_name);
+      const srcColIdx = srcTable?.columns.findIndex(c => c.column_name === fk.column_name) ?? 0;
+      const dstColIdx = dstTable?.columns.findIndex(c => c.column_name === fk.foreign_column_name) ?? 0;
+      // is_nullable === "YES" → optional FK → dashed line
+      const srcCol = srcTable?.columns.find(c => c.column_name === fk.column_name);
+      const isOptional = srcCol?.is_nullable === "YES";
+      const srcRowY = collapsed.has(fk.table_name)
+        ? src.y + ERD_HEADER_H / 2
+        : src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
+      const dstRowY = collapsed.has(fk.foreign_table_name)
+        ? dst.y + ERD_HEADER_H / 2
+        : dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
+
+      // Anchor sides: facing each other when the boxes are horizontally apart;
+      // both on the roomier side when they overlap in X (U-turn case).
+      let srcSide: ErdSide, dstSide: ErdSide;
+      if (dst.x >= src.x + ERD_BOX_W + 2 * STUB) {
+        srcSide = "right"; dstSide = "left";
+      } else if (src.x >= dst.x + ERD_BOX_W + 2 * STUB) {
+        srcSide = "left"; dstSide = "right";
+      } else {
+        const rightSpace = bounds.x + bounds.w - (Math.max(src.x, dst.x) + ERD_BOX_W);
+        const leftSpace = Math.min(src.x, dst.x) - bounds.x;
+        const side: ErdSide = rightSpace >= leftSpace ? "right" : "left";
+        srcSide = side; dstSide = side;
+      }
+      const ax = srcSide === "right" ? src.x + ERD_BOX_W : src.x;
+      const bx = dstSide === "right" ? dst.x + ERD_BOX_W : dst.x;
+      const startPt = { x: srcSide === "right" ? ax + STUB : ax - STUB, y: srcRowY };
+      const endPt = { x: dstSide === "right" ? bx + STUB : bx - STUB, y: dstRowY };
+
+      const routed = routeEdge(startPt, srcSide, endPt, dstSide, allObstacles, bounds);
+      const pts = simplifyCollinear([{ x: ax, y: srcRowY }, ...routed, { x: bx, y: dstRowY }]);
+      edges.push({
+        key, d: roundedOrthPath(pts, 6),
+        ax, ay: srcRowY, bx, by: dstRowY,
+        color: tableColor(fk.table_name), isOptional,
+        srcName: fk.table_name, dstName: fk.foreign_table_name,
+      });
+    }
+    return edges;
+  }, [liveSchema, effectivePositions, collapsed, effectiveHeights, CANVAS_W, CANVAS_H]);
+
   const arrowsBg: React.ReactElement[] = [];   // dimmed — render first (behind)
   const arrowsFg: React.ReactElement[] = [];   // highlighted — render last (on top)
-  for (const fk of liveSchema.foreignKeys) {
-    const key = `${fk.table_name}.${fk.column_name}→${fk.foreign_table_name}.${fk.foreign_column_name}`;
-    if (drawnKeys.has(key) || fk.table_name === fk.foreign_table_name) continue;
-    drawnKeys.add(key);
-    const src = positions.get(fk.table_name);
-    const dst = positions.get(fk.foreign_table_name);
-    if (!src || !dst) continue;
-    const srcTable = liveSchema.tables.find(t => t.name === fk.table_name);
-    const dstTable = liveSchema.tables.find(t => t.name === fk.foreign_table_name);
-    const srcColIdx = srcTable?.columns.findIndex(c => c.column_name === fk.column_name) ?? 0;
-    const dstColIdx = dstTable?.columns.findIndex(c => c.column_name === fk.foreign_column_name) ?? 0;
-    // is_nullable === "YES" → optional FK → dashed line
-    const srcCol = srcTable?.columns.find(c => c.column_name === fk.column_name);
-    const isOptional = srcCol?.is_nullable === "YES";
-    const srcRowY = collapsed.has(fk.table_name)
-      ? src.y + ERD_HEADER_H / 2
-      : src.y + ERD_HEADER_H + Math.max(0, srcColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
-    const dstRowY = collapsed.has(fk.foreign_table_name)
-      ? dst.y + ERD_HEADER_H / 2
-      : dst.y + ERD_HEADER_H + Math.max(0, dstColIdx) * ERD_ROW_H + ERD_ROW_H / 2;
-    const color = tableColor(fk.table_name);
+  for (const e of routedEdges) {
     // Hover-based opacity: highlight connected lines, dim the rest
-    const isRelated = hovered === fk.table_name || hovered === fk.foreign_table_name;
+    const isRelated = hovered === e.srcName || hovered === e.dstName;
     const opacity = hovered ? (isRelated ? 0.9 : 0.06) : 0.4;
     const strokeW = hovered && isRelated ? 2 : 1.5;
-    // Orthogonal routing — lines travel in axis-aligned segments through column gaps
-    const goRight = src.x + ERD_BOX_W / 2 < dst.x + ERD_BOX_W / 2;
-    // sameColumn only when tables truly overlap horizontally (same X within ~4px)
-    const sameColumn = Math.abs(src.x - dst.x) < 4;
-    const CR = 6; // corner radius
-    let x1 = 0, x2 = 0, d = "";
-    const signY = dstRowY > srcRowY ? 1 : -1;
-    if (sameColumn) {
-      // U-turn via right margin — both anchors exit from right border
-      const rightEdge = Math.max(src.x, dst.x) + ERD_BOX_W;
-      const viaX = rightEdge + 24;
-      x1 = rightEdge; x2 = rightEdge;
-      const sr = Math.min(CR, Math.abs(dstRowY - srcRowY) / 2);
-      d = sr < 1
-        ? `M ${x1} ${srcRowY} L ${viaX} ${srcRowY} L ${viaX} ${dstRowY} L ${x2} ${dstRowY}`
-        : [
-            `M ${x1} ${srcRowY}`,
-            `L ${viaX - CR} ${srcRowY}`,
-            `Q ${viaX} ${srcRowY} ${viaX} ${srcRowY + sr * signY}`,
-            `L ${viaX} ${dstRowY - sr * signY}`,
-            `Q ${viaX} ${dstRowY} ${viaX - CR} ${dstRowY}`,
-            `L ${x2} ${dstRowY}`,
-          ].join(' ');
-    } else {
-      x1 = goRight ? src.x + ERD_BOX_W : src.x;
-      x2 = goRight ? dst.x : dst.x + ERD_BOX_W;
-      // signX based on actual x1→x2 direction, not goRight (they differ when tables overlap)
-      const signX = x2 >= x1 ? 1 : -1;
-      // Find best vertical channel: widest gap between x1 and x2
-      const lo = Math.min(x1, x2), hi = Math.max(x1, x2);
-      const xObs: [number, number][] = [];
-      for (const pos of positions.values()) {
-        const l = pos.x, r = pos.x + ERD_BOX_W;
-        if (l < hi && r > lo) xObs.push([Math.max(l, lo), Math.min(r, hi)]);
-      }
-      xObs.sort((a, b) => a[0] - b[0]);
-      const xGaps: [number, number][] = [];
-      let xcur = lo;
-      for (const [ol, or_] of xObs) {
-        if (ol > xcur + 4) xGaps.push([xcur, ol]);
-        xcur = Math.max(xcur, or_);
-      }
-      if (xcur < hi - 4) xGaps.push([xcur, hi]);
-      // Use widest gap so the vertical segment sits in open space, not hugging a table border
-      const midX = xGaps.length
-        ? (g => (g[0] + g[1]) / 2)(xGaps.reduce((b, g) => (g[1] - g[0]) > (b[1] - b[0]) ? g : b, xGaps[0]))
-        : (lo + hi) / 2;
-      if (Math.abs(dstRowY - srcRowY) < 2) {
-        // Same Y — straight horizontal
-        d = `M ${x1} ${srcRowY} L ${x2} ${dstRowY}`;
-      } else {
-        const sr = Math.min(CR, Math.abs(midX - x1) / 2, Math.abs(dstRowY - srcRowY) / 2);
-        d = sr < 1
-          ? `M ${x1} ${srcRowY} L ${midX} ${srcRowY} L ${midX} ${dstRowY} L ${x2} ${dstRowY}`
-          : [
-              `M ${x1} ${srcRowY}`,
-              `L ${midX - sr * signX} ${srcRowY}`,
-              `Q ${midX} ${srcRowY} ${midX} ${srcRowY + sr * signY}`,
-              `L ${midX} ${dstRowY - sr * signY}`,
-              `Q ${midX} ${dstRowY} ${midX + sr * signX} ${dstRowY}`,
-              `L ${x2} ${dstRowY}`,
-            ].join(' ');
-      }
-    }
     const el = (
-      <g key={key} style={{ transition: "opacity 120ms" }}>
-        <path d={d}
-          stroke={color} strokeOpacity={opacity} strokeWidth={strokeW} fill="none"
-          strokeDasharray={isOptional ? "5,3" : undefined} />
+      <g key={e.key} style={{ transition: "opacity 120ms" }}>
+        <path d={e.d}
+          stroke={e.color} strokeOpacity={opacity} strokeWidth={strokeW} fill="none"
+          strokeDasharray={e.isOptional ? "5,3" : undefined} />
         {/* source anchor */}
-        <circle cx={x1} cy={srcRowY} r={2.5} fill={color} fillOpacity={opacity * 0.7} />
+        <circle cx={e.ax} cy={e.ay} r={2.5} fill={e.color} fillOpacity={opacity * 0.7} />
         {/* destination anchor */}
-        <circle cx={x2} cy={dstRowY} r={3} fill={color} fillOpacity={opacity} />
+        <circle cx={e.bx} cy={e.by} r={3} fill={e.color} fillOpacity={opacity} />
       </g>
     );
     if (isRelated) arrowsFg.push(el); else arrowsBg.push(el);
