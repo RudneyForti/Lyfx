@@ -1,5 +1,5 @@
 # Lyfx — Índice de Documentação
-> Registro central de todos os documentos do projeto · v1.14.1 · Julho 2026
+> Registro central de todos os documentos do projeto · v1.15.0 · Julho 2026
 > **Regra:** atualizar este arquivo em todo merge para `main` (E7 — passo obrigatório).
 
 ---
@@ -24,7 +24,7 @@
 |---|---|---|---|---|
 | `FEATURES.md` | `/docs/FEATURES.md` | v1.14.1 | Analistas / Gestores / Capacitação | Guia completo de funcionalidades em linguagem não-técnica. Responde: o que faz, como usar, onde vai a informação, valor ao usuário e referencial de negócio. Não contém rotas, Prisma ou código. Cobre todos os módulos do sistema (seções 1–4.21). Espelho em inglês: `FEATURES.en.md`. |
 | `GIT-WORKFLOW.md` | `/docs/GIT-WORKFLOW.md` | v1.14.1 | Desenvolvedores / Agentes | Fluxo Git detalhado: GitHub Flow com branch única `main`, pipeline de sessão (1–8), checklist E7 de release completo, convenção de portas (3000 dev / 4000 prod), worktree de produção e regras invioláveis. |
-| `QA-TEST-PLAN.md` | `/docs/QA-TEST-PLAN.md` | v1.14.0 | Agent Smith / QA | Plano de testes executável com 400+ casos. Cobre autenticação, todos os módulos, Studio G2, Reembolso Especial (CS-17/CS-25), Central de Notificações (CS-18/CS-19), segurança, isolamento multi-usuário e fluxos E2E. Atualizado em v1.13.0 com casos de sessões com estado (CS-34), Audit Log (CS-35) e OAuth Google/Microsoft (CS-36). |
+| `QA-TEST-PLAN.md` | `/docs/QA-TEST-PLAN.md` | v1.15.0 | Agent Smith / QA | Plano de testes executável com 400+ casos. Cobre autenticação, todos os módulos, Studio G2, Reembolso Especial (CS-17/CS-25), Central de Notificações (CS-18/CS-19), segurança, isolamento multi-usuário e fluxos E2E. Atualizado em v1.13.0 com sessões com estado (CS-34), Audit Log (CS-35) e OAuth (CS-36); em v1.15.0 com Kanban v2 (KB-01→KB-07, CS-59). |
 | `QA-RESULTS-2026-06-09.md` | `/docs/QA-RESULTS-2026-06-09.md` | v1.14.0 | Agent Smith / QA | Resultado do ciclo de QA completo executado em 09/06/2026 para a v1.14.0. 324 casos, 297 PASS, 5 FAIL, 4 bugs ativos (chips). Cobre todos os 24 módulos + segurança + isolamento + fluxos E2E. |
 | `PEDAGOGY_V2.md` | `/docs/PEDAGOGY_V2.md` | v2.0 | Conteudistas / Desenvolvedores | Metodologia pedagógica do módulo `/education`. Define estrutura das pílulas (concept/why/how/quiz), taxonomia de tópicos, critérios editoriais e modelo de progressão por trilhas. |
 | `CONDUCT-MODEL.md` | `/docs/CONDUCT-MODEL.md` | v1.14.1 | Desenvolvedores / Agentes | Log da padronização do sistema de agentes vs. dev-requirements da Limiar Core: 18 mudanças detalhadas, tabela de cobertura 17/17 requisitos e backlog de pendências de aplicação por projeto. |
@@ -77,8 +77,10 @@
 |---|---|---|---|
 | `totp.ts` | `/lib/totp.ts` | v1.14.0 | Utilitários TOTP (CS-37a). `generateTotpSecret()`, `verifyTotpCode()` via otplib v2 (`verifySync().valid`), `generateQrCodeUrl()` (qrcode data URL), `generateBackupCodes()` (8×XXXX-XXXX-XXXX), `hashBackupCodes()` (bcrypt), `verifyAndConsumeBackupCode()`, `setPendingTwoFactor/getPendingTwoFactor/clearPendingTwoFactor` (cookie HMAC 3-part, maxAge:300s). |
 | `TwoFactorSection.tsx` | `/components/profile/TwoFactorSection.tsx` | v1.14.0 | UI de 2FA no perfil (CS-37a). SetupModal (QR→verify→backup codes), DisableModal, RegenModal, status badge com contagem de backups restantes. |
-| `KanbanBoard.tsx` | `/components/studio/KanbanBoard.tsx` | v1.14.0 | Quadro Kanban de CSs no Studio (CS-20). Drag-and-drop HTML5, 4 colunas, CardModal editável, NewCardForm, sort por coluna, auto-save com debounce 800ms. |
-| `cs-board.json` | `/docs/cs-board.json` | v1.14.0 | Dados persistentes do Kanban de CSs. Sobrevive a resets do banco. Pré-populado com CS-01→CS-38. |
+| `KanbanBoard.tsx` | `/components/studio/KanbanBoard.tsx` | v1.15.0 | Quadro Kanban de CSs no Studio (CS-20 · v2 em CS-59). Drag-and-drop HTML5, 4 colunas, CardModal com checklist/datas/comentários, agrupamento por release e filtro por label, auto-save com debounce 800ms. |
+| `cs-board.json` | `/docs/cs-board.json` | v1.15.0 | Dados persistentes do Kanban de CSs (schema v2). Sobrevive a resets do banco. Versões espelham o git (reconciliadas em v1.15.0). |
+| `kanban.ts` | `/lib/kanban.ts` | v1.15.0 | Módulo puro do Kanban (CS-59): tipos do schema v2, migração v1→v2 idempotente, agrupamento por release e cálculo de prazo. Testável isoladamente. |
+| `erd-router.ts` | `/lib/erd-router.ts` | v1.15.0 | Roteamento ortogonal A* das linhas do ERD no Studio (CS-59). Desvia das caixas e respeita os limites do canvas (comportamento Power BI). |
 
 ### Libs criadas no lote v1.12.0
 
@@ -147,4 +149,4 @@ Este índice é **obrigatório** no checklist E7 de release. Atualizar quando:
 
 ---
 
-*Índice gerado em 08/06/2026 · Versão da plataforma: v1.14.1*
+*Índice gerado em 08/06/2026 · Versão da plataforma: v1.15.0*
