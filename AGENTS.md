@@ -275,8 +275,8 @@ Before tagging `main`, run in this order:
 6. Update affected sections in `docs/FEATURES.md`
 7. If the batch includes a new feature → update `docs/QA-TEST-PLAN.md`
 8. Update `docs/DOC-INDEX.md`
-9. Merge the bump PR → tag `main` → push tags
-10. Deploy: pull `main` in `lyfx-production/` (+ `prisma db push` if schema changed)
+9. Merge the bump PR → tag `main` → push the tag (`git push origin --tags`)
+10. Deploy is **automatic on tag push**: `.github/workflows/deploy-prod.yml` runs on the self-hosted runner (`lyfx-prod`), checks the tag out in `lyfx-production/`, rebuilds the image, and recreates the containers — the `migrate` service applies any schema change. No manual pull; production tracks the latest release tag. Pushing the tag is the human gate that deploys.
 
 ---
 

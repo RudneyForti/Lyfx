@@ -1,0 +1,64 @@
+name: Deploy to production (4000)
+
+# Deploy-on-tag: production advances only when a version tag is pushed —
+# it keeps the human release gate (tagging is a human decision) while
+# automating the rebuild + restart + migrate that used to be manual.
+#
+# Runs on a self-hosted runner registered on the machine that hosts the
+# production worktree (label: lyfx-prod). Because the runner IS that
+# machine, the job targets the existing production worktree directly and
+# reuses its gitignored .env — no secrets ever leave the machine or enter
+# GitHub.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Never run two deploys at once; let an in-flight deploy finish.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, lyfx-prod]
+    # This job operates on the existing production worktree — it does NOT
+    # check the repo out into the runner workspace.
+    steps:
+      - name: Deploy the tagged release
+        shell: bash
+        env:
+          # Absolute path to the production worktree on the runner machine.
+          # Adjust here if the runner ever moves to a different host/path.
+          PROD_DIR: "/c/Users/rudne/projetos/lyfx-production"
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          echo "Deploying ${TAG} to production worktree at ${PROD_DIR}"
+          cd "${PROD_DIR}"
+
+          # Fetch the new tag and check out its exact commit (detached).
+          # Under deploy-on-tag, production tracks the latest release tag,
+          # not main-HEAD — so what runs is exactly what was released.
+          git fetch origin --tags --prune
+          git checkout --force "tags/${TAG}"
+          echo "Checked out $(git describe --tags --always)"
+
+          # Rebuild the image with the released source, then recreate the
+          # containers. The `migrate` service runs prisma db push before the
+          # app comes up (compose depends_on), so schema changes apply here.
+          docker compose --env-file .env build
+          docker compose --env-file .env up -d
+
+          docker compose --env-file .env ps
+
+      - name: Report deployed version
+        if: always()
+        shell: bash
+        env:
+          PROD_DIR: "/c/Users/rudne/projetos/lyfx-production"
+        run: |
+          cd "${PROD_DIR}"
+          echo "Production now at: $(git describe --tags --always)"
+          echo "package.json: $(node -p "require('./package.json').version" 2>/dev/null || echo '?')"
