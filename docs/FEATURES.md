@@ -1,6 +1,7 @@
 # Lyfx — Guia Completo de Funcionalidades
+> [Read in English](./FEATURES.en.md)
 > Documento de referência para analistas financeiros, gestores de produto e material de capacitação
-> Versão 1.14.0 · Junho 2026
+> Versão 1.14.1 · Julho 2026
 
 ---
 
@@ -1353,5 +1354,5 @@ Um período de Reembolso Especial percorre o seguinte caminho:
 
 ---
 
-*Versão 1.11.0 · Junho 2026*  
+*Versão 1.14.1 · Julho 2026*  
 *Para o plano de testes detalhado, consultar `docs/QA-TEST-PLAN.md`. Para referência técnica (schema, arquitetura, decisões), consultar `DOCUMENTATION.md`.*

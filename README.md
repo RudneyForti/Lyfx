@@ -1,5 +1,7 @@
 # Ly*fx* — Life Fixed
 
+> [Read in English](./README.en.md)
+
 > Plataforma de controle de finanças pessoais construída para quem quer entender seu dinheiro, mudar comportamentos e tomar decisões com clareza.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16.2.6-black?style=flat-square&logo=next.js)
