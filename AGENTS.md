@@ -231,6 +231,34 @@ Examples: `feature/km-saved-locations`, `fix/auth-session-expiry`, `feature/42-p
 - Every release (tag) requires updated `DOCUMENTATION.md` and `docs/FEATURES.md`
 - Every new feature requires an updated `docs/QA-TEST-PLAN.md`
 - `docs/DOC-INDEX.md` must be updated on every release
+- **Git tags are the only source of truth for released versions.** The Kanban `version` field is a target, not a fact, until a matching tag exists (see Versioning authority).
+- **Releases are never left to accumulate silently.** After every merge, NEO reports release drift and proposes a release when the batch delivers user-facing capability (see Versioning authority).
+
+---
+
+## Versioning authority (source of truth)
+
+**Why this section exists:** across a run of PRs the `main` branch drifted 21 commits past the last tag with no bump, while the Studio Kanban displayed a `v1.15.0` release group that git never tagged. Two independent failures combined — E7 had no trigger, and the board's free-text `version` field was mistaken for released state. This section closes both.
+
+### The authority chain
+
+1. **`git tag` is the single source of truth** for what has shipped. `git describe --tags main` is the authoritative "where are we" check.
+2. **`VERSIONING.md`** is the human-readable ledger — it must have exactly one row per real tag, and no row for a version that isn't tagged.
+3. **`package.json` version** must equal the latest tag on the branch it lives on (dev and production worktrees alike).
+4. **The Kanban `version` field is a planning target only.** A card may carry an intended version while in Backlog/In Progress. It becomes a *claim of release* the moment the card sits in Done — and that claim is valid **only if a git tag of that version already exists**. Never stamp a Done card with a version that has no tag; if the work shipped, use the tag that actually contains it (`git tag --contains <commit>`).
+
+### Release trigger (fixes "E7 never fired")
+
+E7 is human-approved, but proposing it is NEO's duty, not the human's memory:
+
+- **After every merge into `main`**, NEO runs `git describe --tags main` and states the drift: how many commits ahead of the last tag, and whether any of them deliver user-facing capability (MINOR) or an irreversible boundary (MAJOR).
+- **When the batch delivers a new capability, or drift reaches ~5 commits, NEO proposes a release** — proposed version (by SemVer triggers), plus the draft `VERSIONING.md` row — and asks for approval. It does not wait to be asked.
+- Letting user-facing work reach `main` and stay untagged with no release proposal on the table is a process failure, reported like a failed gate.
+
+### Reconciliation (fixes "the board lied")
+
+- At E7, and whenever cards are moved to Done, validate every board `version` stamp against `git tag`. A stamp with no matching tag is corrected to the tag that actually contains the work — the board mirrors git, never the reverse.
+- The board is a view of reality, not a second versioning system. When board and git disagree, git wins and the board is fixed.
 
 ---
 
@@ -238,7 +266,8 @@ Examples: `feature/km-saved-locations`, `fix/auth-session-expiry`, `feature/42-p
 
 Before tagging `main`, run in this order:
 
-1. Determine version (SemVer) from `VERSIONING.md`
+0. `git describe --tags main` — confirm the drift and the exact commit range this release covers; reconcile board `version` stamps against `git tag` (see Versioning authority)
+1. Determine version (SemVer) from `VERSIONING.md` — the new tag must be strictly greater than the latest existing tag
 2. Update version in `package.json`
 3. Update version badge and footer in `README.md`
 4. Add entry to the history table in `VERSIONING.md`

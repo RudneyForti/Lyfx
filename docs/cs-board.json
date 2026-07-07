@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-07-07T01:27:40.716Z",
+  "lastUpdated": "2026-07-07T12:34:51.665Z",
   "columns": [
     {
       "id": "backlog",
@@ -670,7 +670,7 @@
         "bug",
         "qa"
       ],
-      "version": "1.15.0",
+      "version": "1.14.1",
       "commitHash": "",
       "completedAt": "2026-06-08T10:45:54.628Z",
       "order": 6
@@ -686,7 +686,7 @@
         "hydration",
         "qa"
       ],
-      "version": "1.15.0",
+      "version": "1.14.1",
       "completedAt": "2026-06-08T11:00:00.000Z"
     },
     {
@@ -701,7 +701,7 @@
         "ux",
         "qa"
       ],
-      "version": "1.15.0",
+      "version": "1.14.1",
       "completedAt": "2026-06-08T14:00:00.000Z"
     },
     {
@@ -716,7 +716,7 @@
         "design-system",
         "qa"
       ],
-      "version": "1.15.0",
+      "version": "1.14.1",
       "completedAt": "2026-06-08T15:00:00.000Z"
     },
     {
@@ -731,7 +731,7 @@
         "window.confirm",
         "qa"
       ],
-      "version": "1.15.0",
+      "version": "1.14.1",
       "completedAt": "2026-06-08T15:00:00.000Z"
     },
     {
@@ -746,7 +746,7 @@
         "feature-missing",
         "qa"
       ],
-      "version": "1.15.0",
+      "version": "1.14.1",
       "completedAt": "2026-06-08T15:00:00.000Z"
     },
     {
@@ -760,7 +760,7 @@
         "cálculo",
         "qa"
       ],
-      "version": "1.15.0",
+      "version": "1.14.1",
       "completedAt": "2026-06-08T18:00:00.000Z"
     },
     {
@@ -774,7 +774,7 @@
         "cálculo",
         "qa"
       ],
-      "version": "1.15.0",
+      "version": "1.14.1",
       "completedAt": "2026-06-08T18:30:00.000Z"
     },
     {
