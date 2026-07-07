@@ -2515,6 +2515,45 @@
 
 ---
 
+## 24.1 Studio — Kanban v2 (CS-59)
+
+### KB-01 — Migração v1→v2 do board
+**Prioridade:** ALTO
+**Passos:** Abrir o Studio → aba Roadmap com um `docs/cs-board.json` no schema v1 (sem `checklist`/`comments`/`startedAt`/`dueAt`).
+**Resultado esperado:** Board abre sem erro; ao salvar qualquer alteração, o arquivo passa a `version: 2` com todos os cards ganhando os campos v2 vazios. Nenhum dado v1 (título, versão, completedAt, labels) é perdido. Reabrir mantém tudo.
+
+### KB-02 — Checklist com barra de progresso
+**Prioridade:** MÉDIO
+**Passos:** Abrir um card → adicionar subtarefas → marcar/desmarcar itens.
+**Resultado esperado:** Barra de progresso reflete feitos/total; card fechado mostra chip `feito/total` (verde quando 100%). Remover item recalcula.
+
+### KB-03 — Datas de início/prazo e chip de vencimento
+**Prioridade:** MÉDIO
+**Passos:** Definir `Prazo` para hoje, para +2 dias e para uma data passada.
+**Resultado esperado:** Chip no card: vermelho para atrasada/hoje, âmbar para ≤ 3 dias, neutro para futuro distante. Card em Concluídas não exibe chip de prazo.
+
+### KB-04 — Comentários e log de atividade automático
+**Prioridade:** ALTO
+**Passos:** Escrever um comentário e pressionar Enter; depois arrastar o card para outra coluna.
+**Resultado esperado:** Comentário renderiza com timestamp, input limpa, persiste imediatamente (sem clicar Salvar). Mover entre colunas gera entrada automática de atividade ("Movida de X para Y"). Card fechado mostra chip com a contagem de comentários.
+
+### KB-05 — Início automático ao entrar em "Em andamento"
+**Prioridade:** BAIXO
+**Passos:** Arrastar um card sem `startedAt` do Backlog para Em andamento.
+**Resultado esperado:** `startedAt` é preenchido automaticamente com a data atual.
+
+### KB-06 — Agrupamento por release em Concluídas
+**Prioridade:** MÉDIO
+**Passos:** Observar a coluna Concluídas com cards de várias versões.
+**Resultado esperado:** Cards agrupados em seções colapsáveis por versão, mais nova primeiro; cards sem versão em "Sem release"; a release mais nova vem expandida por padrão. Toda versão exibida corresponde a uma tag git existente (nenhuma versão fantasma).
+
+### KB-07 — Filtro por label
+**Prioridade:** MÉDIO
+**Passos:** Clicar em um ou mais chips de label no header do board; depois "limpar filtro".
+**Resultado esperado:** Board mostra apenas cards que têm pelo menos uma das labels ativas (OR); limpar restaura todos.
+
+---
+
 ## 25. Resumo de Cobertura
 
 | # | Módulo | Casos | Críticos | Altos | Médios | Baixos |

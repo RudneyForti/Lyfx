@@ -2440,10 +2440,15 @@ npm run docker:up
 
 ### Próximas evoluções sugeridas
 
-- **CS-20** — Studio: aba Roadmap/Backlog
 - **CS-21** — Importação OFX/CSV: leitura de extratos bancários para lançamento semi-automático
 - **CS-22** — Sistema de logo padronizado em SVG paths para todos os contextos
+- **CS-39/CS-50** — Login em etapas (email-first) + push notification passwordless
+- **CS-51** — Motor de diagnóstico v2: poupança fora do resultado + média móvel do score
+- **CS-55** — Balanço patrimonial (patrimônio líquido consolidado)
+- **CS-57** — i18n de toda a aplicação (pt-BR / en-US / es-ES)
 - **Deploy em produção**: PostgreSQL + domínio próprio → v2.0.0
+
+> **Entregue em v1.14.0/v1.15.0:** CS-20 (Kanban de Change Specs no Studio) e sua evolução CS-59 (Kanban v2 — checklists, datas, comentários com log de atividade, agrupamento por release e filtro por label).
 
 ---
 
