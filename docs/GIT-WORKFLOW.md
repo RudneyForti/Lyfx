@@ -72,21 +72,19 @@ The PR template checklist must be filled. CI runs automatically on the PR.
 - GitHub deletes the remote branch automatically (repo setting)
 - Delete the local branch: `git branch -d feature/feature-name`
 
-### 6–7. Release + Deploy — tag and pull from the production worktree
+### 6–7. Release + Deploy — tag to release, deploy is automatic
 
-`main` lives checked out in `lyfx-production/` — tagging and deploying happen there:
+After the bump PR is merged (E7 checklist: versioning + docs), push a version tag. **Pushing the tag is the deploy** — it triggers `.github/workflows/deploy-prod.yml` on the self-hosted runner, which checks out the tag in `lyfx-production/`, rebuilds the image, and recreates the containers (the `migrate` service applies any schema change). No manual pull, no manual `docker compose`, no manual `prisma db push`.
 
 ```bash
-cd C:/Users/rudne/projetos/lyfx-production
-git pull origin main          # deploy: brings the merged PRs into production
-# E7 checklist first (versioning + docs via PR), then:
-git tag vX.X.X
-git push origin --tags
-# if the release included schema changes:
-npx prisma db push
+# from anywhere with the merged main fetched:
+git tag vX.X.X <merged-bump-commit>
+git push origin --tags        # ← this deploys: the runner rebuilds + restarts prod
 ```
 
-Production only moves when **you** run the pull. Merging a PR does not auto-deploy.
+Production tracks the **latest release tag**, not `main`-HEAD — so what runs on port 4000 is exactly what was released. Merging a PR does not deploy; only a tag push does. Tagging remains a human decision (inviolable rule 5).
+
+> **Model note:** under deploy-on-tag the production worktree checks out the tag (detached HEAD at the release commit) rather than tracking `main`. This is deliberate — it makes the deployed version deterministic and auditable.
 
 ---
 
@@ -177,16 +175,15 @@ Run in this order before tagging. No step is optional.
 6. **`docs/FEATURES.md`** — affected features (non-technical language)
 7. **`docs/QA-TEST-PLAN.md`** — required if the batch includes a new feature
 8. **`docs/DOC-INDEX.md`** — required on every release
-9. **Commit the bump via PR**, merge, then tag and deploy from the production worktree:
+9. **Commit the bump via PR**, merge it, then tag the merged commit and push the tag:
 
 ```bash
-cd C:/Users/rudne/projetos/lyfx-production
-git pull origin main
-git tag vX.X.X
-git push origin --tags
+git fetch origin --tags
+git tag vX.X.X origin/main        # the merged bump commit
+git push origin --tags            # ← deploys automatically (see step 10)
 ```
 
-10. **Deploy finish:** `prisma db push` in `lyfx-production/` if the batch changed the schema
+10. **Deploy is automatic on tag push** — `.github/workflows/deploy-prod.yml` runs on the self-hosted runner (`lyfx-prod`): checks out the tag in `lyfx-production/`, `docker compose build` + `up -d`; the `migrate` service applies any schema change. Watch the Actions run to confirm green. No manual pull / build / `prisma db push`.
 
 ---
 
