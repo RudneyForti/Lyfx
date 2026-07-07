@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-06-09T01:24:05.724Z",
+  "lastUpdated": "2026-07-07T01:14:58.770Z",
   "columns": [
     {
       "id": "backlog",
@@ -633,7 +633,7 @@
       "columnId": "backlog",
       "csNumber": "CS-39",
       "title": "2FA Push Notification (Passwordless)",
-      "description": "Em vez de digitar código TOTP, o login dispara uma notificação push no dispositivo confiável do usuário. Ele toca 'Aprovar' ou 'Recusar' e a sessão é liberada em tempo real via polling ou WebSocket. Sem digitar nada — fluxo tipo Duo Security / Microsoft Authenticator. Requer: app PWA com service worker + push API, ou integração com provedor (ex: Expo Push para mobile). Depende de CS-37a (TOTP como fallback obrigatório).",
+      "description": "Em vez de digitar código TOTP, o login dispara uma notificação push no dispositivo confiável do usuário. Ele toca 'Aprovar' ou 'Recusar' e a sessão é liberada em tempo real via polling ou WebSocket. Sem digitar nada — fluxo tipo Duo Security / Microsoft Authenticator. Requer: app PWA com service worker + push API, ou integração com provedor (ex: Expo Push para mobile). Depende de CS-37a (TOTP como fallback obrigatório). Requisito de segurança: number matching (a tela de login exibe um código de 2 dígitos e o dispositivo pede a escolha entre 3 opções) para mitigar push fatigue/MFA bombing. Depende de CS-50 (login em etapas) e CS-37a (TOTP como fallback).",
       "labels": [
         "segurança",
         "feature",
@@ -776,6 +776,178 @@
       ],
       "version": "1.15.0",
       "completedAt": "2026-06-08T18:30:00.000Z"
+    },
+    {
+      "id": "cs-49",
+      "columnId": "backlog",
+      "csNumber": "CS-49",
+      "title": "Sessão expirada redireciona para /login",
+      "description": "Hoje, quando a sessão expira no banco (cookie HMAC ainda válido), requireAuth() lança Error(\"Unauthenticated\") e o usuário cai no error boundary global (tela lim f(t) = ∅). Trocar o throw por redirect(\"/login?redirect=<rota atual>\") em requireAuth/requireSession, preservando a rota para restauração pós-login (padrão CS-13). Inclui teste de regressão.",
+      "labels": [
+        "bug",
+        "ux",
+        "segurança"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 7
+    },
+    {
+      "id": "cs-50",
+      "columnId": "backlog",
+      "csNumber": "CS-50",
+      "title": "Login em etapas (email-first)",
+      "description": "Reconstruir o login em 2 passos: (1) usuário informa só o e-mail; (2) o método de autenticação é apresentado — Push Notification sozinha se habilitada (CS-39), senão senha + código TOTP se 2FA ativo, senão senha tradicional. Requisito de segurança: e-mail desconhecido recebe passo 2 genérico de senha indistinguível do real (anti-enumeração, preservar defesa de timing do login atual). Pré-requisito para o CS-39.",
+      "labels": [
+        "segurança",
+        "ux",
+        "feature"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 8
+    },
+    {
+      "id": "cs-51",
+      "columnId": "backlog",
+      "csNumber": "CS-51",
+      "title": "Motor de diagnóstico v2 — poupança fora do resultado + média móvel",
+      "description": "Correção conceitual: aporte em longo prazo (debit_longterm) é aquisição de ativo, não despesa — hoje ele reduz o Resultado do mês e as dimensões Resultado × Poupança do health score se cancelam. Criar duas linhas de fundo na DRE: Resultado operacional (antes do longo prazo) e Variação de caixa (depois). Score de Resultado passa a usar o operacional. Adicional: dimensões de fluxo do score (comprometimento, poupança, resultado) calculadas em média móvel de 3 meses + gráfico de evolução do score no /health.",
+      "labels": [
+        "produto",
+        "financeiro",
+        "crítico"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 9
+    },
+    {
+      "id": "cs-52",
+      "columnId": "backlog",
+      "csNumber": "CS-52",
+      "title": "Toggle avalanche/snowball no Modo Recuperação",
+      "description": "Oferecer o método snowball (menor saldo primeiro) como alternativa ao avalanche (maior juros primeiro) no Modo Recuperação de /liabilities. Avalanche continua default. Texto educativo explicando o trade-off: juros mínimos (avalanche) × vitórias rápidas que mantêm a motivação (snowball, com maior taxa de conclusão segundo pesquisa comportamental).",
+      "labels": [
+        "produto",
+        "financeiro"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 10
+    },
+    {
+      "id": "cs-53",
+      "columnId": "backlog",
+      "csNumber": "CS-53",
+      "title": "Alerta de arbitragem reserva × dívida cara",
+      "description": "Novo alerta danger no alert-engine: quando existir reserva > 1 mês de despesas E passivo ativo com taxa mensal acima do rendimento típico de reserva (~1% a.m.), sugerir quitar a dívida mantendo colchão mínimo. Cruza duas dimensões que hoje o score trata de forma independente.",
+      "labels": [
+        "produto",
+        "alertas",
+        "financeiro"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 11
+    },
+    {
+      "id": "cs-54",
+      "columnId": "backlog",
+      "csNumber": "CS-54",
+      "title": "Projeções com camada de variáveis estimadas",
+      "description": "As projeções mostram só o comprometido (recorrências + parcelas), o que gera viés otimista no saldo livre futuro. Adicionar camada opcional e visualmente distinta \"variáveis estimadas\" = média dos últimos 3 meses de gastos variáveis, com saldo livre exibido nas duas versões (comprometido puro / realista).",
+      "labels": [
+        "produto",
+        "financeiro"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 12
+    },
+    {
+      "id": "cs-55",
+      "columnId": "backlog",
+      "csNumber": "CS-55",
+      "title": "Balanço Patrimonial — patrimônio líquido consolidado",
+      "description": "A segunda demonstração contábil. Os dados já existem no banco: Assets (bens), Accounts (saldos), Liabilities (dívidas), reserveBalance. Nova visão consolidada: Patrimônio Líquido = ativos − passivos, com evolução mensal (snapshot histórico). Responde \"estou enriquecendo ou empobrecendo?\" — pergunta que a DRE sozinha não responde.",
+      "labels": [
+        "feature",
+        "financeiro",
+        "produto"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 13
+    },
+    {
+      "id": "cs-56",
+      "columnId": "backlog",
+      "csNumber": "CS-56",
+      "title": "Metas com rendimento estimado e nota de inflação",
+      "description": "Campo opcional \"rendimento estimado\" (% a.m.) na criação de meta — o aporte mensal necessário considera o rendimento do dinheiro já aportado (juros compostos), reduzindo o aporte calculado. Nota educativa de inflação em metas com prazo > 24 meses (poder de compra em termos reais, contexto IPCA).",
+      "labels": [
+        "produto",
+        "financeiro",
+        "metas"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 14
+    },
+    {
+      "id": "cs-57",
+      "columnId": "backlog",
+      "csNumber": "CS-57",
+      "title": "i18n completa da aplicação (pt-BR, en-US, es-ES)",
+      "description": "Estender a internacionalização da landing/login para toda a aplicação autenticada, nos 3 idiomas: pt-BR, en-US e es-ES. Inclui: infraestrutura de tradução (avaliar next-intl vs extensão do padrão translations.ts atual), extração de strings por lotes de módulo (como no retrofit de testes), preferência de idioma por usuário (Settings), formatação de moeda/data por locale. Landing: locales na URL (/en, /es) + hreflang + metadata traduzida para indexação por idioma (SEO).",
+      "labels": [
+        "feature",
+        "i18n",
+        "produto"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 15
+    },
+    {
+      "id": "cs-58",
+      "columnId": "backlog",
+      "csNumber": "CS-58",
+      "title": "Melhorar navegação do Meu Perfil",
+      "description": "A página de perfil cresceu (dados pessoais, endereço, senha, sessões ativas, audit log, 2FA) e virou uma página única longa. Reorganizar a navegação — escopo a definir com o Rudney (abas ou seções ancoradas, ordem por frequência de uso).",
+      "labels": [
+        "ux"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 16
+    },
+    {
+      "id": "cs-59",
+      "columnId": "backlog",
+      "csNumber": "CS-59",
+      "title": "Kanban v2 — checklists, datas, comentários e agrupamento",
+      "description": "Evolução do quadro de CSs do Studio inspirada no Trello: checklists de subtarefas com progresso no card; datas (início/prazo, além da conclusão já existente); aba de comentários com timestamp (diário de bordo da CS + log de atividade automático de movimentação); anexos como links (URL) — upload de arquivo fica para fase 2, o board vive em JSON versionado no git e binário incharia o repo; agrupamento de cards, especialmente em Done — agrupar por versão de release e/ou por labels (front, back, testes), com seções colapsáveis. Sem Membros (Studio mono-user).",
+      "labels": [
+        "studio",
+        "feature",
+        "ux"
+      ],
+      "version": null,
+      "commitHash": null,
+      "completedAt": null,
+      "order": 17
     }
   ]
 }
