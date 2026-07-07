@@ -41,4 +41,4 @@ export { adminGetEventLog, getAdminSecurityLog } from "./events";
 export type { AuditEvent, AdminSecurityEvent } from "./events";
 
 export { getKanbanBoard, saveKanbanBoard } from "./board";
-export type { KanbanColumn, KanbanCard, KanbanBoard } from "./board";
+export type { KanbanColumn, KanbanCard, KanbanBoard, KanbanChecklistItem, KanbanComment } from "./board";

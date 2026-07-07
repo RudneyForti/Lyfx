@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useRef, useEffect, useMemo } from "react";
 import { saveKanbanBoard } from "@/app/studio/actions";
 import type { KanbanBoard, KanbanCard, KanbanColumn } from "@/app/studio/actions";
+// Pure helpers come straight from lib (a "use server" barrel only re-exports
+// async functions and types, so client-side helpers can't route through it).
+import { withActivity, groupByRelease, daysUntil } from "@/lib/kanban";
 import {
   IconX, IconPlus, IconGripVertical, IconCheck, IconBrandGit,
-  IconCalendar, IconTag, IconEdit, IconTrash, IconLoader2,
-  IconSortAscending, IconSortDescending,
+  IconCalendar, IconTag, IconTrash, IconLoader2,
+  IconSortAscending, IconSortDescending, IconChevronDown, IconChevronRight,
+  IconMessageCircle, IconListCheck, IconClock, IconSend, IconArrowRight,
 } from "@tabler/icons-react";
 
 /* ── helpers ── */
@@ -21,6 +25,25 @@ function relDate(iso: string | null) {
   if (days < 30)  return `há ${days} dias`;
   if (days < 365) return `há ${Math.floor(days / 30)} meses`;
   return `há ${Math.floor(days / 365)} anos`;
+}
+
+function shortDate(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function stampDate(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getFullYear()).slice(2)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** Due-date chip semantics: red = overdue/today, amber = within 3 days. */
+function dueChip(dueAt: string): { text: string; color: string } {
+  const d = daysUntil(dueAt);
+  if (d < 0)  return { text: `atrasada ${Math.abs(d)}d`, color: "#f87171" };
+  if (d === 0) return { text: "vence hoje", color: "#f87171" };
+  if (d <= 3) return { text: `vence em ${d}d`, color: "#f59e0b" };
+  return { text: shortDate(dueAt), color: "var(--color-f4)" };
 }
 
 const COLUMN_STYLES: Record<string, { accent: string; badge: string; bg: string }> = {
@@ -144,29 +167,66 @@ function KanbanCardItem({
         </div>
       )}
 
-      {/* Footer: version + date */}
-      {(card.version || card.completedAt) && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-          {card.version && (
-            <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 3 }}>
-              <IconCheck size={10} />
-              v{card.version}
-            </span>
-          )}
-          {card.commitHash && (
-            <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 3, fontFamily: "monospace" }}>
-              <IconBrandGit size={10} />
-              {card.commitHash.slice(0, 7)}
-            </span>
-          )}
-          {card.completedAt && (
-            <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 3 }}>
-              <IconCalendar size={10} />
-              {relDate(card.completedAt)}
-            </span>
-          )}
-        </div>
-      )}
+      {/* Footer: version + dates + CS-59 chips (checklist, due, comments) */}
+      {(() => {
+        const checkTotal = card.checklist.length;
+        const checkDone = card.checklist.filter(i => i.done).length;
+        const commentCount = card.comments.filter(c => c.type === "comment").length;
+        const showDue = card.dueAt && card.columnId !== "done";
+        const due = showDue ? dueChip(card.dueAt!) : null;
+        const hasFooter = card.version || card.commitHash || card.completedAt || checkTotal > 0 || showDue || commentCount > 0;
+        if (!hasFooter) return null;
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            {card.version && (
+              <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 3 }}>
+                <IconCheck size={10} />
+                v{card.version}
+              </span>
+            )}
+            {card.commitHash && (
+              <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 3, fontFamily: "monospace" }}>
+                <IconBrandGit size={10} />
+                {card.commitHash.slice(0, 7)}
+              </span>
+            )}
+            {card.completedAt && (
+              <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 3 }}>
+                <IconCalendar size={10} />
+                {relDate(card.completedAt)}
+              </span>
+            )}
+            {checkTotal > 0 && (
+              <span style={{
+                fontSize: 10, fontWeight: 600, display: "flex", alignItems: "center", gap: 3,
+                color: checkDone === checkTotal ? "#4ade80" : "var(--color-f4)",
+                background: checkDone === checkTotal ? "rgba(74,222,128,0.12)" : "rgba(255,255,255,0.05)",
+                padding: "1px 6px", borderRadius: 4,
+              }}>
+                <IconListCheck size={10} />
+                {checkDone}/{checkTotal}
+              </span>
+            )}
+            {due && (
+              <span style={{
+                fontSize: 10, fontWeight: 600, display: "flex", alignItems: "center", gap: 3,
+                color: due.color,
+                background: due.color === "var(--color-f4)" ? "rgba(255,255,255,0.05)" : due.color + "1f",
+                padding: "1px 6px", borderRadius: 4,
+              }}>
+                <IconClock size={10} />
+                {due.text}
+              </span>
+            )}
+            {commentCount > 0 && (
+              <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 3 }}>
+                <IconMessageCircle size={10} />
+                {commentCount}
+              </span>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -190,11 +250,46 @@ function CardModal({
 }) {
   const [draft, setDraft] = useState<KanbanCard>({ ...card });
   const [labelInput, setLabelInput] = useState("");
+  const [checkInput, setCheckInput] = useState("");
+  const [commentInput, setCommentInput] = useState("");
   const [isPending, start] = useTransition();
   const dirty = JSON.stringify(draft) !== JSON.stringify(card);
 
   function update<K extends keyof KanbanCard>(k: K, v: KanbanCard[K]) {
     setDraft(d => ({ ...d, [k]: v }));
+  }
+
+  /* ── checklist ── */
+  function addCheckItem() {
+    const text = checkInput.trim();
+    if (!text) return;
+    update("checklist", [
+      ...draft.checklist,
+      { id: `chk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, text, done: false },
+    ]);
+    setCheckInput("");
+  }
+  function toggleCheckItem(id: string) {
+    update("checklist", draft.checklist.map(i => i.id === id ? { ...i, done: !i.done } : i));
+  }
+  function removeCheckItem(id: string) {
+    update("checklist", draft.checklist.filter(i => i.id !== id));
+  }
+
+  /* ── comments: persist immediately (Trello behavior), no Save needed ── */
+  function addComment() {
+    const text = commentInput.trim();
+    if (!text) return;
+    const next: KanbanCard = {
+      ...draft,
+      comments: [
+        ...draft.comments,
+        { id: `com-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, text, createdAt: new Date().toISOString(), type: "comment" as const },
+      ],
+    };
+    setDraft(next);
+    setCommentInput("");
+    start(() => onSave(next));
   }
 
   function addLabel(l: string) {
@@ -311,6 +406,76 @@ function CardModal({
               onFocus={e => (e.currentTarget.style.borderColor = style.accent + "88")}
               onBlur={e => (e.currentTarget.style.borderColor = "var(--color-border2)")}
             />
+
+            {/* Checklist (CS-59) */}
+            <div style={{ marginTop: 16 }}>
+              <label style={labelStyle}>
+                <IconListCheck size={11} style={{ display: "inline", marginRight: 3 }} />
+                Checklist
+                {draft.checklist.length > 0 && (
+                  <span style={{ marginLeft: 6, color: "var(--color-f3)", textTransform: "none", letterSpacing: 0 }}>
+                    {draft.checklist.filter(i => i.done).length}/{draft.checklist.length}
+                  </span>
+                )}
+              </label>
+              {draft.checklist.length > 0 && (
+                <div style={{ height: 4, background: "var(--color-bg)", borderRadius: 2, marginBottom: 8, overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%", borderRadius: 2, transition: "width 200ms",
+                    width: `${(draft.checklist.filter(i => i.done).length / draft.checklist.length) * 100}%`,
+                    background: draft.checklist.every(i => i.done) ? "#4ade80" : style.accent,
+                  }} />
+                </div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+                {draft.checklist.map(item => (
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", borderRadius: 6, background: "var(--color-bg)" }}>
+                    <button
+                      onClick={() => toggleCheckItem(item.id)}
+                      style={{
+                        width: 16, height: 16, borderRadius: 4, flexShrink: 0, cursor: "pointer",
+                        border: `1px solid ${item.done ? "#4ade80" : "var(--color-border2)"}`,
+                        background: item.done ? "rgba(74,222,128,0.2)" : "transparent",
+                        display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                      }}
+                    >
+                      {item.done && <IconCheck size={11} color="#4ade80" />}
+                    </button>
+                    <span style={{
+                      flex: 1, fontSize: 12, color: item.done ? "var(--color-f4)" : "var(--color-f2)",
+                      textDecoration: item.done ? "line-through" : "none", lineHeight: 1.4,
+                    }}>
+                      {item.text}
+                    </span>
+                    <button
+                      onClick={() => removeCheckItem(item.id)}
+                      title="Remover item"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-f4)", padding: 2, display: "flex" }}
+                    >
+                      <IconX size={11} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 4 }}>
+                <input
+                  value={checkInput}
+                  onChange={e => setCheckInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCheckItem(); } }}
+                  placeholder="nova subtarefa..."
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <button
+                  onClick={addCheckItem}
+                  style={{
+                    background: "var(--color-bg3, #1e293b)", border: "1px solid var(--color-border2)",
+                    borderRadius: 6, cursor: "pointer", color: "var(--color-f3)", padding: "0 8px",
+                  }}
+                >
+                  <IconPlus size={13} />
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Sidebar: metadata */}
@@ -363,7 +528,38 @@ function CardModal({
               />
             </div>
 
-            {/* Completed at */}
+            {/* Dates (CS-59): started / due / completed */}
+            <div>
+              <label style={labelStyle}>
+                <IconCalendar size={11} style={{ display: "inline", marginRight: 3 }} />
+                Iniciada em
+              </label>
+              <input
+                type="date"
+                value={draft.startedAt ? draft.startedAt.slice(0, 10) : ""}
+                onChange={e => update("startedAt", e.target.value ? new Date(e.target.value + "T12:00:00Z").toISOString() : null)}
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>
+                <IconClock size={11} style={{ display: "inline", marginRight: 3 }} />
+                Prazo
+              </label>
+              <input
+                type="date"
+                value={draft.dueAt ? draft.dueAt.slice(0, 10) : ""}
+                onChange={e => update("dueAt", e.target.value ? new Date(e.target.value + "T12:00:00Z").toISOString() : null)}
+                style={inputStyle}
+              />
+              {draft.dueAt && draft.columnId !== "done" && (
+                <span style={{ fontSize: 10, color: dueChip(draft.dueAt).color, marginTop: 3, display: "block" }}>
+                  {dueChip(draft.dueAt).text}
+                </span>
+              )}
+            </div>
+
             <div>
               <label style={labelStyle}>
                 <IconCalendar size={11} style={{ display: "inline", marginRight: 3 }} />
@@ -423,6 +619,62 @@ function CardModal({
                 {ALL_LABELS.map(l => <option key={l} value={l} />)}
               </datalist>
             </div>
+          </div>
+        </div>
+
+        {/* Comments & activity (CS-59) */}
+        <div style={{ borderTop: "1px solid var(--color-border)", padding: "16px 20px" }}>
+          <label style={labelStyle}>
+            <IconMessageCircle size={11} style={{ display: "inline", marginRight: 3 }} />
+            Comentários e atividade
+          </label>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            <input
+              value={commentInput}
+              onChange={e => setCommentInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addComment(); } }}
+              placeholder="Escrever um comentário... (diário de bordo da CS)"
+              style={{ ...inputStyle, flex: 1, fontSize: 13, padding: "8px 10px" }}
+            />
+            <button
+              onClick={addComment}
+              disabled={!commentInput.trim()}
+              title="Enviar comentário"
+              style={{
+                background: commentInput.trim() ? style.accent : "var(--color-bg3, #1e293b)",
+                color: commentInput.trim() ? "#0f172a" : "var(--color-f4)",
+                border: "none", borderRadius: 7, cursor: commentInput.trim() ? "pointer" : "not-allowed",
+                padding: "0 12px", display: "flex", alignItems: "center",
+              }}
+            >
+              <IconSend size={14} />
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+            {[...draft.comments].reverse().map(c => (
+              c.type === "activity" ? (
+                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 4px" }}>
+                  <IconArrowRight size={11} style={{ color: "var(--color-f4)", flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: "var(--color-f4)", fontStyle: "italic", flex: 1 }}>{c.text}</span>
+                  <span style={{ fontSize: 10, color: "var(--color-f4)", opacity: 0.7, flexShrink: 0 }}>{stampDate(c.createdAt)}</span>
+                </div>
+              ) : (
+                <div key={c.id} style={{
+                  background: "var(--color-bg)", border: "1px solid var(--color-border)",
+                  borderRadius: 8, padding: "8px 10px",
+                }}>
+                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--color-f2)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{c.text}</p>
+                  <span style={{ fontSize: 10, color: "var(--color-f4)", marginTop: 4, display: "block" }}>
+                    {stampDate(c.createdAt)} · {relDate(c.createdAt)}
+                  </span>
+                </div>
+              )
+            ))}
+            {draft.comments.length === 0 && (
+              <span style={{ fontSize: 11, color: "var(--color-f4)", fontStyle: "italic" }}>
+                Sem comentários ainda — movimentações entre colunas aparecem aqui automaticamente.
+              </span>
+            )}
           </div>
         </div>
 
@@ -488,6 +740,10 @@ function NewCardForm({ columnId, onAdd, onCancel, accent }: {
       commitHash:  "",
       completedAt: columnId === "done" ? new Date().toISOString() : null,
       order:       9999,
+      startedAt:   columnId === "in-progress" ? new Date().toISOString() : null,
+      dueAt:       null,
+      checklist:   [],
+      comments:    [],
     };
     onAdd(card);
   }
@@ -568,7 +824,26 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
     "blocked":     "asc",
     "done":        "desc",   // Concluídas: mais recentes no topo por padrão
   });
+  /* CS-59: label filter (OR semantics across selected labels) */
+  const [activeLabels, setActiveLabels] = useState<Set<string>>(new Set());
+  /* CS-59: expanded release groups in Done; null = default (newest only) */
+  const [expandedReleases, setExpandedReleases] = useState<Set<string> | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* labels present on the board, most used first */
+  const allLabels = useMemo(() => {
+    const freq = new Map<string, number>();
+    for (const c of board.cards) for (const l of c.labels) freq.set(l, (freq.get(l) ?? 0) + 1);
+    return [...freq.entries()].sort((a, b) => b[1] - a[1]).map(([l]) => l);
+  }, [board.cards]);
+
+  function toggleLabelFilter(label: string) {
+    setActiveLabels(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label); else next.add(label);
+      return next;
+    });
+  }
 
   /* auto-save with debounce */
   function persistBoard(next: KanbanBoard) {
@@ -581,17 +856,30 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
     }, 800);
   }
 
+  /* CS-59: column-move side effects — activity log entry + startedAt auto-fill */
+  function applyMoveEffects(card: KanbanCard, fromColId: string, toColId: string): KanbanCard {
+    const fromTitle = board.columns.find(c => c.id === fromColId)?.title ?? fromColId;
+    const toTitle   = board.columns.find(c => c.id === toColId)?.title ?? toColId;
+    let moved: KanbanCard = {
+      ...card,
+      startedAt: toColId === "in-progress" && !card.startedAt ? new Date().toISOString() : card.startedAt,
+    };
+    moved = withActivity(moved, `Movida de "${fromTitle}" para "${toTitle}"`);
+    return moved;
+  }
+
   /* move card to column */
   function handleDrop(targetColId: string) {
     if (!dragCardId) return;
     const card = board.cards.find(c => c.id === dragCardId);
     if (!card || card.columnId === targetColId) { setDragCardId(null); setDragOverCol(null); return; }
 
-    const updatedCard: KanbanCard = {
+    let updatedCard: KanbanCard = {
       ...card,
       columnId: targetColId,
       completedAt: targetColId === "done" && !card.completedAt ? new Date().toISOString() : (targetColId !== "done" ? null : card.completedAt),
     };
+    updatedCard = applyMoveEffects(updatedCard, card.columnId, targetColId);
     const next: KanbanBoard = {
       ...board,
       cards: board.cards.map(c => c.id === dragCardId ? updatedCard : c),
@@ -603,12 +891,16 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
 
   /* save card from modal */
   function handleSaveCard(updated: KanbanCard) {
+    const before = board.cards.find(c => c.id === updated.id);
+    const final = before && before.columnId !== updated.columnId
+      ? applyMoveEffects(updated, before.columnId, updated.columnId)
+      : updated;
     const next: KanbanBoard = {
       ...board,
-      cards: board.cards.map(c => c.id === updated.id ? updated : c),
+      cards: board.cards.map(c => c.id === final.id ? final : c),
     };
     persistBoard(next);
-    setActiveModal(updated);
+    setActiveModal(final);
   }
 
   /* delete card */
@@ -629,11 +921,12 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
     setAddingIn(null);
   }
 
-  /* cards per column, sorted */
+  /* cards per column, sorted (and filtered by active labels) */
   function colCards(colId: string) {
     const dir = colSort[colId] ?? "asc";
     return board.cards
       .filter(c => c.columnId === colId)
+      .filter(c => activeLabels.size === 0 || c.labels.some(l => activeLabels.has(l)))
       .sort((a, b) => {
         // primary key: completedAt for done column, order for others
         const aKey = colId === "done" && a.completedAt
@@ -675,6 +968,46 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
           </p>
         </div>
       </div>
+
+      {/* Label filter chips (CS-59) */}
+      {allLabels.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", padding: "0 0 16px 0" }}>
+          <IconTag size={12} style={{ color: "var(--color-f4)", flexShrink: 0 }} />
+          {allLabels.map(l => {
+            const active = activeLabels.has(l);
+            const col = labelColor(l);
+            return (
+              <button
+                key={l}
+                onClick={() => toggleLabelFilter(l)}
+                style={{
+                  fontSize: 10, fontWeight: 600, letterSpacing: "0.02em",
+                  padding: "2px 8px", borderRadius: 10, cursor: "pointer",
+                  background: active ? col + "33" : "rgba(255,255,255,0.03)",
+                  color: active ? col : "var(--color-f4)",
+                  border: `1px solid ${active ? col : "var(--color-border)"}`,
+                  transition: "all 120ms",
+                }}
+              >
+                {l}
+              </button>
+            );
+          })}
+          {activeLabels.size > 0 && (
+            <button
+              onClick={() => setActiveLabels(new Set())}
+              style={{
+                fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10,
+                cursor: "pointer", background: "none", color: "var(--color-f3)",
+                border: "1px solid var(--color-border2)", display: "flex", alignItems: "center", gap: 3,
+              }}
+            >
+              <IconX size={9} />
+              limpar filtro
+            </button>
+          )}
+        </div>
+      )}
 
       {/* board */}
       <div style={{
@@ -769,25 +1102,66 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
                 />
               )}
 
-              {/* Cards */}
-              {cards.map(card => (
-                <KanbanCardItem
-                  key={card.id}
-                  card={card}
-                  colAccent={style.accent}
-                  onDragStart={e => {
-                    e.dataTransfer.setData("cardId", card.id);
-                    setDragCardId(card.id);
-                    (e.currentTarget as HTMLElement).style.opacity = "0.4";
-                  }}
-                  onDragEnd={e => {
-                    (e.currentTarget as HTMLElement).style.opacity = "1";
-                    setDragCardId(null);
-                    setDragOverCol(null);
-                  }}
-                  onClick={() => setActiveModal(card)}
-                />
-              ))}
+              {/* Cards — Done groups by release (CS-59); other columns stay flat */}
+              {(() => {
+                const renderCard = (card: KanbanCard) => (
+                  <KanbanCardItem
+                    key={card.id}
+                    card={card}
+                    colAccent={style.accent}
+                    onDragStart={e => {
+                      e.dataTransfer.setData("cardId", card.id);
+                      setDragCardId(card.id);
+                      (e.currentTarget as HTMLElement).style.opacity = "0.4";
+                    }}
+                    onDragEnd={e => {
+                      (e.currentTarget as HTMLElement).style.opacity = "1";
+                      setDragCardId(null);
+                      setDragOverCol(null);
+                    }}
+                    onClick={() => setActiveModal(card)}
+                  />
+                );
+                if (col.id !== "done") return cards.map(renderCard);
+
+                const groups = groupByRelease(cards);
+                // Default (before any manual toggle): only the newest release open.
+                const expanded = expandedReleases ?? new Set(groups.length ? [groups[0].release] : []);
+                const toggleRelease = (release: string) => {
+                  const next = new Set(expanded);
+                  if (next.has(release)) next.delete(release); else next.add(release);
+                  setExpandedReleases(next);
+                };
+                return groups.map(g => {
+                  const isOpen = expanded.has(g.release);
+                  const title = g.release ? `v${g.release.replace(/^v/, "")}` : "Sem release";
+                  return (
+                    <div key={g.release || "__none"} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <button
+                        onClick={() => toggleRelease(g.release)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          background: "rgba(255,255,255,0.03)", border: "1px solid var(--color-border)",
+                          borderRadius: 8, padding: "5px 9px", cursor: "pointer", width: "100%",
+                        }}
+                      >
+                        {isOpen ? <IconChevronDown size={12} style={{ color: style.accent }} /> : <IconChevronRight size={12} style={{ color: "var(--color-f4)" }} />}
+                        <span style={{ fontSize: 11, fontWeight: 700, color: isOpen ? style.accent : "var(--color-f3)", letterSpacing: "0.03em" }}>
+                          {title}
+                        </span>
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, marginLeft: "auto",
+                          background: style.badge, color: style.accent,
+                          padding: "1px 6px", borderRadius: 8,
+                        }}>
+                          {g.cards.length}
+                        </span>
+                      </button>
+                      {isOpen && g.cards.map(renderCard)}
+                    </div>
+                  );
+                });
+              })()}
 
               {/* Empty state */}
               {cards.length === 0 && addingIn !== col.id && (
