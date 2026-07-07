@@ -160,6 +160,8 @@ main ──●───────────────●──────
 5. **Release only with explicit approval** — tagging is a human decision
 6. **Every release requires updated documentation** — see E7 checklist
 7. **Schema changes in a release require `prisma db push` on production**
+8. **Git tags are the sole source of truth for released versions** — `VERSIONING.md`, `package.json`, and the Studio Kanban `version` field all mirror `git tag`, never the reverse. A Kanban card in Done may only show a version that has a matching tag (`git tag --contains <commit>` resolves the real one).
+9. **Releases are proposed, not awaited** — after every merge, NEO checks `git describe --tags main` and proposes a release once the batch delivers user-facing capability or drift reaches ~5 commits. User-facing work left untagged on `main` with no proposal on the table is a process failure. See `AGENTS.md` → Versioning authority.
 
 ---
 
