@@ -245,7 +245,9 @@ function CardModal({
   card: KanbanCard;
   columns: KanbanColumn[];
   onClose: () => void;
-  onSave: (updated: KanbanCard) => void;
+  /** Returns the card as persisted — the parent may enrich it (e.g. the
+   *  column-move activity entry), and the draft must sync to that result. */
+  onSave: (updated: KanbanCard) => KanbanCard;
   onDelete: (id: string) => void;
 }) {
   const [draft, setDraft] = useState<KanbanCard>({ ...card });
@@ -287,9 +289,8 @@ function CardModal({
         { id: `com-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, text, createdAt: new Date().toISOString(), type: "comment" as const },
       ],
     };
-    setDraft(next);
     setCommentInput("");
-    start(() => onSave(next));
+    start(() => setDraft(onSave(next)));
   }
 
   function addLabel(l: string) {
@@ -304,7 +305,7 @@ function CardModal({
   }
 
   function handleSave() {
-    start(() => onSave(draft));
+    start(() => setDraft(onSave(draft)));
   }
 
   function handleDelete() {
@@ -890,7 +891,7 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
   }
 
   /* save card from modal */
-  function handleSaveCard(updated: KanbanCard) {
+  function handleSaveCard(updated: KanbanCard): KanbanCard {
     const before = board.cards.find(c => c.id === updated.id);
     const final = before && before.columnId !== updated.columnId
       ? applyMoveEffects(updated, before.columnId, updated.columnId)
@@ -901,6 +902,7 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
     };
     persistBoard(next);
     setActiveModal(final);
+    return final;
   }
 
   /* delete card */
