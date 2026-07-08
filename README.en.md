@@ -10,7 +10,7 @@
 ![Docker](https://img.shields.io/badge/Docker-containerized-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?style=flat-square&logo=tailwindcss)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
-![Version](https://img.shields.io/badge/version-1.15.2-22D3EE?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.15.3-22D3EE?style=flat-square)
 
 ---
 
@@ -88,4 +88,4 @@ For full details on architecture, database schema, relationships, categories, an
 
 ---
 
-*v1.15.2 · July 2026 · Personal project in active development.*
+*v1.15.3 · July 2026 · Personal project in active development.*
