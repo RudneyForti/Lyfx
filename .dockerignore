@@ -22,3 +22,7 @@ npm-debug.log*
 docs/
 *.md
 !README.md
+# Exceções: o Studio lê estes em runtime (Kanban + aba Documentação),
+# então precisam entrar no contexto de build para o COPY do Dockerfile.
+!docs/cs-board.json
+!DOCUMENTATION.md
