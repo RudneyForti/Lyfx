@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { parseLocalDate } from "@/lib/dates";
@@ -57,6 +58,7 @@ export async function createTransaction(data: {
     revalidatePath("/transactions");
     return { ok: true };
   } catch (e) {
+    unstable_rethrow(e); // CS-49: let requireAuth's redirect propagate
     return { error: e instanceof Error ? e.message : "Erro ao criar transação." };
   }
 }
@@ -118,6 +120,7 @@ export async function updateTransaction(
     revalidatePath("/planning");
     return { ok: true };
   } catch (e) {
+    unstable_rethrow(e); // CS-49: let requireAuth's redirect propagate
     return { error: e instanceof Error ? e.message : "Erro ao atualizar transação." };
   }
 }
@@ -179,6 +182,7 @@ export async function deleteTransaction(id: string): Promise<{ ok: true } | { er
     revalidatePath("/projections");
     return { ok: true };
   } catch (e) {
+    unstable_rethrow(e); // CS-49: let requireAuth's redirect propagate
     return { error: e instanceof Error ? e.message : "Erro ao excluir transação." };
   }
 }
@@ -193,6 +197,7 @@ export async function deleteInstallmentGroup(groupId: string): Promise<{ ok: tru
     revalidatePath("/projections");
     return { ok: true };
   } catch (e) {
+    unstable_rethrow(e); // CS-49: let requireAuth's redirect propagate
     return { error: e instanceof Error ? e.message : "Erro ao excluir parcelas." };
   }
 }

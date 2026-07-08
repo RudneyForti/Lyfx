@@ -9,8 +9,9 @@ import { createHmac } from "crypto";
 
 process.env.SESSION_SECRET = "unit-test-secret";
 
-const { cookieStore, dbMock } = vi.hoisted(() => ({
+const { cookieStore, headerStore, dbMock, redirectMock } = vi.hoisted(() => ({
   cookieStore: new Map<string, string>(),
+  headerStore: new Map<string, string>(),
   dbMock: {
     session: {
       findUnique: vi.fn(),
@@ -20,6 +21,9 @@ const { cookieStore, dbMock } = vi.hoisted(() => ({
       deleteMany: vi.fn(),
     },
   },
+  // Mirrors next/navigation's redirect: it throws a control-flow error so the
+  // caller never proceeds. We capture the target for assertions.
+  redirectMock: vi.fn((url: string) => { throw new Error(`NEXT_REDIRECT:${url}`); }),
 }));
 
 vi.mock("next/headers", () => ({
@@ -29,8 +33,9 @@ vi.mock("next/headers", () => ({
     set: (name: string, value: string) => cookieStore.set(name, value),
     delete: (name: string) => cookieStore.delete(name),
   }),
-  headers: async () => new Headers(),
+  headers: async () => new Headers([...headerStore.entries()]),
 }));
+vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 vi.mock("@/lib/db", () => ({ db: dbMock }));
 
 import { getSession, requireAuth } from "@/lib/session";
@@ -45,6 +50,8 @@ function validCookie(sessionId = "sess1", userId = "user1"): string {
 
 beforeEach(() => {
   cookieStore.clear();
+  headerStore.clear();
+  redirectMock.mockClear();
   dbMock.session.findUnique.mockReset();
   dbMock.session.update.mockReturnValue({ catch: () => {} });
   dbMock.session.delete.mockReturnValue({ catch: () => {} });
@@ -110,16 +117,39 @@ describe("getSession", () => {
 });
 
 describe("requireAuth", () => {
-  it("throws when unauthenticated", async () => {
-    await expect(requireAuth()).rejects.toThrow("Unauthenticated");
+  // CS-49: unauthenticated callers redirect to /login instead of throwing,
+  // so an expired session no longer surfaces the custom error boundary.
+  it("redirects to /login when there is no session", async () => {
+    await expect(requireAuth()).rejects.toThrow("NEXT_REDIRECT:/login");
+    expect(redirectMock).toHaveBeenCalledWith("/login");
   });
 
-  it("returns the userId when authenticated", async () => {
+  it("redirects to /login preserving the route when the session expired", async () => {
+    cookieStore.set("lyfx_session", validCookie());
+    dbMock.session.findUnique.mockResolvedValue({
+      userId: "user1",
+      expiresAt: new Date(Date.now() - 1), // expired in the DB
+    });
+    headerStore.set("x-pathname", "/transactions");
+    await expect(requireAuth()).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirectMock).toHaveBeenCalledWith("/login?redirect=%2Ftransactions");
+  });
+
+  it("guards against open redirect via a protocol-relative x-pathname", async () => {
+    headerStore.set("x-pathname", "//evil.com/phish");
+    await expect(requireAuth()).rejects.toThrow("NEXT_REDIRECT");
+    // Falls back to a bare /login — never the attacker path
+    expect(redirectMock).toHaveBeenCalledWith("/login");
+  });
+
+  it("returns the userId and never redirects when authenticated", async () => {
     cookieStore.set("lyfx_session", validCookie());
     dbMock.session.findUnique.mockResolvedValue({
       userId: "user1",
       expiresAt: new Date(Date.now() + 60_000),
     });
+    headerStore.set("x-pathname", "/dashboard");
     expect(await requireAuth()).toBe("user1");
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 });
