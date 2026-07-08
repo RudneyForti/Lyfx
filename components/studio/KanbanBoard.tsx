@@ -10,7 +10,7 @@ import {
   IconX, IconPlus, IconGripVertical, IconCheck, IconBrandGit,
   IconCalendar, IconTag, IconTrash, IconLoader2,
   IconSortAscending, IconSortDescending, IconChevronDown, IconChevronRight,
-  IconMessageCircle, IconListCheck, IconClock, IconSend, IconArrowRight,
+  IconMessageCircle, IconListCheck, IconClock, IconSend, IconArrowRight, IconSearch,
 } from "@tabler/icons-react";
 
 /* ── helpers ── */
@@ -811,6 +811,178 @@ const labelStyle: React.CSSProperties = {
   color: "var(--color-f4)", textTransform: "uppercase", marginBottom: 5,
 };
 
+/* ── Searchable multi-select label filter (Kanban header) ── */
+function LabelFilterDropdown({
+  options, selected, onToggle, onClear,
+}: {
+  options: { label: string; count: number }[];
+  selected: Set<string>;
+  onToggle: (label: string) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close on outside click / Escape; focus the search box when opening.
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    inputRef.current?.focus();
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+  const filtered = q ? options.filter(o => o.label.toLowerCase().includes(q)) : options;
+  const selectedList = options.filter(o => selected.has(o.label));
+
+  return (
+    <div ref={ref} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", padding: "0 0 16px 0" }}>
+      {/* Trigger */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: "flex", alignItems: "center", gap: 6,
+          fontSize: 11, fontWeight: 600, color: "var(--color-f3)",
+          background: open ? "var(--color-bg3, #1e293b)" : "rgba(255,255,255,0.03)",
+          border: `1px solid ${open ? "var(--color-cyan)" : "var(--color-border)"}`,
+          borderRadius: 8, padding: "5px 10px", cursor: "pointer", transition: "all 120ms",
+        }}
+      >
+        <IconTag size={13} style={{ color: "var(--color-f4)" }} />
+        Filtrar por label
+        {selected.size > 0 && (
+          <span style={{
+            fontSize: 9, fontWeight: 700, background: "var(--color-cyan)", color: "#0f172a",
+            borderRadius: 8, padding: "0 6px", minWidth: 16, textAlign: "center",
+          }}>{selected.size}</span>
+        )}
+        <IconChevronDown size={12} style={{ color: "var(--color-f4)", transform: open ? "rotate(180deg)" : "none", transition: "transform 120ms" }} />
+      </button>
+
+      {/* Selected labels as removable chips */}
+      {selectedList.map(o => {
+        const col = labelColor(o.label);
+        return (
+          <button
+            key={o.label}
+            onClick={() => onToggle(o.label)}
+            title="Remover do filtro"
+            style={{
+              display: "flex", alignItems: "center", gap: 3,
+              fontSize: 10, fontWeight: 600, padding: "3px 6px 3px 8px", borderRadius: 8, cursor: "pointer",
+              background: col + "22", color: col, border: `1px solid ${col}55`,
+            }}
+          >
+            {o.label}<IconX size={9} />
+          </button>
+        );
+      })}
+      {selected.size > 0 && (
+        <button
+          onClick={onClear}
+          style={{
+            fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 8, cursor: "pointer",
+            background: "none", color: "var(--color-f4)", border: "1px solid var(--color-border2)",
+          }}
+        >
+          limpar
+        </button>
+      )}
+
+      {/* Dropdown panel */}
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% - 8px)", left: 0, zIndex: 100, width: 260,
+          background: "var(--color-bg2)", border: "1px solid var(--color-border2)", borderRadius: 10,
+          boxShadow: "0 12px 32px rgba(0,0,0,0.45)", overflow: "hidden",
+        }}>
+          {/* Search box */}
+          <div style={{ padding: 8, borderBottom: "1px solid var(--color-border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--color-bg)", border: "1px solid var(--color-border2)", borderRadius: 7, padding: "5px 8px" }}>
+              <IconSearch size={13} style={{ color: "var(--color-f4)", flexShrink: 0 }} />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Buscar label..."
+                style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: "var(--color-f1)", fontSize: 12 }}
+              />
+              {query && (
+                <button onClick={() => setQuery("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-f4)", padding: 0, display: "flex" }}>
+                  <IconX size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Options list */}
+          <div style={{ maxHeight: 260, overflowY: "auto", padding: 4 }}>
+            {filtered.length === 0 && (
+              <div style={{ padding: "12px 10px", fontSize: 11, color: "var(--color-f4)", textAlign: "center" }}>
+                Nenhuma label encontrada.
+              </div>
+            )}
+            {filtered.map(o => {
+              const on = selected.has(o.label);
+              const col = labelColor(o.label);
+              return (
+                <button
+                  key={o.label}
+                  onClick={() => onToggle(o.label)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, width: "100%",
+                    background: on ? col + "18" : "transparent", border: "none",
+                    borderRadius: 6, padding: "6px 8px", cursor: "pointer", textAlign: "left",
+                  }}
+                  onMouseEnter={e => { if (!on) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+                  onMouseLeave={e => { if (!on) e.currentTarget.style.background = "transparent"; }}
+                >
+                  <span style={{
+                    width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    border: `1px solid ${on ? col : "var(--color-border2)"}`, background: on ? col + "33" : "transparent",
+                  }}>
+                    {on && <IconCheck size={11} color={col} />}
+                  </span>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: col, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 12, color: on ? "var(--color-f1)" : "var(--color-f2)" }}>{o.label}</span>
+                  <span style={{ fontSize: 10, color: "var(--color-f4)" }}>{o.count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Footer */}
+          {selected.size > 0 && (
+            <div style={{ borderTop: "1px solid var(--color-border)", padding: 6 }}>
+              <button
+                onClick={onClear}
+                style={{
+                  width: "100%", fontSize: 11, fontWeight: 600, color: "var(--color-f3)",
+                  background: "none", border: "none", cursor: "pointer", padding: "4px",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                }}
+              >
+                <IconX size={11} /> Limpar seleção ({selected.size})
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Main KanbanBoard ── */
 export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
   const [board, setBoard] = useState<KanbanBoard>(initialBoard);
@@ -831,11 +1003,11 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
   const [expandedReleases, setExpandedReleases] = useState<Set<string> | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* labels present on the board, most used first */
+  /* labels present on the board, most used first (with per-label card counts) */
   const allLabels = useMemo(() => {
     const freq = new Map<string, number>();
     for (const c of board.cards) for (const l of c.labels) freq.set(l, (freq.get(l) ?? 0) + 1);
-    return [...freq.entries()].sort((a, b) => b[1] - a[1]).map(([l]) => l);
+    return [...freq.entries()].sort((a, b) => b[1] - a[1]).map(([label, count]) => ({ label, count }));
   }, [board.cards]);
 
   function toggleLabelFilter(label: string) {
@@ -971,44 +1143,14 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
         </div>
       </div>
 
-      {/* Label filter chips (CS-59) */}
+      {/* Label filter — searchable multi-select (CS-59) */}
       {allLabels.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", padding: "0 0 16px 0" }}>
-          <IconTag size={12} style={{ color: "var(--color-f4)", flexShrink: 0 }} />
-          {allLabels.map(l => {
-            const active = activeLabels.has(l);
-            const col = labelColor(l);
-            return (
-              <button
-                key={l}
-                onClick={() => toggleLabelFilter(l)}
-                style={{
-                  fontSize: 10, fontWeight: 600, letterSpacing: "0.02em",
-                  padding: "2px 8px", borderRadius: 10, cursor: "pointer",
-                  background: active ? col + "33" : "rgba(255,255,255,0.03)",
-                  color: active ? col : "var(--color-f4)",
-                  border: `1px solid ${active ? col : "var(--color-border)"}`,
-                  transition: "all 120ms",
-                }}
-              >
-                {l}
-              </button>
-            );
-          })}
-          {activeLabels.size > 0 && (
-            <button
-              onClick={() => setActiveLabels(new Set())}
-              style={{
-                fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10,
-                cursor: "pointer", background: "none", color: "var(--color-f3)",
-                border: "1px solid var(--color-border2)", display: "flex", alignItems: "center", gap: 3,
-              }}
-            >
-              <IconX size={9} />
-              limpar filtro
-            </button>
-          )}
-        </div>
+        <LabelFilterDropdown
+          options={allLabels}
+          selected={activeLabels}
+          onToggle={toggleLabelFilter}
+          onClear={() => setActiveLabels(new Set())}
+        />
       )}
 
       {/* board */}
