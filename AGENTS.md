@@ -67,6 +67,35 @@ feature/<slug>    ← born from main, dies at merge (via Pull Request)
 | **E6 — Pull Request** | Agent NEO | Pushes the branch and opens the PR via `gh pr create` with the template checklist. CI must pass. **Human reviews and merges in the GitHub UI.** |
 | **E7 — Release** | Agent NEO | Asks first: *"The batch is merged in `main`. Ready to tag and deploy?"* — runs the E7 checklist, tags `main`, and production worktree pulls. Only with explicit confirmation. |
 
+Each stage also moves the work's card on the Studio roadmap — see Roadmap board discipline.
+
+---
+
+## Roadmap board discipline (source of demands)
+
+**Why this section exists:** the Studio Kanban (`docs/cs-board.json`) is the owner's single view of what's planned, in flight, and done. It drifted — real executions shipped with no card, and finished cards (CS-59, CS-49) were never moved out of Backlog — so the board stopped reflecting reality. This binds the board to the pipeline so it stays live.
+
+### Every unit of work is a card
+
+- **No work without a card.** Before starting anything — a planned CS, a bug found in passing, a feature asked for mid-chat — there must be a card for it. If none exists, NEO creates one in **Backlog** first (execution-grade spec: objetivo / escopo / refs / aceite).
+- Ad-hoc work is not exempt. "Small" fixes and UI tweaks get a card too.
+
+### The card's column tracks the pipeline stage — updated in the same session
+
+| Pipeline stage | Board move | Stamp |
+|----------------|-----------|-------|
+| E3 — branch created | Backlog → **Em andamento** | `startedAt` |
+| E6 — PR merged | Em andamento → **Concluídas** | `commitHash` = squash-merge SHA |
+| E7 — release tagged | (already Done) | `version` = the tag it shipped in |
+
+- The board edit rides **inside the work's PR** whenever possible (same diff), so merged `main` always reflects reality. The `Em andamento` move at E3 may be a small separate board commit so the owner sees live what's being executed.
+- **`version` is stamped only at release** — never before a matching git tag exists (see Versioning authority). A merged-but-unreleased card sits in Concluídas with an empty version until E7.
+
+### Reconciliation
+
+- At E7, and whenever the board looks stale, reconcile `docs/cs-board.json` against git reality: every merged PR has a Done card; no Done card carries a version without a tag.
+- The board is edited in two places (NEO via git, the owner via the Studio UI). NEO always works from the latest `main` and treats the owner's Studio changes as authoritative demand input — when they conflict, ask.
+
 ---
 
 ## Commits and pushes — MANUAL EXECUTION ONLY
@@ -233,6 +262,7 @@ Examples: `feature/km-saved-locations`, `fix/auth-session-expiry`, `feature/42-p
 - `docs/DOC-INDEX.md` must be updated on every release
 - **Git tags are the only source of truth for released versions.** The Kanban `version` field is a target, not a fact, until a matching tag exists (see Versioning authority).
 - **Releases are never left to accumulate silently.** After every merge, NEO reports release drift and proposes a release when the batch delivers user-facing capability (see Versioning authority).
+- **No work without a roadmap card, and the card's column tracks the pipeline stage** — created in Backlog, moved to Em andamento at branch start, to Concluídas at merge, synchronously (see Roadmap board discipline).
 
 ---
 
