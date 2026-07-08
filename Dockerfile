@@ -60,6 +60,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 #     pois o tracing do Next.js não inclui arquivos gerados dinamicamente.
 COPY --from=builder --chown=nextjs:nodejs /app/lib/generated/prisma ./lib/generated/prisma
 
+# ⚠️  Gotcha standalone + fs.readFile em runtime: o Studio lê docs/cs-board.json
+#     (Kanban) e DOCUMENTATION.md (aba Documentação) via readFile com caminho
+#     computado. O tracing do Next.js não detecta essas leituras, então os
+#     arquivos não entram no standalone e a página crasha com ENOENT em prod.
+#     Copiar explicitamente.
+COPY --from=builder --chown=nextjs:nodejs /app/docs/cs-board.json ./docs/cs-board.json
+COPY --from=builder --chown=nextjs:nodejs /app/DOCUMENTATION.md ./DOCUMENTATION.md
+
 USER nextjs
 
 EXPOSE 3000
