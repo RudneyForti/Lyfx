@@ -142,8 +142,11 @@ export function groupByRelease(cards: KanbanCard[]): ReleaseGroup[] {
     byRelease.get(key)!.push(c);
   }
   const releases = [...byRelease.keys()].sort((a, b) => {
-    if (a === "") return 1;
-    if (b === "") return -1;
+    // Unreleased-but-done cards (empty version) accumulate in a group that
+    // sits at the TOP of Concluídas — it's the batch awaiting the next
+    // release. Tagged releases follow, newest first.
+    if (a === "") return -1;
+    if (b === "") return 1;
     return compareVersionsDesc(a, b);
   });
   return releases.map((release) => ({ release, cards: byRelease.get(release)! }));

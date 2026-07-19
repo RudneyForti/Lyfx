@@ -1346,24 +1346,35 @@ export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialB
                 };
                 return groups.map(g => {
                   const isOpen = expanded.has(g.release);
-                  const title = g.release ? `v${g.release.replace(/^v/, "")}` : "Sem release";
+                  // The versionless group is the "Em aberto" bucket — merged work
+                  // awaiting the next release. Amber-accented to stand apart from
+                  // shipped (green) releases.
+                  const pending = !g.release;
+                  const accent = pending ? "#f59e0b" : style.accent;
+                  const title = pending ? "Em aberto" : `v${g.release.replace(/^v/, "")}`;
                   return (
                     <div key={g.release || "__none"} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       <button
                         onClick={() => toggleRelease(g.release)}
                         style={{
                           display: "flex", alignItems: "center", gap: 6,
-                          background: "rgba(255,255,255,0.03)", border: "1px solid var(--color-border)",
+                          background: pending ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${pending ? "rgba(245,158,11,0.35)" : "var(--color-border)"}`,
                           borderRadius: 8, padding: "5px 9px", cursor: "pointer", width: "100%",
                         }}
                       >
-                        {isOpen ? <IconChevronDown size={12} style={{ color: style.accent }} /> : <IconChevronRight size={12} style={{ color: "var(--color-f4)" }} />}
-                        <span style={{ fontSize: 11, fontWeight: 700, color: isOpen ? style.accent : "var(--color-f3)", letterSpacing: "0.03em" }}>
+                        {isOpen ? <IconChevronDown size={12} style={{ color: accent }} /> : <IconChevronRight size={12} style={{ color: pending ? accent : "var(--color-f4)" }} />}
+                        <span style={{ fontSize: 11, fontWeight: 700, color: isOpen || pending ? accent : "var(--color-f3)", letterSpacing: "0.03em" }}>
                           {title}
                         </span>
+                        {pending && (
+                          <span style={{ fontSize: 9, color: "var(--color-f4)", letterSpacing: "0.02em" }}>
+                            não lançado
+                          </span>
+                        )}
                         <span style={{
                           fontSize: 9, fontWeight: 700, marginLeft: "auto",
-                          background: style.badge, color: style.accent,
+                          background: pending ? "rgba(245,158,11,0.15)" : style.badge, color: accent,
                           padding: "1px 6px", borderRadius: 8,
                         }}>
                           {g.cards.length}

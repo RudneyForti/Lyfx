@@ -123,13 +123,13 @@ describe("groupByRelease", () => {
   const mk = (id: string, version: string) =>
     migrateBoard({ version: 1, lastUpdated: "x", columns: [], cards: [v1Card({ id, version })] }).cards[0];
 
-  it("groups by version, newest release first, no-version last", () => {
+  it("puts the versionless (Em aberto) group first, then releases newest-first", () => {
     const groups = groupByRelease([
       mk("a", "1.6.0"), mk("b", "1.14.1"), mk("c", ""), mk("d", "1.14.1"),
     ]);
-    expect(groups.map(g => g.release)).toEqual(["1.14.1", "1.6.0", ""]);
-    expect(groups[0].cards.map(c => c.id)).toEqual(["b", "d"]); // input order kept
-    expect(groups[2].cards.map(c => c.id)).toEqual(["c"]);
+    expect(groups.map(g => g.release)).toEqual(["", "1.14.1", "1.6.0"]);
+    expect(groups[0].cards.map(c => c.id)).toEqual(["c"]); // Em aberto on top
+    expect(groups[1].cards.map(c => c.id)).toEqual(["b", "d"]); // input order kept
   });
 
   it("returns an empty array for no cards", () => {
