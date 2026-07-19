@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-07-07T12:34:51.665Z",
+  "lastUpdated": "2026-07-08T12:33:34.272Z",
   "columns": [
     {
       "id": "backlog",
@@ -779,7 +779,7 @@
     },
     {
       "id": "cs-49",
-      "columnId": "backlog",
+      "columnId": "in-progress",
       "csNumber": "CS-49",
       "title": "Sessão expirada redireciona para /login",
       "description": "OBJETIVO: sessão expirada redireciona para /login em vez de cair na tela de erro global (lim f(t) = ∅).\n\nCAUSA RAIZ (já diagnosticada): o proxy só valida o HMAC do cookie (camada 1) — sessão expirada no banco passa por ele. requireAuth()/requireSession() em lib/session.ts:192-205 fazem throw new Error(\"Unauthenticated\"), que estoura no error boundary app/error.tsx.\n\nESCOPO:\n1. Em requireAuth() e requireSession(): trocar o throw por redirect(\"/login?redirect=<rota>\") — redirect() do next/navigation funciona em Server Actions e Server Components.\n2. Rota atual: reusar o header x-pathname injetado pelo proxy (padrão CS-13); fallback para /login sem redirect param se indisponível.\n3. Validar contra open redirect: o valor deve começar com \"/\" (defesa já existente em app/login/actions.ts — manter consistência).\n4. Auditar chamadas de requireAuth em app/actions/*.ts que envolvem try/catch — garantir que nenhum catch engula o redirect (NEXT_REDIRECT é um throw interno do Next; catches genéricos precisam relançá-lo).\n\nACEITE: teste de integração — sessão com expiresAt no passado + chamada de action → redirect para /login (não error); teste E2E — cookie válido com Session expirada no banco → navegação cai no /login com redirect param; tela de erro custom não aparece em nenhum fluxo de expiração.\n\nFORA DE ESCOPO: refresh token/renovação silenciosa de sessão.",
@@ -935,7 +935,7 @@
     },
     {
       "id": "cs-59",
-      "columnId": "backlog",
+      "columnId": "done",
       "csNumber": "CS-59",
       "title": "Kanban v2 — checklists, datas, comentários e agrupamento",
       "description": "OBJETIVO: evoluir o Kanban de CSs do Studio para carregar o trabalho vivo de cada card — inspirado no Trello, adaptado ao mono-user.\n\nESCOPO:\n1. Checklists: array de subtarefas {id, text, done} por card; barra de progresso (3/7) visível no card fechado; add/toggle/remover no modal.\n2. Datas: startedAt e dueAt (além do completedAt existente); badge de prazo no card (amarelo < 3 dias, vermelho vencido).\n3. Comentários + atividade: array {id, text, createdAt, type: \"comment\" | \"activity\"}; comentários manuais com timestamp (diário de bordo) + log automático de movimentação entre colunas (\"→ Em andamento em 07/07 14:32\"); aba no modal no padrão Trello.\n4. Agrupamento: na coluna Concluídas, seções colapsáveis por version (release) — cards sem versão em \"Sem release\"; nas demais colunas, filtro por label (chips clicáveis no header do board).\n5. Migração de schema do JSON: version do arquivo 1 → 2; loader em app/studio/board.ts migra cards antigos on-read (campos novos com default vazio) e persiste na primeira escrita — sem quebrar board existente.\n\nREFS TÉCNICAS: components/studio/KanbanBoard.tsx, app/studio/board.ts, docs/cs-board.json.\n\nACEITE: board v1 existente abre sem erro e migra limpo (teste com cópia do JSON real); checklist/comentários/datas persistem no arquivo; agrupamento por release colapsa/expande; drag-and-drop continua funcionando entre e dentro de grupos; teste unitário da migração v1→v2.\n\nSUSPENSO (decisão 07/07/2026): anexos — o board vive em JSON versionado no git; binário incharia o repo. Reavaliar quando/se o board migrar para o banco.\nFORA DE ESCOPO: membros (mono-user), automações, power-ups.",
@@ -944,10 +944,198 @@
         "feature",
         "ux"
       ],
-      "version": null,
-      "commitHash": null,
-      "completedAt": null,
+      "version": "1.15.0",
+      "commitHash": "7cd7656",
+      "completedAt": "2026-07-08T12:33:34.265Z",
       "order": 17
+    },
+    {
+      "id": "cs-60",
+      "columnId": "done",
+      "csNumber": "CS-60",
+      "title": "Migração para GitHub Flow + pipeline CI",
+      "description": "Migração do modelo master/develop para GitHub Flow (branch única main + PRs). CODEOWNERS, template de PR, pipeline CI de 3 jobs (typecheck/lint/build, testes, E2E). Base do fluxo de trabalho atual.",
+      "labels": [
+        "processo",
+        "ci",
+        "infra"
+      ],
+      "version": "1.15.0",
+      "commitHash": "27e4529",
+      "completedAt": "2026-07-08T12:33:34.265Z",
+      "order": 1000
+    },
+    {
+      "id": "cs-61",
+      "columnId": "done",
+      "csNumber": "CS-61",
+      "title": "Retrofit de testes — Vitest + Playwright",
+      "description": "Cobertura de 0 → 90+ testes (44 unit, 41 integração, 5 E2E) com Vitest + Playwright e mock de APIs externas. Lint restaurado como gate bloqueante no CI.",
+      "labels": [
+        "testes",
+        "qualidade",
+        "ci"
+      ],
+      "version": "1.15.0",
+      "commitHash": "adbc6bf",
+      "completedAt": "2026-07-08T12:32:34.265Z",
+      "order": 1001
+    },
+    {
+      "id": "cs-62",
+      "columnId": "done",
+      "csNumber": "CS-62",
+      "title": "Tradução dos comentários de código para inglês",
+      "description": "Todos os comentários de código (lib/, app/, components/, prisma/schema.prisma) traduzidos para inglês, conforme o dev-requirement de linguagem.",
+      "labels": [
+        "i18n",
+        "qualidade"
+      ],
+      "version": "1.15.0",
+      "commitHash": "e89365a",
+      "completedAt": "2026-07-08T12:31:34.265Z",
+      "order": 1002
+    },
+    {
+      "id": "cs-63",
+      "columnId": "done",
+      "csNumber": "CS-63",
+      "title": "Documentação bilíngue PT/EN + auditoria de fatos",
+      "description": "Versão espelhada PT/EN de README, VERSIONING, FEATURES e DOCUMENTATION, com link recíproco. Auditoria de fatos desatualizados contra o código real (stack, schema, árvore de arquivos, módulos).",
+      "labels": [
+        "docs",
+        "i18n"
+      ],
+      "version": "1.15.0",
+      "commitHash": "156da07",
+      "completedAt": "2026-07-08T12:30:34.265Z",
+      "order": 1003
+    },
+    {
+      "id": "cs-64",
+      "columnId": "done",
+      "csNumber": "CS-64",
+      "title": "Fix timezone — datas de formulário como horário local",
+      "description": "lib/dates.ts (parseLocalDate): datas YYYY-MM-DD parseadas como horário local em vez de UTC — corrige transação do dia 1 caindo no mês anterior em UTC-3.",
+      "labels": [
+        "bug",
+        "transações"
+      ],
+      "version": "1.15.0",
+      "commitHash": "9908b66",
+      "completedAt": "2026-07-08T12:29:34.265Z",
+      "order": 1004
+    },
+    {
+      "id": "cs-65",
+      "columnId": "done",
+      "csNumber": "CS-65",
+      "title": "Roteamento ortogonal das linhas do ERD (Power BI)",
+      "description": "lib/erd-router.ts: A* ortogonal com desvio de obstáculos para as linhas de relacionamento do ERD no Studio — nunca cruzam as caixas nem saem do canvas, recalculam ao arrastar.",
+      "labels": [
+        "studio",
+        "bug",
+        "ux"
+      ],
+      "version": "1.15.0",
+      "commitHash": "73d0b5e",
+      "completedAt": "2026-07-08T12:28:34.265Z",
+      "order": 1005
+    },
+    {
+      "id": "cs-66",
+      "columnId": "done",
+      "csNumber": "CS-66",
+      "title": "Autoridade de versionamento (git tags) + reconciliação",
+      "description": "AGENTS.md/GIT-WORKFLOW.md: git tags como fonte única de verdade de versão, gatilho de release proativo e reconciliação board×git. Board reconciliado (8 cards fantasma 1.15.0 → 1.14.1).",
+      "labels": [
+        "processo",
+        "governança"
+      ],
+      "version": "1.15.0",
+      "commitHash": "bd41bda",
+      "completedAt": "2026-07-08T12:27:34.265Z",
+      "order": 1006
+    },
+    {
+      "id": "cs-67",
+      "columnId": "done",
+      "csNumber": "CS-67",
+      "title": "Deploy automático da produção ao empurrar tag",
+      "description": "CI/CD deploy-on-tag: runner self-hosted (lyfx-prod) na máquina host reconstrói a imagem e recria os containers no push de uma tag v*. Mantém o portão humano (taggear é decisão humana).",
+      "labels": [
+        "ci",
+        "deploy",
+        "infra"
+      ],
+      "version": "1.15.1",
+      "commitHash": "e65b986",
+      "completedAt": "2026-07-08T12:26:34.265Z",
+      "order": 1007
+    },
+    {
+      "id": "cs-68",
+      "columnId": "done",
+      "csNumber": "CS-68",
+      "title": "Fix do deploy — shell PowerShell no runner Windows",
+      "description": "deploy-prod.yml usava shell: bash, que no runner Windows resolve para o bash do WSL e falha sem distro instalada. Reescrito em PowerShell com checagem de $LASTEXITCODE por comando.",
+      "labels": [
+        "ci",
+        "deploy",
+        "bug"
+      ],
+      "version": "1.15.2",
+      "commitHash": "fe06cab",
+      "completedAt": "2026-07-08T12:25:34.265Z",
+      "order": 1008
+    },
+    {
+      "id": "cs-69",
+      "columnId": "done",
+      "csNumber": "CS-69",
+      "title": "Fix Studio — arquivos board/docs no build standalone",
+      "description": "O /studio dava 500 (ENOENT cs-board.json): o build standalone do Next não inclui arquivos lidos via readFile em runtime. Dockerfile copia cs-board.json e DOCUMENTATION.md; getKanbanBoard blindado contra ENOENT.",
+      "labels": [
+        "studio",
+        "bug",
+        "infra"
+      ],
+      "version": "1.15.3",
+      "commitHash": "b9b0bbd",
+      "completedAt": "2026-07-08T12:24:34.265Z",
+      "order": 1009
+    },
+    {
+      "id": "cs-70",
+      "columnId": "done",
+      "csNumber": "CS-70",
+      "title": "Fix .dockerignore — board/docs no contexto de build",
+      "description": "Completa o fix da v1.15.3: o .dockerignore excluía docs/ e *.md, então os arquivos nem entravam no contexto de build. Adicionadas exceções !docs/cs-board.json e !DOCUMENTATION.md.",
+      "labels": [
+        "docker",
+        "bug",
+        "infra"
+      ],
+      "version": "1.15.4",
+      "commitHash": "6274f7b",
+      "completedAt": "2026-07-08T12:23:34.265Z",
+      "order": 1010
+    },
+    {
+      "id": "cs-71",
+      "columnId": "done",
+      "csNumber": "CS-71",
+      "title": "Dropdown de filtro de labels no Kanban",
+      "description": "Filtro de labels do header do Kanban virou um dropdown pesquisável com multisseleção (checkbox + contagem por label), no lugar da fileira de ~40 chips. Labels selecionadas viram chips removíveis. Mergeado — aguardando release v1.16.0.",
+      "labels": [
+        "studio",
+        "ux",
+        "feature"
+      ],
+      "version": "",
+      "commitHash": "c96abe8",
+      "completedAt": "2026-07-08T12:22:34.265Z",
+      "order": 1011
     }
   ]
 }
