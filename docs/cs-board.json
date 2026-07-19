@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-07-08T12:33:34.272Z",
+  "lastUpdated": "2026-07-19T01:44:52.402Z",
   "columns": [
     {
       "id": "backlog",
@@ -1136,6 +1136,22 @@
       "commitHash": "c96abe8",
       "completedAt": "2026-07-08T12:22:34.265Z",
       "order": 1011
+    },
+    {
+      "id": "cs-72",
+      "columnId": "in-progress",
+      "csNumber": "CS-72",
+      "title": "Modo assistido (somente leitura) no board do Studio",
+      "description": "OBJETIVO: transformar o Kanban do Studio numa tela de visualização por padrão, para o owner acompanhar sem gerar mudanças autoritativas que divirjam do fluxo automatizado do agente.\n\nESCOPO:\n1. Botão \"Modo assistido\" no header do board, persistido em AppConfig (chave kanbanAssistedMode, default LIGADO).\n2. Com o modo LIGADO: drag-and-drop travado, botões de adicionar card ocultos, e o modal de card abre somente-leitura (fieldset disabled) — dá pra ver descrição/checklist/comentários mas não editar/salvar/excluir. Auxiliares de visualização (filtro de labels, ordenação, colapso de release) seguem ativos.\n3. Para DESLIGAR: exige confirmação explícita de que as mudanças podem divergir do fluxo automatizado. Ligar de volta não exige confirmação (travar é seguro).\n4. Guarda defensiva: nenhuma mutação (persistBoard/saveKanbanBoard) roda com o modo ligado.\n\nACEITE: reload preserva o estado; com o modo ligado nenhum card arrasta e o modal não salva; desligar pede confirmação.",
+      "labels": [
+        "studio",
+        "ux",
+        "feature"
+      ],
+      "version": "",
+      "commitHash": "",
+      "completedAt": null,
+      "order": 2000
     }
   ]
 }
