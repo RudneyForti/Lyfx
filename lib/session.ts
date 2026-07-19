@@ -14,6 +14,7 @@
  */
 
 import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
 
@@ -188,10 +189,40 @@ export async function invalidateOtherSessions(
   });
 }
 
-/** Throws when unauthenticated. Returns the userId. */
+/**
+ * CS-49: builds the login URL, preserving the current route (from the
+ * x-pathname header the proxy injects) as ?redirect= so the user returns
+ * where they were after signing back in.
+ *
+ * Open-redirect guard: only a same-site absolute path ("/...", never "//")
+ * is kept — mirrors the defense in app/login/actions.ts. Falls back to a
+ * bare "/login" when the header is absent or unsafe.
+ */
+async function loginUrl(): Promise<string> {
+  try {
+    const path = (await headers()).get("x-pathname");
+    if (path && path.startsWith("/") && !path.startsWith("//")) {
+      return `/login?redirect=${encodeURIComponent(path)}`;
+    }
+  } catch {
+    /* headers() unavailable outside a request scope — fall through */
+  }
+  return "/login";
+}
+
+/**
+ * CS-49: redirects to /login when unauthenticated (no session, or one that
+ * expired/was revoked) instead of throwing — a thrown error surfaced the
+ * custom error boundary (`lim f(t) = ∅`) on session expiry. Returns the
+ * userId for authenticated callers; never returns otherwise.
+ *
+ * Note for callers that wrap this in try/catch: `redirect()` throws a
+ * framework control-flow error — rethrow it with `unstable_rethrow(e)` at the
+ * top of the catch so the redirect isn't swallowed (see app/actions/transactions.ts).
+ */
 export async function requireAuth(): Promise<string> {
   const s = await getSession();
-  if (!s) throw new Error("Unauthenticated");
+  if (!s) redirect(await loginUrl());
   // Atualiza lastSeenAt em background
   touchSession(s.sessionId);
   return s.userId;
@@ -200,7 +231,7 @@ export async function requireAuth(): Promise<string> {
 /** Same as requireAuth but returns the full object (for actions that need the sessionId). */
 export async function requireSession(): Promise<{ userId: string; sessionId: string }> {
   const s = await getSession();
-  if (!s) throw new Error("Unauthenticated");
+  if (!s) redirect(await loginUrl());
   touchSession(s.sessionId);
   return s;
 }
