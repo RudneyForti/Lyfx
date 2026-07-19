@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-07-19T13:01:51.335Z",
+  "lastUpdated": "2026-07-19T19:03:05.128Z",
   "columns": [
     {
       "id": "backlog",
@@ -1155,7 +1155,7 @@
     },
     {
       "id": "cs-73",
-      "columnId": "in-progress",
+      "columnId": "done",
       "csNumber": "CS-73",
       "title": "Auto-sync do roadmap no merge",
       "description": "OBJETIVO: manter o board do Studio em sincronia com o git automaticamente — quando um PR mergeia no main, o card referenciado vai pra Concluídas sem passo manual.\n\nESCOPO:\n1. GitHub Action (.github/workflows/roadmap-sync.yml) disparada em pull_request closed+merged.\n2. Resolve o número da CS pelo título do PR (CS-NN) ou nome da branch (feature/NN-...), move o card pra done, carimba o hash do merge, e commita o board no main.\n3. version fica vazio (carimbado só no release, pela regra do git-tag).\n4. Guardas: sem CS / card ausente / já done = no-op.\n\nACEITE: ao mergear um PR com CS-NN, o card correspondente aparece em Concluídas no main sem intervenção.",
@@ -1165,8 +1165,8 @@
         "studio"
       ],
       "version": "",
-      "commitHash": "",
-      "completedAt": null,
+      "commitHash": "ede1065",
+      "completedAt": "2026-07-19T19:03:05.058Z",
       "order": 2100
     }
   ]
