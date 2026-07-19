@@ -82,13 +82,14 @@ Each stage also moves the work's card on the Studio roadmap — see Roadmap boar
 
 ### The card's column tracks the pipeline stage — updated in the same session
 
-| Pipeline stage | Board move | Stamp |
-|----------------|-----------|-------|
-| E3 — branch created | Backlog → **Em andamento** | `startedAt` |
-| E6 — PR merged | Em andamento → **Concluídas** | `commitHash` = squash-merge SHA |
-| E7 — release tagged | (already Done) | `version` = the tag it shipped in |
+| Pipeline stage | Board move | Who / how |
+|----------------|-----------|-----------|
+| E3 — branch created | Backlog → **Em andamento** (`startedAt`) | NEO, inside the work's PR |
+| E6 — PR merged | Em andamento → **Concluídas** (`commitHash` = merge SHA) | **Automatic** — `.github/workflows/roadmap-sync.yml` |
+| E7 — release tagged | (already Done) | NEO stamps `version` = the tag |
 
-- The board edit rides **inside the work's PR** whenever possible (same diff), so merged `main` always reflects reality. The `Em andamento` move at E3 may be a small separate board commit so the owner sees live what's being executed.
+- **The E6 move is automated.** On PR merge, `roadmap-sync.yml` resolves the CS number from the PR title (`CS-NN`) or the branch (`feature/NN-…`), moves that card to Concluídas, stamps the merge SHA, and commits the board to `main`. So the roadmap tracks git completion with no manual step. For the automation to fire, **the PR title or branch must carry the CS number.**
+- The `Em andamento` move (E3) rides **inside the work's PR** (same diff), so merged `main` reflects reality and the owner sees live what's being executed. The card lands in the PR as `Em andamento`; the merge promotes it to Concluídas automatically.
 - **`version` is stamped only at release** — never before a matching git tag exists (see Versioning authority). A merged-but-unreleased card sits in Concluídas with an empty version until E7.
 
 ### Reconciliation

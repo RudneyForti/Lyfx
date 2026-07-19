@@ -1,0 +1,49 @@
+name: Roadmap sync on merge
+
+# Keeps the Studio roadmap (docs/cs-board.json) in sync with git: when a PR is
+# merged into main, the CS card it references is moved to "Concluídas" and
+# stamped with the merge commit — automatically, so the board reflects git
+# completion without a manual step.
+#
+# Runs on a GitHub-hosted runner (no Docker needed). Pushes a small board-only
+# commit to main; that push does not re-trigger CI (CI runs on pull_request)
+# nor this workflow (it runs on pull_request too), so there's no loop.
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  move-card:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Move the merged CS card to Concluídas
+        # Values passed via env (never interpolated into the shell) to avoid
+        # command injection from a crafted branch name or PR title.
+        env:
+          BRANCH: ${{ github.head_ref }}
+          TITLE: ${{ github.event.pull_request.title }}
+          SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: node scripts/roadmap-move-to-done.mjs "$BRANCH" "$TITLE" "$SHA"
+
+      - name: Commit if the board changed
+        run: |
+          if git diff --quiet -- docs/cs-board.json; then
+            echo "No card change — nothing to commit."
+          else
+            git config user.name  "lyfx-roadmap-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/cs-board.json
+            git commit -m "chore(roadmap): move merged CS card to Concluídas [skip ci]"
+            git push origin HEAD:main
+          fi
