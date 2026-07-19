@@ -114,7 +114,7 @@ export function StudioMain({ data, docs, liveSchema, appConfig, kanbanBoard }: {
         {tab === "panel"         && <ControlPanelTab appConfig={appConfig} data={data} />}
         {tab === "notifications" && <NotificationsTab users={data.users} plans={data.plans} />}
         {tab === "security"      && <SecurityTab users={data.users} />}
-        {tab === "roadmap"       && <KanbanBoardComponent initialBoard={kanbanBoard} />}
+        {tab === "roadmap"       && <KanbanBoardComponent initialBoard={kanbanBoard} initialAssisted={appConfig.find(c => c.key === "kanbanAssistedMode")?.value !== "0"} />}
         {tab === "notes"         && <NotesTab appConfig={appConfig} />}
         {tab === "data"          && <DataTab data={data} />}
         {tab === "docs"          && <DocsTab content={docs} />}

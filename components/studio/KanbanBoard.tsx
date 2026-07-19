@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect, useMemo } from "react";
-import { saveKanbanBoard } from "@/app/studio/actions";
+import { saveKanbanBoard, setAppConfig } from "@/app/studio/actions";
 import type { KanbanBoard, KanbanCard, KanbanColumn } from "@/app/studio/actions";
 // Pure helpers come straight from lib (a "use server" barrel only re-exports
 // async functions and types, so client-side helpers can't route through it).
@@ -11,6 +11,7 @@ import {
   IconCalendar, IconTag, IconTrash, IconLoader2,
   IconSortAscending, IconSortDescending, IconChevronDown, IconChevronRight,
   IconMessageCircle, IconListCheck, IconClock, IconSend, IconArrowRight, IconSearch,
+  IconLock, IconLockOpen, IconAlertTriangle,
 } from "@tabler/icons-react";
 
 /* ── helpers ── */
@@ -107,18 +108,19 @@ function LabelBadge({ label }: { label: string }) {
 
 /* ── Card component ── */
 function KanbanCardItem({
-  card, onDragStart, onDragEnd, onClick, colAccent,
+  card, onDragStart, onDragEnd, onClick, colAccent, draggable = true,
 }: {
   card: KanbanCard;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
   onClick: () => void;
   colAccent: string;
+  draggable?: boolean;
 }) {
   const [hov, setHov] = useState(false);
   return (
     <div
-      draggable
+      draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
@@ -135,7 +137,7 @@ function KanbanCardItem({
         position: "relative",
       }}
     >
-      {/* CS number + grip */}
+      {/* CS number + grip (grip hidden when not draggable — read-only mode) */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
         <span style={{
           fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
@@ -145,7 +147,7 @@ function KanbanCardItem({
         }}>
           {card.csNumber}
         </span>
-        <IconGripVertical size={13} style={{ color: "var(--color-f4)", opacity: hov ? 1 : 0.4 }} />
+        {draggable && <IconGripVertical size={13} style={{ color: "var(--color-f4)", opacity: hov ? 1 : 0.4 }} />}
       </div>
 
       {/* Title */}
@@ -240,7 +242,7 @@ const ALL_LABELS = [
 ];
 
 function CardModal({
-  card, columns, onClose, onSave, onDelete,
+  card, columns, onClose, onSave, onDelete, readOnly = false,
 }: {
   card: KanbanCard;
   columns: KanbanColumn[];
@@ -249,6 +251,8 @@ function CardModal({
    *  column-move activity entry), and the draft must sync to that result. */
   onSave: (updated: KanbanCard) => KanbanCard;
   onDelete: (id: string) => void;
+  /** CS-72: assisted (read-only) mode — the whole card is view-only. */
+  readOnly?: boolean;
 }) {
   const [draft, setDraft] = useState<KanbanCard>({ ...card });
   const [labelInput, setLabelInput] = useState("");
@@ -317,7 +321,7 @@ function CardModal({
   useEffect(() => {
     function kh(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if (e.key === "s" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (dirty) handleSave(); }
+      if (!readOnly && e.key === "s" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (dirty) handleSave(); }
     }
     window.addEventListener("keydown", kh);
     return () => window.removeEventListener("keydown", kh);
@@ -361,6 +365,16 @@ function CardModal({
               <span style={{ fontSize: 11, color: "var(--color-f4)" }}>
                 em <strong style={{ color: col?.title ? style.accent : "var(--color-f3)" }}>{col?.title ?? draft.columnId}</strong>
               </span>
+              {readOnly && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+                  display: "flex", alignItems: "center", gap: 4,
+                  color: "var(--color-cyan)", background: "rgba(34,211,238,0.12)",
+                  border: "1px solid var(--color-cyan)", padding: "2px 8px", borderRadius: 10,
+                }}>
+                  <IconLock size={10} /> SOMENTE LEITURA
+                </span>
+              )}
               {draft.completedAt && (
                 <span style={{ fontSize: 11, color: "var(--color-f4)", marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
                   <IconCalendar size={11} />
@@ -372,6 +386,7 @@ function CardModal({
             <input
               value={draft.title}
               onChange={e => update("title", e.target.value)}
+              readOnly={readOnly}
               style={{
                 width: "100%", background: "transparent", border: "none", outline: "none",
                 fontSize: 20, fontWeight: 700, color: "var(--color-f1)",
@@ -388,6 +403,10 @@ function CardModal({
           </button>
         </div>
 
+        {/* CS-72: a disabled fieldset makes the whole card body view-only in
+            assisted mode — every input/button/select/checkbox inside is disabled
+            at once. The close (X) and Escape stay functional (outside it). */}
+        <fieldset disabled={readOnly} style={{ border: 0, margin: 0, padding: 0, minInlineSize: 0 }}>
         {/* Body */}
         <div style={{ padding: "20px", display: "grid", gridTemplateColumns: "1fr 220px", gap: 20 }}>
           {/* Main: description */}
@@ -679,40 +698,50 @@ function CardModal({
           </div>
         </div>
 
+        </fieldset>
+
         {/* Footer */}
         <div style={{
           borderTop: "1px solid var(--color-border)",
           padding: "12px 20px", display: "flex", alignItems: "center", gap: 8,
         }}>
-          <button
-            onClick={handleSave}
-            disabled={!dirty || isPending}
-            style={{
-              background: dirty ? style.accent : "var(--color-bg3, #1e293b)",
-              color: dirty ? "#0f172a" : "var(--color-f4)",
-              border: "none", borderRadius: 8, fontWeight: 600, fontSize: 13,
-              padding: "8px 18px", cursor: dirty ? "pointer" : "not-allowed",
-              display: "flex", alignItems: "center", gap: 6,
-              transition: "all 150ms",
-            }}
-          >
-            {isPending ? <IconLoader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <IconCheck size={14} />}
-            {dirty ? "Salvar alterações" : "Salvo"}
-          </button>
-          <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 11, color: "var(--color-f4)" }}>Ctrl+S para salvar · Esc para fechar</span>
-          <button
-            onClick={handleDelete}
-            style={{
-              background: "rgba(248,113,113,0.1)", color: "#f87171",
-              border: "1px solid rgba(248,113,113,0.3)", borderRadius: 8,
-              fontSize: 13, fontWeight: 600, padding: "7px 12px", cursor: "pointer",
-              display: "flex", alignItems: "center", gap: 5,
-            }}
-          >
-            <IconTrash size={13} />
-            Excluir
-          </button>
+          {readOnly ? (
+            <span style={{ fontSize: 12, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 6 }}>
+              <IconLock size={13} /> Modo assistido — somente leitura. Esc para fechar.
+            </span>
+          ) : (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={!dirty || isPending}
+                style={{
+                  background: dirty ? style.accent : "var(--color-bg3, #1e293b)",
+                  color: dirty ? "#0f172a" : "var(--color-f4)",
+                  border: "none", borderRadius: 8, fontWeight: 600, fontSize: 13,
+                  padding: "8px 18px", cursor: dirty ? "pointer" : "not-allowed",
+                  display: "flex", alignItems: "center", gap: 6,
+                  transition: "all 150ms",
+                }}
+              >
+                {isPending ? <IconLoader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <IconCheck size={14} />}
+                {dirty ? "Salvar alterações" : "Salvo"}
+              </button>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 11, color: "var(--color-f4)" }}>Ctrl+S para salvar · Esc para fechar</span>
+              <button
+                onClick={handleDelete}
+                style={{
+                  background: "rgba(248,113,113,0.1)", color: "#f87171",
+                  border: "1px solid rgba(248,113,113,0.3)", borderRadius: 8,
+                  fontSize: 13, fontWeight: 600, padding: "7px 12px", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 5,
+                }}
+              >
+                <IconTrash size={13} />
+                Excluir
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -984,8 +1013,13 @@ function LabelFilterDropdown({
 }
 
 /* ── Main KanbanBoard ── */
-export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
+export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialBoard: KanbanBoard; initialAssisted?: boolean }) {
   const [board, setBoard] = useState<KanbanBoard>(initialBoard);
+  // CS-72: assisted (read-only) mode — the board is a view-only surface so the
+  // owner never makes authoritative changes that would diverge from the agent's
+  // automated flow. Default ON; turning it OFF requires an explicit confirmation.
+  const [assisted, setAssisted] = useState<boolean>(initialAssisted);
+  const [confirmUnlock, setConfirmUnlock] = useState(false);
   const [activeModal, setActiveModal] = useState<KanbanCard | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null);
   const [dragCardId, setDragCardId] = useState<string | null>(null);
@@ -1018,8 +1052,19 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
     });
   }
 
+  /* CS-72: assisted-mode toggle. Persisted in AppConfig so it survives reloads. */
+  function persistAssisted(next: boolean) {
+    setAssisted(next);
+    setAppConfig("kanbanAssistedMode", next ? "1" : "0").catch(() => {});
+  }
+  function handleAssistedToggle() {
+    if (assisted) setConfirmUnlock(true); // turning OFF is authoritative → confirm
+    else persistAssisted(true);           // turning ON (locking) is always safe
+  }
+
   /* auto-save with debounce */
   function persistBoard(next: KanbanBoard) {
+    if (assisted) return; // CS-72: read-only mode never mutates the board
     setBoard(next);
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
@@ -1141,6 +1186,26 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
             </span>}
           </p>
         </div>
+
+        {/* CS-72: assisted (read-only) mode toggle */}
+        <button
+          onClick={handleAssistedToggle}
+          title={assisted
+            ? "Modo assistido ativo — board somente leitura. Clique para liberar edição."
+            : "Edição liberada — mudanças são autoritativas. Clique para voltar ao modo assistido."}
+          style={{
+            display: "flex", alignItems: "center", gap: 7, flexShrink: 0,
+            fontSize: 12, fontWeight: 600, cursor: "pointer",
+            padding: "7px 12px", borderRadius: 9,
+            background: assisted ? "rgba(34,211,238,0.12)" : "rgba(248,113,113,0.10)",
+            border: `1px solid ${assisted ? "var(--color-cyan)" : "rgba(248,113,113,0.5)"}`,
+            color: assisted ? "var(--color-cyan)" : "#f87171",
+            transition: "all 150ms",
+          }}
+        >
+          {assisted ? <IconLock size={15} /> : <IconLockOpen size={15} />}
+          {assisted ? "Modo assistido" : "Edição liberada"}
+        </button>
       </div>
 
       {/* Label filter — searchable multi-select (CS-59) */}
@@ -1169,9 +1234,9 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
           return (
             <div
               key={col.id}
-              onDragOver={e => { e.preventDefault(); setDragOverCol(col.id); }}
+              onDragOver={e => { if (assisted) return; e.preventDefault(); setDragOverCol(col.id); }}
               onDragLeave={() => setDragOverCol(null)}
-              onDrop={() => handleDrop(col.id)}
+              onDrop={() => { if (!assisted) handleDrop(col.id); }}
               style={{
                 background: isOver ? style.accent + "0d" : "rgba(255,255,255,0.02)",
                 border: `1px solid ${isOver ? style.accent + "55" : "var(--color-border)"}`,
@@ -1219,20 +1284,22 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
                       : <><IconSortDescending size={13} /><span style={{ fontSize: 9, letterSpacing: "0.03em" }}>novas</span></>
                     }
                   </button>
-                  {/* Add card */}
-                  <button
-                    onClick={() => setAddingIn(addingIn === col.id ? null : col.id)}
-                    title="Adicionar card"
-                    style={{
-                      background: "none", border: "none", cursor: "pointer",
-                      color: "var(--color-f4)", padding: 2, borderRadius: 4,
-                      display: "flex",
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.color = style.accent)}
-                    onMouseLeave={e => (e.currentTarget.style.color = "var(--color-f4)")}
-                  >
-                    <IconPlus size={14} />
-                  </button>
+                  {/* Add card — hidden in assisted (read-only) mode */}
+                  {!assisted && (
+                    <button
+                      onClick={() => setAddingIn(addingIn === col.id ? null : col.id)}
+                      title="Adicionar card"
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        color: "var(--color-f4)", padding: 2, borderRadius: 4,
+                        display: "flex",
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.color = style.accent)}
+                      onMouseLeave={e => (e.currentTarget.style.color = "var(--color-f4)")}
+                    >
+                      <IconPlus size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1253,6 +1320,7 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
                     key={card.id}
                     card={card}
                     colAccent={style.accent}
+                    draggable={!assisted}
                     onDragStart={e => {
                       e.dataTransfer.setData("cardId", card.id);
                       setDragCardId(card.id);
@@ -1327,10 +1395,71 @@ export function KanbanBoard({ initialBoard }: { initialBoard: KanbanBoard }) {
         <CardModal
           card={activeModal}
           columns={board.columns}
+          readOnly={assisted}
           onClose={() => setActiveModal(null)}
           onSave={handleSaveCard}
           onDelete={handleDeleteCard}
         />
+      )}
+
+      {/* CS-72: confirmation before leaving assisted (read-only) mode */}
+      {confirmUnlock && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setConfirmUnlock(false); }}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9500,
+            background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+          }}
+        >
+          <div style={{
+            width: "100%", maxWidth: 440, background: "var(--color-bg2)",
+            border: "1px solid rgba(248,113,113,0.4)", borderRadius: 16, overflow: "hidden",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+          }}>
+            <div style={{ padding: "20px 22px 8px", display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.35)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <IconAlertTriangle size={19} color="#f87171" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-f1)", fontFamily: "var(--font-display)" }}>
+                  Liberar edição do board?
+                </h3>
+                <p style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.55, color: "var(--color-f3)" }}>
+                  Ao sair do modo assistido, suas mudanças no board (mover, editar, criar ou
+                  excluir cards) passam a ser <strong style={{ color: "#f87171" }}>autoritativas</strong> e
+                  podem divergir do fluxo automatizado que o agente gerencia — que mantém o
+                  status dos cards em sincronia com o desenvolvimento.
+                </p>
+              </div>
+            </div>
+            <div style={{ padding: "12px 22px 18px", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setConfirmUnlock(false)}
+                style={{
+                  fontSize: 13, fontWeight: 600, padding: "8px 16px", borderRadius: 8, cursor: "pointer",
+                  background: "none", color: "var(--color-f3)", border: "1px solid var(--color-border2)",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { persistAssisted(false); setConfirmUnlock(false); }}
+                style={{
+                  fontSize: 13, fontWeight: 700, padding: "8px 16px", borderRadius: 8, cursor: "pointer",
+                  background: "#f87171", color: "#0f172a", border: "none",
+                  display: "flex", alignItems: "center", gap: 6,
+                }}
+              >
+                <IconLockOpen size={14} /> Entendo, liberar edição
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
