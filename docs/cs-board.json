@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-07-19T19:12:47.736Z",
+  "lastUpdated": "2026-07-19T23:47:19.601Z",
   "columns": [
     {
       "id": "backlog",
@@ -1171,7 +1171,7 @@
     },
     {
       "id": "cs-74",
-      "columnId": "in-progress",
+      "columnId": "done",
       "csNumber": "CS-74",
       "title": "Grupo \"Em aberto\" no topo das Concluídas",
       "description": "OBJETIVO: os cards mergeados mas ainda não lançados (versão vazia) acumulam num grupo \"Em aberto\" no TOPO da coluna Concluídas — o balde do próximo release — em vez de \"Sem release\" no fim.\n\nESCOPO:\n1. groupByRelease (lib/kanban.ts): grupo sem versão ordenado primeiro (topo), releases lançados depois (mais novo primeiro).\n2. KanbanBoard: rótulo \"Em aberto\" + destaque âmbar (\"não lançado\") pra distinguir do que já foi lançado (verde). Expandido por padrão (é o grupo do topo).\n\nACEITE: cards done sem versão aparecem agrupados em \"Em aberto\" no topo; releases tagueados abaixo.",
@@ -1180,8 +1180,8 @@
         "ux"
       ],
       "version": "",
-      "commitHash": "",
-      "completedAt": null,
+      "commitHash": "869b70f",
+      "completedAt": "2026-07-19T23:47:19.596Z",
       "order": 2200
     }
   ]
