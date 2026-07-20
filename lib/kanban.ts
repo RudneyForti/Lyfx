@@ -152,6 +152,37 @@ export function groupByRelease(cards: KanbanCard[]): ReleaseGroup[] {
   return releases.map((release) => ({ release, cards: byRelease.get(release)! }));
 }
 
+/**
+ * CS-76: the columns whose cards live in the local Postgres layer (editable,
+ * pre-PR). Everything else (done/approved, and later review) is owned by git
+ * and read-only. Kept here so both the server assembly and the client lock
+ * logic share one definition.
+ */
+export const LOCAL_COLUMN_IDS = ["backlog", "blocked", "in-progress"] as const;
+export type LocalColumnId = (typeof LOCAL_COLUMN_IDS)[number];
+
+export function isLocalColumn(columnId: string): columnId is LocalColumnId {
+  return (LOCAL_COLUMN_IDS as readonly string[]).includes(columnId);
+}
+
+/**
+ * Assembles the board the Studio renders from its two sources: the local
+ * cards (Postgres — backlog/blocked/in-progress) and the git board (the
+ * `done` archive). Precedence is git > local: if a CS reached `done`, it has
+ * been promoted, so any lingering local copy is dropped. Columns come from the
+ * git board so the layout stays a single source.
+ */
+export function assembleBoard(gitBoard: KanbanBoard, localCards: KanbanCard[]): KanbanBoard {
+  const doneCards = gitBoard.cards.filter((c) => c.columnId === "done");
+  const promoted = new Set(doneCards.map((c) => c.csNumber).filter(Boolean));
+  const local = localCards.filter((c) => isLocalColumn(c.columnId) && !promoted.has(c.csNumber));
+  return {
+    ...gitBoard,
+    lastUpdated: gitBoard.lastUpdated,
+    cards: [...local, ...doneCards],
+  };
+}
+
 /** Days from today (local midnight) until the given ISO date; negative = overdue. */
 export function daysUntil(iso: string, now: Date = new Date()): number {
   const due = new Date(iso);

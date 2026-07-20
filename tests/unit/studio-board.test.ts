@@ -5,8 +5,14 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("@/app/studio/auth", () => ({ requireAdmin: vi.fn().mockResolvedValue(undefined) }));
 
 // Hoisted so the vi.mock factory (itself hoisted) can reference it.
-const { readFileMock } = vi.hoisted(() => ({ readFileMock: vi.fn() }));
+const { readFileMock, findManyMock } = vi.hoisted(() => ({
+  readFileMock: vi.fn(),
+  findManyMock: vi.fn().mockResolvedValue([]),
+}));
 vi.mock("fs/promises", () => ({ readFile: readFileMock, writeFile: vi.fn() }));
+// CS-76: getKanbanBoard now assembles git (done archive) + Postgres (local
+// layer). Stub the DB so these tests exercise the git-file side in isolation.
+vi.mock("@/lib/db", () => ({ db: { roadmapCard: { findMany: findManyMock } } }));
 
 import { getKanbanBoard } from "@/app/studio/board";
 
@@ -40,17 +46,35 @@ describe("getKanbanBoard — production file-read resilience (regression: /studi
     expect(thrownCode).toBe("EACCES");
   });
 
-  it("parses and migrates a present board file (v1 → v2)", async () => {
+  it("parses and migrates the git board's done archive (v1 → v2)", async () => {
+    // The git file now contributes only `done` cards to the assembled board —
+    // pre-PR columns come from Postgres. A done card must still be migrated.
     readFileMock.mockImplementation(async () =>
       JSON.stringify({
         version: 1,
-        columns: [{ id: "backlog", title: "Backlog", order: 0 }],
-        cards: [{ id: "c1", columnId: "backlog", csNumber: "CS-1", title: "t", order: 0 }],
+        columns: [{ id: "done", title: "Concluídas", order: 3 }],
+        cards: [{ id: "c1", columnId: "done", csNumber: "CS-1", title: "t", order: 0 }],
       })
     );
     const board = await getKanbanBoard();
     expect(board.version).toBe(2);
+    expect(board.cards).toHaveLength(1);
+    expect(board.cards[0].csNumber).toBe("CS-1");
     expect(board.cards[0].checklist).toEqual([]); // v2 field added by migration
     expect(board.cards[0].comments).toEqual([]);
+  });
+
+  it("drops the git file's non-done cards — the local layer owns those", async () => {
+    // A backlog card in the git file is superseded by Postgres; with the DB
+    // empty it must not leak into the assembled board.
+    readFileMock.mockImplementation(async () =>
+      JSON.stringify({
+        version: 2,
+        columns: [{ id: "backlog", title: "Backlog", order: 0 }],
+        cards: [{ id: "c1", columnId: "backlog", csNumber: "CS-9", title: "stale", order: 0 }],
+      })
+    );
+    const board = await getKanbanBoard();
+    expect(board.cards).toEqual([]);
   });
 });
