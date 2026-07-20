@@ -27,7 +27,7 @@ function card(over: Partial<KanbanCard>): KanbanCard {
   return {
     id: over.csNumber ?? "x", columnId: "backlog", csNumber: "CS-1", title: "t",
     description: "", labels: [], version: "", commitHash: "", completedAt: null,
-    order: 0, startedAt: null, dueAt: null, checklist: [], comments: [], ...over,
+    order: 0, startedAt: null, dueAt: null, checklist: [], comments: [], prNumber: null, ...over,
   };
 }
 

@@ -34,7 +34,8 @@ jobs:
           BRANCH: ${{ github.head_ref }}
           TITLE: ${{ github.event.pull_request.title }}
           SHA: ${{ github.event.pull_request.merge_commit_sha }}
-        run: node scripts/roadmap-move-to-done.mjs "$BRANCH" "$TITLE" "$SHA"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/roadmap-move-to-done.mjs "$BRANCH" "$TITLE" "$SHA" "$PR_NUMBER"
 
       - name: Commit if the board changed
         run: |

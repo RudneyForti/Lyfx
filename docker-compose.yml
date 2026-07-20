@@ -47,6 +47,9 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       ADMIN_SECRET: ${ADMIN_SECRET}
       NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+      # CS-76: fine-grained PAT (read-only Contents + Pull requests) — roadmap GitHub source.
+      # Optional: without it the board falls back to the local file (stale banner).
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     depends_on:
       db-prod:
         condition: service_healthy

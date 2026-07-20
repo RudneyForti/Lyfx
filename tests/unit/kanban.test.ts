@@ -9,6 +9,8 @@ import {
   daysUntil,
   assembleBoard,
   isLocalColumn,
+  resolveCsNumber,
+  REVIEW_COLUMN_ID,
   BOARD_SCHEMA_VERSION,
   type KanbanBoard,
   type KanbanCard,
@@ -174,8 +176,10 @@ describe("assembleBoard", () => {
     const board = assembleBoard(git, local);
     const ids = board.cards.map(c => c.csNumber).sort();
     expect(ids).toEqual(["CS-49", "CS-77", "CS-78"]);
-    // columns come from the git board (single source of layout)
-    expect(board.columns).toBe(git.columns);
+    // columns come from the git board (plus the synthetic Revisão column)
+    expect(board.columns.map(c => c.id)).toEqual(
+      expect.arrayContaining(git.columns.map(c => c.id))
+    );
   });
 
   it("git wins: a promoted CS drops its lingering local copy", () => {
@@ -194,6 +198,74 @@ describe("assembleBoard", () => {
     const local = [mkCard("cs-x", "done", "CS-X"), mkCard("cs-77", "backlog", "CS-77")];
     const board = assembleBoard(git, local);
     expect(board.cards.map(c => c.csNumber)).toEqual(["CS-77"]);
+  });
+
+  /* ── phase B: open PRs → Revisão ── */
+
+  it("projects a local card into Revisão when its CS has an open PR", () => {
+    const git = gitBoard([]);
+    const local = [mkCard("cs-77", "in-progress", "CS-77"), mkCard("cs-78", "backlog", "CS-78")];
+    const board = assembleBoard(git, local, [{ csNumber: "CS-77", prNumber: 40, title: "feat: x (CS-77)" }]);
+
+    const cs77 = board.cards.find(c => c.csNumber === "CS-77")!;
+    expect(cs77.columnId).toBe(REVIEW_COLUMN_ID);
+    expect(cs77.prNumber).toBe(40);
+    expect(cs77.title).toBe("Sign session cookie"); // local card's data survives the projection
+    // CS-78 stays local; no duplicate CS-77 remains in a local column
+    expect(board.cards.filter(c => c.csNumber === "CS-77")).toHaveLength(1);
+    expect(board.cards.find(c => c.csNumber === "CS-78")!.columnId).toBe("backlog");
+  });
+
+  it("synthesizes a Revisão card from the PR when no local card exists", () => {
+    const board = assembleBoard(gitBoard([]), [], [{ csNumber: "CS-80", prNumber: 41, title: "fix: y (CS-80)" }]);
+    const c = board.cards.find(x => x.csNumber === "CS-80")!;
+    expect(c.columnId).toBe(REVIEW_COLUMN_ID);
+    expect(c.prNumber).toBe(41);
+  });
+
+  it("main outranks an open PR: a merged CS never shows in Revisão", () => {
+    const git = gitBoard([mkCard("cs-77", "done", "CS-77", "1.16.0")]);
+    const board = assembleBoard(git, [], [{ csNumber: "CS-77", prNumber: 40, title: "..." }]);
+    const cs77 = board.cards.filter(c => c.csNumber === "CS-77");
+    expect(cs77).toHaveLength(1);
+    expect(cs77[0].columnId).toBe("done");
+  });
+
+  it("appends the synthetic Revisão column between Bloqueado and Concluídas", () => {
+    const board = assembleBoard(gitBoard([]), []);
+    const ids = [...board.columns].sort((a, b) => a.order - b.order).map(c => c.id);
+    expect(ids.indexOf("review")).toBeGreaterThan(ids.indexOf("in-progress"));
+    expect(ids.indexOf("review")).toBeLessThan(ids.indexOf("done"));
+  });
+
+  it("splices local satellite annotations onto the locked done card (decision a)", () => {
+    const git = gitBoard([mkCard("cs-73", "done", "CS-73", "1.16.0")]);
+    const satellite = {
+      ...mkCard("cs-73-sat", "in-progress", "CS-73"),
+      checklist: [{ id: "c1", text: "spec written", done: true }],
+      comments: [{ id: "m1", text: "planning note", createdAt: "2026-07-01T00:00:00.000Z", type: "comment" as const }],
+    };
+    const board = assembleBoard(git, [satellite]);
+    const done = board.cards.find(c => c.csNumber === "CS-73")!;
+    expect(done.columnId).toBe("done");           // git owns position
+    expect(done.checklist).toHaveLength(1);        // annotations flow in
+    expect(done.comments[0].text).toBe("planning note");
+  });
+});
+
+describe("resolveCsNumber", () => {
+  it("prefers the PR title over the branch", () => {
+    expect(resolveCsNumber("feat(studio): x (CS-76)", "feature/99-other")).toBe("CS-76");
+  });
+  it("falls back to the branch prefix", () => {
+    expect(resolveCsNumber("feat: no cs here", "feature/72-assisted-mode")).toBe("CS-72");
+  });
+  it("keeps letter suffixes lowercase (board convention)", () => {
+    expect(resolveCsNumber("fix: z (CS-37B)", "")).toBe("CS-37b");
+    expect(resolveCsNumber("", "fix/37b-password-reset")).toBe("CS-37b");
+  });
+  it("returns null when nothing matches", () => {
+    expect(resolveCsNumber("chore: bump deps", "chore/bump-deps")).toBeNull();
   });
 });
 

@@ -44,6 +44,8 @@ export interface KanbanCard {
   dueAt:     string | null;
   checklist: KanbanChecklistItem[];
   comments:  KanbanComment[];
+  // CS-76 (phase B): PR that carried this CS — set on review/done cards.
+  prNumber:  number | null;
 }
 
 export interface KanbanBoard {
@@ -51,6 +53,9 @@ export interface KanbanBoard {
   lastUpdated: string;
   columns:     KanbanColumn[];
   cards:       KanbanCard[];
+  /** CS-76: true when the GitHub source failed and the board fell back to the
+   *  local git file — the done/review view may be behind origin/main. */
+  stale?: boolean;
 }
 
 export const BOARD_SCHEMA_VERSION = 2;
@@ -81,6 +86,7 @@ export function migrateBoard(raw: unknown): KanbanBoard {
       dueAt:       c.dueAt ?? null,
       checklist:   Array.isArray(c.checklist) ? c.checklist : [],
       comments:    Array.isArray(c.comments) ? c.comments : [],
+      prNumber:    typeof c.prNumber === "number" ? c.prNumber : null,
     })),
   };
 }
@@ -165,21 +171,100 @@ export function isLocalColumn(columnId: string): columnId is LocalColumnId {
   return (LOCAL_COLUMN_IDS as readonly string[]).includes(columnId);
 }
 
+/** CS-76 (phase B): the synthetic column projected from open PRs. GitHub-owned
+ *  and read-only — it exists only in the assembled view, never in storage. */
+export const REVIEW_COLUMN_ID = "review";
+export const REVIEW_COLUMN: KanbanColumn = { id: REVIEW_COLUMN_ID, title: "Revisão", order: 2.5 };
+
+/** An open PR resolved to its CS number (same resolution as roadmap-sync). */
+export interface OpenPRRef {
+  csNumber: string;
+  prNumber: number;
+  title:    string;
+}
+
+/** Resolves a CS number from a PR title or head branch — mirrors
+ *  scripts/roadmap-move-to-done.mjs so view and automation agree. */
+export function resolveCsNumber(title: string, branch: string): string | null {
+  // Board CS numbers are "CS-NN" with an optional lowercase suffix ("CS-37b").
+  const fromTitle = title.match(/CS-(\d+[a-z]?)/i);
+  if (fromTitle) return `CS-${fromTitle[1].toLowerCase()}`;
+  const fromBranch = branch.match(/^[a-z]+\/(\d+[a-z]?)[-_]/i);
+  if (fromBranch) return `CS-${fromBranch[1].toLowerCase()}`;
+  return null;
+}
+
 /**
- * Assembles the board the Studio renders from its two sources: the local
- * cards (Postgres — backlog/blocked/in-progress) and the git board (the
- * `done` archive). Precedence is git > local: if a CS reached `done`, it has
- * been promoted, so any lingering local copy is dropped. Columns come from the
- * git board so the layout stays a single source.
+ * Assembles the board the Studio renders from its three sources, with
+ * precedence main > open PR > local:
+ *
+ *  - git board (`done` archive)        → Concluídas, locked
+ *  - open PRs (GitHub API)             → Revisão (synthetic column), locked
+ *  - local cards (Postgres)            → Backlog / Bloqueado / Em andamento
+ *
+ * A CS in `done` drops its PR/local copies; a CS in an open PR projects its
+ * local card into Revisão (or synthesizes one from the PR title). Local rows
+ * of promoted cards survive as annotation satellites: their checklist and
+ * comments are spliced onto the locked git card (read-only) so planning notes
+ * are not lost at promotion.
  */
-export function assembleBoard(gitBoard: KanbanBoard, localCards: KanbanCard[]): KanbanBoard {
-  const doneCards = gitBoard.cards.filter((c) => c.columnId === "done");
+export function assembleBoard(
+  gitBoard: KanbanBoard,
+  localCards: KanbanCard[],
+  openPRs: OpenPRRef[] = []
+): KanbanBoard {
+  const byCs = new Map(localCards.filter((c) => c.csNumber).map((c) => [c.csNumber, c]));
+
+  // 1. main wins — done cards, annotated from their local satellite if any.
+  const doneCards = gitBoard.cards
+    .filter((c) => c.columnId === "done")
+    .map((c) => spliceAnnotations(c, byCs.get(c.csNumber)));
   const promoted = new Set(doneCards.map((c) => c.csNumber).filter(Boolean));
-  const local = localCards.filter((c) => isLocalColumn(c.columnId) && !promoted.has(c.csNumber));
+
+  // 2. open PRs — project the local card into Revisão, or synthesize one.
+  const reviewCards: KanbanCard[] = [];
+  const inReview = new Set<string>();
+  for (const pr of openPRs) {
+    if (!pr.csNumber || promoted.has(pr.csNumber) || inReview.has(pr.csNumber)) continue;
+    inReview.add(pr.csNumber);
+    const localCard = byCs.get(pr.csNumber);
+    reviewCards.push(
+      localCard
+        ? { ...localCard, columnId: REVIEW_COLUMN_ID, prNumber: pr.prNumber }
+        : {
+            id: pr.csNumber, columnId: REVIEW_COLUMN_ID, csNumber: pr.csNumber,
+            title: pr.title, description: "", labels: [], version: "", commitHash: "",
+            completedAt: null, order: pr.prNumber, startedAt: null, dueAt: null,
+            checklist: [], comments: [], prNumber: pr.prNumber,
+          }
+    );
+  }
+
+  // 3. local layer — whatever was not claimed by git or a PR.
+  const local = localCards.filter(
+    (c) => isLocalColumn(c.columnId) && !promoted.has(c.csNumber) && !inReview.has(c.csNumber)
+  );
+
+  const columns = gitBoard.columns.some((c) => c.id === REVIEW_COLUMN_ID)
+    ? gitBoard.columns
+    : [...gitBoard.columns, REVIEW_COLUMN].sort((a, b) => a.order - b.order);
+
   return {
     ...gitBoard,
-    lastUpdated: gitBoard.lastUpdated,
-    cards: [...local, ...doneCards],
+    columns,
+    cards: [...local, ...reviewCards, ...doneCards],
+  };
+}
+
+/** Splices a local satellite's annotations onto a git-owned card (decision
+ *  "a": preserved but read-only — the git card stays locked). Git fields win;
+ *  only checklist/comments flow in, and only when the git card has none. */
+function spliceAnnotations(gitCard: KanbanCard, satellite?: KanbanCard): KanbanCard {
+  if (!satellite) return gitCard;
+  return {
+    ...gitCard,
+    checklist: gitCard.checklist.length > 0 ? gitCard.checklist : satellite.checklist,
+    comments:  gitCard.comments.length  > 0 ? gitCard.comments  : satellite.comments,
   };
 }
 
