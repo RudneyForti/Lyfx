@@ -7,7 +7,10 @@ import {
   compareVersionsDesc,
   groupByRelease,
   daysUntil,
+  assembleBoard,
+  isLocalColumn,
   BOARD_SCHEMA_VERSION,
+  type KanbanBoard,
   type KanbanCard,
 } from "@/lib/kanban";
 
@@ -134,6 +137,63 @@ describe("groupByRelease", () => {
 
   it("returns an empty array for no cards", () => {
     expect(groupByRelease([])).toEqual([]);
+  });
+});
+
+describe("isLocalColumn", () => {
+  it("recognises the editable pre-PR columns", () => {
+    expect(isLocalColumn("backlog")).toBe(true);
+    expect(isLocalColumn("blocked")).toBe(true);
+    expect(isLocalColumn("in-progress")).toBe(true);
+  });
+  it("rejects git-owned and unknown columns", () => {
+    expect(isLocalColumn("done")).toBe(false);
+    expect(isLocalColumn("review")).toBe(false);
+    expect(isLocalColumn("")).toBe(false);
+  });
+});
+
+describe("assembleBoard", () => {
+  const mkCard = (id: string, columnId: string, csNumber: string, version = ""): KanbanCard =>
+    migrateBoard({ version: 1, lastUpdated: "x", columns: [], cards: [v1Card({ id, columnId, csNumber, version })] }).cards[0];
+
+  const gitBoard = (cards: KanbanCard[]): KanbanBoard => ({
+    version: 2,
+    lastUpdated: "2026-07-19T00:00:00.000Z",
+    columns: [
+      { id: "backlog",     title: "Backlog",      order: 0 },
+      { id: "in-progress", title: "Em andamento", order: 1 },
+      { id: "done",        title: "Concluídas",   order: 3 },
+    ],
+    cards,
+  });
+
+  it("merges local pre-PR cards with the git done archive", () => {
+    const git = gitBoard([mkCard("cs-49", "done", "CS-49", "1.16.0")]);
+    const local = [mkCard("cs-77", "backlog", "CS-77"), mkCard("cs-78", "in-progress", "CS-78")];
+    const board = assembleBoard(git, local);
+    const ids = board.cards.map(c => c.csNumber).sort();
+    expect(ids).toEqual(["CS-49", "CS-77", "CS-78"]);
+    // columns come from the git board (single source of layout)
+    expect(board.columns).toBe(git.columns);
+  });
+
+  it("git wins: a promoted CS drops its lingering local copy", () => {
+    const git = gitBoard([mkCard("cs-73", "done", "CS-73", "1.16.0")]);
+    const local = [mkCard("cs-73-local", "in-progress", "CS-73"), mkCard("cs-77", "backlog", "CS-77")];
+    const board = assembleBoard(git, local);
+    const cs73 = board.cards.filter(c => c.csNumber === "CS-73");
+    expect(cs73).toHaveLength(1);
+    expect(cs73[0].columnId).toBe("done"); // the git copy, not the local one
+    expect(board.cards.map(c => c.csNumber).sort()).toEqual(["CS-73", "CS-77"]);
+  });
+
+  it("ignores non-local cards that leak into the local list", () => {
+    const git = gitBoard([]);
+    // a stray 'done' card in the local source must not be rendered as local
+    const local = [mkCard("cs-x", "done", "CS-X"), mkCard("cs-77", "backlog", "CS-77")];
+    const board = assembleBoard(git, local);
+    expect(board.cards.map(c => c.csNumber)).toEqual(["CS-77"]);
   });
 });
 

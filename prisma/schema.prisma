@@ -253,6 +253,27 @@ model AppConfig {
   updatedAt DateTime @updatedAt
 }
 
+// CS-76: Roadmap local layer — the editable, pre-PR side of the Studio board.
+// Only cards that have NOT yet entered git own a row here (Backlog / Blocked /
+// In Progress). Once a card's CS appears in an open PR or in main, GitHub owns
+// its column and the card is locked; the row is kept only so its checklist and
+// comments can be spliced back onto the (read-only) approved card by csNumber.
+model RoadmapCard {
+  id          String    @id @default(cuid())
+  csNumber    String    @unique          // "CS-77" — join key against the git board
+  title       String
+  description String    @db.Text
+  columnId    String    @default("backlog") // backlog | blocked | in-progress
+  labels      String[]
+  order       Int       @default(0)
+  startedAt   DateTime?
+  dueAt       DateTime?
+  checklist   Json      @default("[]")   // KanbanChecklistItem[]
+  comments    Json      @default("[]")   // KanbanComment[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 // CS-18: Notification center
 model Notification {
   id          String    @id @default(cuid())

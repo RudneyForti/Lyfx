@@ -5,7 +5,7 @@ import { saveKanbanBoard, setAppConfig } from "@/app/studio/actions";
 import type { KanbanBoard, KanbanCard, KanbanColumn } from "@/app/studio/actions";
 // Pure helpers come straight from lib (a "use server" barrel only re-exports
 // async functions and types, so client-side helpers can't route through it).
-import { withActivity, groupByRelease, daysUntil } from "@/lib/kanban";
+import { withActivity, groupByRelease, daysUntil, isLocalColumn } from "@/lib/kanban";
 import {
   IconX, IconPlus, IconGripVertical, IconCheck, IconBrandGit,
   IconCalendar, IconTag, IconTrash, IconLoader2,
@@ -758,11 +758,14 @@ function NewCardForm({ columnId, onAdd, onCancel, accent }: {
   useEffect(() => { ref.current?.focus(); }, []);
 
   function submit() {
-    if (!title.trim()) return;
+    // CS-76: csNumber is the card's identity (upsert key against the local
+    // layer). Blank numbers would all collide on one row and clobber each
+    // other silently, so a real number is required to create.
+    if (!title.trim() || !csNum.trim()) return;
     const card: KanbanCard = {
-      id:          `card-${Date.now()}`,
+      id:          csNum.trim(),
       columnId,
-      csNumber:    csNum.trim() || `CS-?`,
+      csNumber:    csNum.trim(),
       title:       title.trim(),
       description: "",
       labels:      [],
@@ -1091,11 +1094,19 @@ export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialB
     if (!dragCardId) return;
     const card = board.cards.find(c => c.id === dragCardId);
     if (!card || card.columnId === targetColId) { setDragCardId(null); setDragOverCol(null); return; }
+    // CS-76: only the local layer is writable. A card cannot leave its git-owned
+    // column, nor be dropped into one — the git `done` archive is not rewritten
+    // from the UI, so such a move would lose the card. Cancel it silently.
+    if (!isLocalColumn(card.columnId) || !isLocalColumn(targetColId)) {
+      setDragCardId(null); setDragOverCol(null); return;
+    }
 
+    // The guard above guarantees a local target column, so a dropped card is
+    // never "done" — its completion stamp is always cleared.
     let updatedCard: KanbanCard = {
       ...card,
       columnId: targetColId,
-      completedAt: targetColId === "done" && !card.completedAt ? new Date().toISOString() : (targetColId !== "done" ? null : card.completedAt),
+      completedAt: null,
     };
     updatedCard = applyMoveEffects(updatedCard, card.columnId, targetColId);
     const next: KanbanBoard = {
@@ -1131,6 +1142,12 @@ export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialB
 
   /* add new card */
   function handleAddCard(card: KanbanCard) {
+    // CS-76: reject a duplicate CS number — it is the local layer's upsert key,
+    // so a collision would overwrite the existing card on save.
+    if (board.cards.some(c => c.csNumber === card.csNumber)) {
+      alert(`Já existe um card ${card.csNumber} no board.`);
+      return;
+    }
     // compute order: max in column + 1
     const colCards = board.cards.filter(c => c.columnId === card.columnId);
     const maxOrder = colCards.reduce((mx, c) => Math.max(mx, c.order), -1);
@@ -1178,8 +1195,11 @@ export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialB
             Roadmap de Change Specs
           </h2>
           <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "var(--color-f4)" }}>
-            {board.cards.length} cards · persistido em{" "}
-            <code style={{ fontSize: 11, color: "var(--color-cyan)" }}>docs/cs-board.json</code>
+            {board.cards.filter(c => isLocalColumn(c.columnId)).length} planejados{" "}
+            <code style={{ fontSize: 11, color: "var(--color-cyan)" }}>Postgres</code>
+            {" · "}
+            {board.cards.filter(c => c.columnId === "done").length} concluídos{" "}
+            <code style={{ fontSize: 11, color: "var(--color-cyan)" }}>git</code>
             {saving && <span style={{ marginLeft: 8, color: "var(--color-f4)" }}>
               <IconLoader2 size={10} style={{ animation: "spin 1s linear infinite", display: "inline", marginRight: 3 }} />
               salvando…
@@ -1320,7 +1340,7 @@ export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialB
                     key={card.id}
                     card={card}
                     colAccent={style.accent}
-                    draggable={!assisted}
+                    draggable={!assisted && isLocalColumn(card.columnId)}
                     onDragStart={e => {
                       e.dataTransfer.setData("cardId", card.id);
                       setDragCardId(card.id);
@@ -1406,7 +1426,10 @@ export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialB
         <CardModal
           card={activeModal}
           columns={board.columns}
-          readOnly={assisted}
+          // CS-76: git-owned cards (done/approved) are never editable from the
+          // Studio — the git board is not rewritten from the UI, so an edit
+          // would silently revert on reload. Lock them regardless of assisted mode.
+          readOnly={assisted || !isLocalColumn(activeModal.columnId)}
           onClose={() => setActiveModal(null)}
           onSave={handleSaveCard}
           onDelete={handleDeleteCard}
