@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-07-19T23:47:19.601Z",
+  "lastUpdated": "2026-07-20T03:05:58.055Z",
   "columns": [
     {
       "id": "backlog",
@@ -1183,6 +1183,23 @@
       "commitHash": "869b70f",
       "completedAt": "2026-07-19T23:47:19.596Z",
       "order": 2200
+    },
+    {
+      "id": "cs-76",
+      "columnId": "done",
+      "csNumber": "CS-76",
+      "title": "GitHub as roadmap source — Revisão column + PR refs (CS-76 phase B)",
+      "description": "",
+      "labels": [],
+      "version": "",
+      "commitHash": "b976491",
+      "completedAt": "2026-07-20T03:05:58.055Z",
+      "order": 9999,
+      "startedAt": null,
+      "dueAt": null,
+      "checklist": [],
+      "comments": [],
+      "prNumber": 37
     }
   ]
 }
