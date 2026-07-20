@@ -5,6 +5,7 @@ import path from "path";
 import { requireAdmin } from "./auth";
 import { db } from "@/lib/db";
 import { Prisma } from "@/lib/generated/prisma/client";
+import { fetchGitHubBoard, fetchOpenPRs } from "@/lib/roadmap-github";
 import {
   migrateBoard,
   assembleBoard,
@@ -86,6 +87,7 @@ function rowToCard(row: RoadmapRow): KanbanCard {
     dueAt:       row.dueAt ? row.dueAt.toISOString() : null,
     checklist:   Array.isArray(row.checklist) ? (row.checklist as KanbanChecklistItem[]) : [],
     comments:    Array.isArray(row.comments) ? (row.comments as KanbanComment[]) : [],
+    prNumber:    null, // local cards have no PR yet by definition
   };
 }
 
@@ -96,12 +98,23 @@ async function listLocalCards(): Promise<KanbanCard[]> {
 
 /**
  * Persists the local-column cards to Postgres: upsert every local card by its
- * CS number, then delete rows whose CS is no longer present locally (moved to a
- * git-owned column, or deleted). `done` cards are ignored here — git owns them.
+ * CS number, then prune rows whose CS vanished from the board entirely (user
+ * deleted the card). Rows whose CS moved to a git-owned column (review/done)
+ * are KEPT untouched — they become annotation satellites, spliced back onto
+ * the locked git card by assembleBoard (CS-76 decision "a").
  */
 async function saveLocalCards(cards: KanbanCard[]): Promise<void> {
   const local = cards.filter((c) => isLocalColumn(c.columnId) && c.csNumber.trim() !== "");
-  const keep = new Set(local.map((c) => c.csNumber));
+  // keep = every CS still on the board, in ANY column — not just local ones.
+  const keep = new Set(cards.map((c) => c.csNumber).filter((n) => n.trim() !== ""));
+
+  // Safety: an empty keep-set would make `notIn: []` match EVERY row and wipe
+  // the local layer. A legitimate save never has zero CS numbers on the board,
+  // so treat it as a malformed payload and refuse to prune.
+  if (keep.size === 0) {
+    if (local.length > 0) throw new Error("saveLocalCards: inconsistent board payload");
+    return;
+  }
 
   await db.$transaction([
     db.roadmapCard.deleteMany({ where: { csNumber: { notIn: [...keep] } } }),
@@ -140,8 +153,18 @@ async function saveLocalCards(cards: KanbanCard[]): Promise<void> {
 
 export async function getKanbanBoard(): Promise<KanbanBoard> {
   await requireAdmin();
-  const [gitBoard, localCards] = await Promise.all([readGitBoard(), listLocalCards()]);
-  return assembleBoard(gitBoard, localCards);
+  // CS-76 phase B: GitHub (origin/main + open PRs) is the source of truth for
+  // the git-owned columns; the local file is only the offline fallback.
+  const [ghBoard, openPRs, localCards] = await Promise.all([
+    fetchGitHubBoard(),
+    fetchOpenPRs(),
+    listLocalCards(),
+  ]);
+  const gitBoard = ghBoard ?? (await readGitBoard());
+  const board = assembleBoard(gitBoard, localCards, openPRs ?? []);
+  // stale when either GitHub read failed — done may lag main, review may be missing.
+  board.stale = ghBoard === null || openPRs === null;
+  return board;
 }
 
 export async function saveKanbanBoard(board: KanbanBoard): Promise<{ ok: boolean }> {

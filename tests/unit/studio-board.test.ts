@@ -13,6 +13,12 @@ vi.mock("fs/promises", () => ({ readFile: readFileMock, writeFile: vi.fn() }));
 // CS-76: getKanbanBoard now assembles git (done archive) + Postgres (local
 // layer). Stub the DB so these tests exercise the git-file side in isolation.
 vi.mock("@/lib/db", () => ({ db: { roadmapCard: { findMany: findManyMock } } }));
+// Phase B: GitHub is tried first — stub it as unreachable so these tests pin
+// the offline fallback path (file read + stale flag), with no real network.
+vi.mock("@/lib/roadmap-github", () => ({
+  fetchGitHubBoard: vi.fn().mockResolvedValue(null),
+  fetchOpenPRs: vi.fn().mockResolvedValue(null),
+}));
 
 import { getKanbanBoard } from "@/app/studio/board";
 
@@ -33,8 +39,10 @@ describe("getKanbanBoard — production file-read resilience (regression: /studi
 
     expect(thrownCode).toBeUndefined(); // did not crash
     expect(board!.cards).toEqual([]);
-    expect(board!.columns.map((c) => c.id)).toEqual(["backlog", "in-progress", "blocked", "done"]);
+    // phase B: the synthetic Revisão column is appended (order 2.5)
+    expect(board!.columns.map((c) => c.id)).toEqual(["backlog", "in-progress", "blocked", "review", "done"]);
     expect(board!.version).toBe(2);
+    expect(board!.stale).toBe(true); // GitHub stubbed unreachable → offline fallback
   });
 
   it("re-throws non-ENOENT errors instead of masking them", async () => {

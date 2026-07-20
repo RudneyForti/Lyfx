@@ -51,6 +51,8 @@ const COLUMN_STYLES: Record<string, { accent: string; badge: string; bg: string 
   "backlog":     { accent: "#64748b", badge: "rgba(100,116,139,0.15)", bg: "rgba(100,116,139,0.06)" },
   "in-progress": { accent: "#22d3ee", badge: "rgba(34,211,238,0.15)",  bg: "rgba(34,211,238,0.05)"  },
   "blocked":     { accent: "#f59e0b", badge: "rgba(245,158,11,0.15)",  bg: "rgba(245,158,11,0.05)"  },
+  // CS-76: Revisão — GitHub-owned projection of open PRs, always read-only.
+  "review":      { accent: "#a78bfa", badge: "rgba(167,139,250,0.15)", bg: "rgba(167,139,250,0.05)" },
   "done":        { accent: "#4ade80", badge: "rgba(74,222,128,0.15)",  bg: "rgba(74,222,128,0.04)"  },
 };
 
@@ -137,15 +139,29 @@ function KanbanCardItem({
         position: "relative",
       }}
     >
-      {/* CS number + grip (grip hidden when not draggable — read-only mode) */}
+      {/* CS number + origin chip + grip (grip hidden when not draggable) */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <span style={{
-          fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
-          background: colAccent + "22", color: colAccent,
-          border: `1px solid ${colAccent}44`,
-          padding: "2px 7px", borderRadius: 4,
-        }}>
-          {card.csNumber}
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
+            background: colAccent + "22", color: colAccent,
+            border: `1px solid ${colAccent}44`,
+            padding: "2px 7px", borderRadius: 4,
+          }}>
+            {card.csNumber}
+          </span>
+          {/* CS-76: origin tag — blue "local" (Postgres, editable) vs green "github" (locked) */}
+          <span title={isLocalColumn(card.columnId)
+            ? "Origem: camada local (Postgres) — editável"
+            : "Origem: GitHub — travado (o Git é dono deste card)"}
+            style={{
+              fontSize: 9, fontWeight: 600, letterSpacing: "0.04em",
+              color: isLocalColumn(card.columnId) ? "#60a5fa" : "#4ade80",
+              background: isLocalColumn(card.columnId) ? "rgba(96,165,250,0.12)" : "rgba(74,222,128,0.12)",
+              padding: "2px 6px", borderRadius: 4,
+            }}>
+            {isLocalColumn(card.columnId) ? "local" : "github"}
+          </span>
         </span>
         {draggable && <IconGripVertical size={13} style={{ color: "var(--color-f4)", opacity: hov ? 1 : 0.4 }} />}
       </div>
@@ -176,10 +192,25 @@ function KanbanCardItem({
         const commentCount = card.comments.filter(c => c.type === "comment").length;
         const showDue = card.dueAt && card.columnId !== "done";
         const due = showDue ? dueChip(card.dueAt!) : null;
-        const hasFooter = card.version || card.commitHash || card.completedAt || checkTotal > 0 || showDue || commentCount > 0;
+        const hasFooter = card.version || card.commitHash || card.completedAt || checkTotal > 0 || showDue || commentCount > 0 || card.prNumber;
         if (!hasFooter) return null;
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            {/* CS-76: PR reference — links straight to the pull request */}
+            {card.prNumber != null && (
+              <a
+                href={`https://github.com/RudneyForti/Lyfx/pull/${card.prNumber}`}
+                target="_blank" rel="noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{
+                  fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 3,
+                  color: "#a78bfa", background: "rgba(167,139,250,0.12)",
+                  padding: "1px 6px", borderRadius: 4, textDecoration: "none",
+                }}>
+                <IconBrandGit size={10} />
+                #{card.prNumber}
+              </a>
+            )}
             {card.version && (
               <span style={{ fontSize: 10, color: "var(--color-f4)", display: "flex", alignItems: "center", gap: 3 }}>
                 <IconCheck size={10} />
@@ -517,7 +548,9 @@ function CardModal({
                 }}
                 style={selectStyle}
               >
-                {columns.map(c => (
+                {/* CS-76: a local card can only move between local columns —
+                    review/done are GitHub-owned and entered via PR/merge only. */}
+                {columns.filter(c => isLocalColumn(c.id) || c.id === draft.columnId).map(c => (
                   <option key={c.id} value={c.id}>{c.title}</option>
                 ))}
               </select>
@@ -777,6 +810,7 @@ function NewCardForm({ columnId, onAdd, onCancel, accent }: {
       dueAt:       null,
       checklist:   [],
       comments:    [],
+      prNumber:    null,
     };
     onAdd(card);
   }
@@ -1199,7 +1233,19 @@ export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialB
             <code style={{ fontSize: 11, color: "var(--color-cyan)" }}>Postgres</code>
             {" · "}
             {board.cards.filter(c => c.columnId === "done").length} concluídos{" "}
-            <code style={{ fontSize: 11, color: "var(--color-cyan)" }}>git</code>
+            <code style={{ fontSize: 11, color: "var(--color-cyan)" }}>GitHub</code>
+            {/* CS-76: offline fallback warning — the git-owned view may lag origin/main */}
+            {board.stale && (
+              <span style={{
+                marginLeft: 8, fontSize: 10, fontWeight: 600,
+                color: "#f59e0b", background: "rgba(245,158,11,0.12)",
+                border: "1px solid rgba(245,158,11,0.35)",
+                padding: "2px 8px", borderRadius: 5,
+              }}>
+                <IconAlertTriangle size={10} style={{ display: "inline", verticalAlign: "-1px", marginRight: 3 }} />
+                offline — cópia local, pode estar defasada
+              </span>
+            )}
             {saving && <span style={{ marginLeft: 8, color: "var(--color-f4)" }}>
               <IconLoader2 size={10} style={{ animation: "spin 1s linear infinite", display: "inline", marginRight: 3 }} />
               salvando…
@@ -1254,7 +1300,7 @@ export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialB
           return (
             <div
               key={col.id}
-              onDragOver={e => { if (assisted) return; e.preventDefault(); setDragOverCol(col.id); }}
+              onDragOver={e => { if (assisted || !isLocalColumn(col.id)) return; e.preventDefault(); setDragOverCol(col.id); }}
               onDragLeave={() => setDragOverCol(null)}
               onDrop={() => { if (!assisted) handleDrop(col.id); }}
               style={{
@@ -1304,8 +1350,8 @@ export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialB
                       : <><IconSortDescending size={13} /><span style={{ fontSize: 9, letterSpacing: "0.03em" }}>novas</span></>
                     }
                   </button>
-                  {/* Add card — hidden in assisted (read-only) mode */}
-                  {!assisted && (
+                  {/* Add card — only on local (editable) columns, never in assisted mode */}
+                  {!assisted && isLocalColumn(col.id) && (
                     <button
                       onClick={() => setAddingIn(addingIn === col.id ? null : col.id)}
                       title="Adicionar card"
@@ -1413,7 +1459,11 @@ export function KanbanBoard({ initialBoard, initialAssisted = true }: { initialB
                   padding: "20px 12px", textAlign: "center",
                   color: "var(--color-f4)", fontSize: 12,
                 }}>
-                  Solte um card aqui
+                  {isLocalColumn(col.id)
+                    ? "Solte um card aqui"
+                    : col.id === "review"
+                      ? "Nenhuma PR aberta"   // CS-76: projected from GitHub, not a drop target
+                      : "Vazio"}
                 </div>
               )}
             </div>
